@@ -1,5 +1,6 @@
 import {z} from 'zod';
 
+// --- Tipos Base ---
 export type SalesEntry = {
   id: string;
   date: Date;
@@ -8,27 +9,35 @@ export type SalesEntry = {
   productsPerService: number;
 };
 
-export type Seller = {
-  id: string;
+export type UserRole = 'admin' | 'seller';
+
+export interface BaseUser {
+  id: string; // Corresponde ao UID do Firebase Auth
   name: string;
+  email: string;
+  role: UserRole;
+}
+
+export interface Seller extends BaseUser {
+  role: 'seller';
   nickname?: string;
-  email?: string;
-  password?: string;
   salesValue: number;
   ticketAverage: number;
   pa: number;
   points: number;
   extraPoints: number;
   hasCompletedQuiz?: boolean;
-  lastCourseCompletionDate?: string; // YYYY-MM-DD
-};
+  lastCourseCompletionDate?: string;
+  completedCourseIds?: string[];
+  workSchedule?: { [key: string]: string };
+}
 
-export type Admin = {
+export interface Admin extends BaseUser {
+  role: 'admin';
   nickname: string;
-  email?: string;
-  password: string;
-};
+}
 
+// --- Tipos de Metas e Missões ---
 export type GoalLevel = {
   threshold: number;
   prize: number;
@@ -73,7 +82,6 @@ export type Goals = {
   gamification: GamificationPoints;
 };
 
-
 export type Mission = {
   id: string;
   name: string;
@@ -91,34 +99,28 @@ export type CycleSnapshot = {
   goals: Goals;
 }
 
-// AI Flow Schemas
+export type Offer = {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  originalPrice?: number;
+  promotionalPrice: number;
+  startDate: Date;
+  expirationDate: Date;
+  isActive: boolean;
+  category: string;
+  productCode?: string;
+  reference?: string;
+  isFlashOffer?: boolean;
+  isBestSeller?: boolean;
+  createdAt?: any;
+  updatedAt?: any;
+};
 
-// Analyze Sales Trends
-export const AnalyzeSalesTrendsInputSchema = z.object({
-  salesData: z
-    .string()
-    .describe(
-      `Sales data in JSON format containing sales value, ticket average, and products per service.
-      Example: [{
-        "date": "2024-01-01",
-        "salesValue": 1000,
-        "ticketAverage": 100,
-        "productsPerService": 2
-      }]`
-    ),
-  timeFrame: z.enum(['weekly', 'monthly']).describe('Time frame for analysis.'),
-});
-export type AnalyzeSalesTrendsInput = z.infer<typeof AnalyzeSalesTrendsInputSchema>;
+// --- Esquemas de Fluxo de IA ---
 
-export const AnalyzeSalesTrendsOutputSchema = z.object({
-  summary: z.string().describe('A summary of the sales trends and anomalies.'),
-  topProducts: z.string().describe('List of top-performing products based on the sales data.'),
-  insights: z.string().describe('Key insights into what is driving sales performance.'),
-});
-export type AnalyzeSalesTrendsOutput = z.infer<typeof AnalyzeSalesTrendsOutputSchema>;
-
-
-// Generate Quiz (For Quiz Page)
+// Esquema para Gerar Quiz
 export const QuizQuestionSchema = z.object({
   questionText: z.string().describe('The text of the quiz question.'),
   options: z.array(z.string()).min(4).max(4).describe('A list of four possible answers for the question.'),
@@ -141,7 +143,7 @@ export const GenerateQuizOutputSchema = z.object({
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
 
-// Generate Course (For Academia Page)
+// Esquema para Gerar Curso
 export const CourseQuizQuestionSchema = z.object({
   question: z.string(),
   options: z.array(z.string()),
@@ -163,24 +165,13 @@ export const GenerateCourseInputSchema = z.object({
 });
 export type GenerateCourseInput = z.infer<typeof GenerateCourseInputSchema>;
 
-
-// Password Reset
-export const PasswordResetInputSchema = z.object({
-  identifier: z.string().describe('The admin nickname or email to send the reset link to.'),
-});
-export type PasswordResetInput = z.infer<typeof PasswordResetInputSchema>;
-
-export const PasswordResetOutputSchema = z.object({
-    success: z.boolean(),
-    message: z.string(),
-});
-export type PasswordResetOutput = z.infer<typeof PasswordResetOutputSchema>;
-
-
-// Component-specific types
-export type Course = GenerateCourseOutput & {
+// --- Tipos Específicos de Componentes ---
+export type Course = {
   id: string;
-  points: number; // Manually added in the component
+  title: string;
+  content: string;
+  quiz: QuizQuestion[];
+  points: number;
   dificuldade?: 'Fácil' | 'Médio' | 'Difícil';
 };
 

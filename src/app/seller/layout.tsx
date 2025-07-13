@@ -3,16 +3,17 @@
 import * as React from 'react';
 import {usePathname, useRouter} from 'next/navigation';
 import {
-  GraduationCap,
   LayoutGrid,
   LogOut,
-  Puzzle,
   Target,
   Trophy,
   ShoppingBag,
   History,
   Loader2,
   User,
+  GraduationCap,
+  Puzzle,
+  CalendarDays
 } from 'lucide-react';
 
 import {
@@ -32,6 +33,9 @@ import {Logo} from '@/components/icons/logo';
 import {cn} from '@/lib/utils';
 import type {Seller, Goals, Mission, CycleSnapshot} from '@/lib/types';
 import {dataStore, useStore} from '@/lib/store';
+import { auth, db } from '@/lib/firebase';
+import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot } from 'firebase/firestore';
 
 interface SellerContextType {
   sellers: Seller[];
@@ -40,6 +44,8 @@ interface SellerContextType {
   missions: Mission[];
   currentSeller: Seller;
   cycleHistory: CycleSnapshot[];
+  isAuthReady: boolean;
+  userId: string | null;
 }
 
 export const SellerContext = React.createContext<SellerContextType | null>(
@@ -56,8 +62,12 @@ export const useSellerContext = () => {
 
 const menuItems = [
   {href: '/seller/dashboard', label: 'Dashboard', icon: LayoutGrid},
+  {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays},
+  {href: '/seller/ofertas', label: 'Ofertas', icon: ShoppingBag},
   {href: '/seller/ranking', label: 'Meu Desempenho', icon: Trophy},
   {href: '/seller/missions', label: 'Missões', icon: Target},
+  {href: '/seller/academia', label: 'Academia', icon: GraduationCap},
+  {href: '/seller/quiz', label: 'Quiz', icon: Puzzle},
   {href: '/seller/historico', label: 'Histórico', icon: History},
   {href: '/seller/perfil', label: 'Meu Perfil', icon: User},
 ];
@@ -78,6 +88,7 @@ const SellerSidebarContent = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('loggedInSellerId');
     }
+    auth.signOut();
     router.push('/login');
      if (isMobile) {
       setOpenMobile(false);
@@ -138,23 +149,62 @@ export default function SellerLayout({children}: {children: React.ReactNode}) {
   const state = useStore(s => s);
 
   const [currentSeller, setCurrentSeller] = React.useState<Seller | null>(null);
-  const [isClient, setIsClient] = React.useState(false);
+  const [isAuthReady, setIsAuthReady] = React.useState(false);
+  const [userId, setUserId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    setIsClient(true);
-    const sellerId = localStorage.getItem('loggedInSellerId');
-    if (sellerId) {
-      const foundSeller = state.sellers.find(s => s.id === sellerId);
-      if (foundSeller) {
-        setCurrentSeller(foundSeller);
+    const authSubscription = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        // A autenticação está pronta, agora podemos buscar os dados dos vendedores
+        setIsAuthReady(true);
       } else {
-        localStorage.removeItem('loggedInSellerId');
-        router.push('/login');
+        try {
+          const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+          if (token) {
+            await signInWithCustomToken(auth, token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (error: any) {
+           if (error.code === 'auth/operation-not-allowed') {
+                console.error("Firebase Sign-In Falhou: O login anónimo não está habilitado no painel do Firebase.");
+            } else {
+                console.error("Firebase sign-in failed:", error);
+            }
+        }
       }
-    } else {
-      router.push('/login');
-    }
-  }, [state.sellers, router]);
+    });
+
+    return () => authSubscription();
+  }, []);
+
+  React.useEffect(() => {
+    if (!isAuthReady) return;
+
+    const sellersCol = collection(db, 'sellers');
+    const unsubscribe = onSnapshot(sellersCol, (snapshot) => {
+        const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
+        dataStore.setSellers(() => sellersFromDb);
+
+        // Após carregar os vendedores, encontramos o vendedor atual
+        const sellerId = localStorage.getItem('loggedInSellerId');
+        if (sellerId) {
+          const foundSeller = sellersFromDb.find(s => s.id === sellerId);
+          if (foundSeller) {
+            setCurrentSeller(foundSeller);
+          } else {
+            router.push('/login');
+          }
+        } else {
+          router.push('/login');
+        }
+    }, (error) => {
+        console.error("Erro ao sincronizar vendedores:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady, router]);
 
   const contextValue = React.useMemo(() => ({
     sellers: state.sellers,
@@ -163,13 +213,15 @@ export default function SellerLayout({children}: {children: React.ReactNode}) {
     missions: state.missions,
     currentSeller: currentSeller!,
     cycleHistory: state.cycleHistory,
-  }), [state.sellers, state.goals, state.missions, currentSeller, state.cycleHistory]);
+    isAuthReady,
+    userId
+  }), [state.sellers, state.goals, state.missions, currentSeller, state.cycleHistory, isAuthReady, userId]);
 
-  if (!isClient || !currentSeller) {
+  if (!isAuthReady || !currentSeller) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        Carregando dados do vendedor...
+        A carregar dados do vendedor...
       </div>
     );
   }

@@ -1,34 +1,24 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
-// -----------------------------------------------------------------------------
-// 🚨 ATENÇÃO: CONFIGURAÇÃO DO FIREBASE 🚨
-// -----------------------------------------------------------------------------
-// As chaves abaixo são apenas placeholders. Você PRECISA substituí-las pelas
-// credenciais REAIS do seu projeto Firebase para que as funcionalidades
-// que dependem do Firestore (como cache de quizzes e histórico) funcionem.
-//
-// Você pode encontrar essas informações nas configurações do seu projeto Firebase:
-// Project Settings > General > Your apps > Web app > SDK setup and configuration
-// -----------------------------------------------------------------------------
+// A sua configuração do Firebase
+// Lembre-se de criar um arquivo .env.local na raiz do projeto com suas chaves
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_PROJECT_ID.appspot.com',
-  messagingSenderId: 'YOUR_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-let app;
+// Inicializa o Firebase de forma segura (evita reinicialização)
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
+const auth = getAuth(app);
+const storage = getStorage(app);
 
-// This check prevents the app from being initialized multiple times,
-// which can happen in a development environment with hot-reloading.
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-
-export const db = getFirestore(app);
+// Exporta as instâncias para serem usadas em outras partes do aplicativo
+export { db, auth, storage };

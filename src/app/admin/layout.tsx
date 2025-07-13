@@ -14,6 +14,7 @@ import {
   History,
   Loader2,
   User,
+  CalendarDays
 } from 'lucide-react';
 
 import {
@@ -43,8 +44,10 @@ import {Logo} from '@/components/icons/logo';
 import {cn} from '@/lib/utils';
 import type {Admin, Goals, Mission, Seller, CycleSnapshot} from '@/lib/types';
 import {dataStore, useStore} from '@/lib/store';
+import { auth, db } from '@/lib/firebase';
+import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot } from 'firebase/firestore';
 
-// Context Definition
 interface AdminContextType {
   sellers: Seller[];
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
@@ -58,6 +61,8 @@ interface AdminContextType {
   setIsDirty: (isDirty: boolean) => void;
   cycleHistory: CycleSnapshot[];
   setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => void;
+  isAuthReady: boolean;
+  userId: string | null;
 }
 
 const AdminContext = React.createContext<AdminContextType | null>(null);
@@ -73,10 +78,11 @@ export const useAdminContext = () => {
 const menuItems = [
   {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid},
   {href: '/admin/ranking', label: 'Ranking', icon: Trophy},
+  {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays},
   {href: '/admin/missions', label: 'Missões', icon: Target},
   {href: '/admin/academia', label: 'Academia', icon: GraduationCap},
   {href: '/admin/quiz', label: 'Quiz', icon: Puzzle},
-  {href: '/admin/loja', label: 'Loja', icon: ShoppingBag},
+  {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag},
   {href: '/admin/historico', label: 'Histórico', icon: History},
   {href: '/admin/perfil', label: 'Perfil', icon: User},
   {href: '/admin/settings', label: 'Configurações', icon: Shield},
@@ -116,6 +122,7 @@ function AdminLayoutContent({
       if (typeof window !== 'undefined') {
         localStorage.removeItem('loggedInSellerId');
       }
+      auth.signOut();
       router.push(logoutPath);
     }
     if (isMobile) {
@@ -128,6 +135,7 @@ function AdminLayoutContent({
       setIsDirty(false);
       if (pendingPath === '/login' && typeof window !== 'undefined') {
         localStorage.removeItem('loggedInSellerId');
+        auth.signOut();
       }
       router.push(pendingPath);
       setPendingPath(null);
@@ -205,7 +213,7 @@ function AdminLayoutContent({
           <AlertDialogHeader>
             <AlertDialogTitle>Você tem alterações não salvas</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza de que deseja sair? Suas alterações serão perdidas.
+              Tem certeza de que deseja sair? As suas alterações serão perdidas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -224,10 +232,50 @@ export default function AdminLayout({children}: {children: React.ReactNode}) {
   const state = useStore(s => s);
   const [isClient, setIsClient] = React.useState(false);
   const [isDirty, setIsDirty] = React.useState(false);
+  const [isAuthReady, setIsAuthReady] = React.useState(false);
+  const [userId, setUserId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setIsClient(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        setIsAuthReady(true);
+      } else {
+        try {
+          const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+          if (token) {
+            await signInWithCustomToken(auth, token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (error: any) {
+          if (error.code === 'auth/operation-not-allowed') {
+            console.error("Firebase Sign-In Falhou: O login anónimo não está habilitado no painel do Firebase.");
+          } else {
+            console.error("Firebase sign-in failed:", error);
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
+
+  // Efeito para carregar e sincronizar os vendedores do Firestore
+  React.useEffect(() => {
+    if (!isAuthReady) return;
+
+    const sellersCol = collection(db, 'sellers');
+    const unsubscribe = onSnapshot(sellersCol, (snapshot) => {
+        const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
+        dataStore.setSellers(() => sellersFromDb);
+    }, (error) => {
+        console.error("Erro ao sincronizar vendedores:", error);
+    });
+
+    return () => unsubscribe();
+  }, [isAuthReady]);
 
   const contextValue = React.useMemo(() => ({
     sellers: state.sellers,
@@ -242,13 +290,15 @@ export default function AdminLayout({children}: {children: React.ReactNode}) {
     setCycleHistory: dataStore.setCycleHistory,
     isDirty,
     setIsDirty,
-  }), [state.sellers, state.goals, state.missions, state.adminUser, state.cycleHistory, isDirty]);
+    isAuthReady,
+    userId
+  }), [state.sellers, state.goals, state.missions, state.adminUser, state.cycleHistory, isDirty, isAuthReady, userId]);
 
-  if (!isClient) {
+  if (!isClient || !isAuthReady) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
         <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        Carregando...
+        A autenticar...
       </div>
     );
   }
