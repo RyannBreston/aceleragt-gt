@@ -8,13 +8,12 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import Link from 'next/link';
 
-// Este código deve ser guardado num local seguro no futuro (ex: Váriaveis de Ambiente)
 const ADMIN_CREATION_CODE = "SUPERMODA_ADMIN_2024";
 
 export default function SignupPage() {
@@ -34,14 +33,12 @@ export default function SignupPage() {
         toast({
             variant: 'destructive',
             title: 'Código de Administrador Inválido',
-            description: 'Não tem permissão para criar uma conta de administrador.',
         });
         setIsLoading(false);
         return;
     }
 
     try {
-      // Verificar se já existe um admin
       const q = query(collection(db, "users"), where("role", "==", "admin"), limit(1));
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
@@ -54,11 +51,9 @@ export default function SignupPage() {
           return;
       }
 
-      // Criar utilizador no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Criar documento do utilizador no Firestore com o papel de 'admin'
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, {
         uid: user.uid,
@@ -96,12 +91,10 @@ export default function SignupPage() {
     <div className="flex items-center justify-center min-h-screen bg-background">
       <Card className="mx-auto max-w-sm bg-card border-border">
         <CardHeader>
-          <div className="flex justify-center mb-4">
-            <Logo />
-          </div>
+          <div className="flex justify-center mb-4"><Logo /></div>
           <CardTitle className="text-2xl text-center">Criar Conta de Administrador</CardTitle>
           <CardDescription className="text-center">
-            Esta página destina-se apenas à criação da conta principal de administrador.
+            Página para criação da conta principal de administrador.
           </CardDescription>
         </CardHeader>
         <CardContent>

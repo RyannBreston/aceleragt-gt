@@ -29,35 +29,37 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Verificar o papel do utilizador no Firestore
+      // Após o login, verificar o papel do utilizador na coleção 'users'
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.role === 'admin') {
-          router.push('/admin');
-        } else {
-          localStorage.setItem('loggedInSellerId', user.uid);
-          router.push('/seller');
-        }
-      } else {
-        // Fallback para verificar se é um vendedor na coleção 'sellers'
-        const sellerDocRef = doc(db, 'sellers', user.uid);
-        const sellerDoc = await getDoc(sellerDocRef);
-        if (sellerDoc.exists()) {
-            localStorage.setItem('loggedInSellerId', user.uid);
-            router.push('/seller');
-        } else {
-            throw new Error("Perfil de utilizador não encontrado no Firestore.");
-        }
+      if (!userDoc.exists()) {
+        throw new Error("Perfil de utilizador não encontrado no Firestore. A conta de login existe, mas os dados do perfil não. Contacte o administrador.");
       }
+      
+      const userData = userDoc.data();
+      if (userData.role === 'admin') {
+        // Limpar qualquer ID de vendedor de sessões anteriores
+        localStorage.removeItem('loggedInSellerId');
+        router.push('/admin');
+      } else if (userData.role === 'seller') {
+        // Definir o ID do vendedor no localStorage para que o layout do vendedor o possa encontrar
+        localStorage.setItem('loggedInSellerId', user.uid);
+        router.push('/seller');
+      } else {
+        throw new Error("O seu perfil não tem um papel de utilizador válido (admin/seller).");
+      }
+
     } catch (error: any) {
       console.error("Erro de login:", error);
+      let errorMessage = 'Email ou senha inválidos. Por favor, tente novamente.';
+      if (error.message.includes("Firestore")) {
+        errorMessage = error.message;
+      }
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'Email ou senha inválidos. Por favor, tente novamente.',
+        description: errorMessage,
       });
       setIsLoading(false);
     }

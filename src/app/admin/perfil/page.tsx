@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserCog, Users, PlusCircle, Loader2 } from "lucide-react";
+import { UserCog, Users, PlusCircle, Loader2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from "../layout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 
 export default function PerfilPage() {
@@ -38,13 +38,13 @@ export default function PerfilPage() {
 
         setIsLoading(true);
         try {
-            // Criar utilizador no Firebase Auth
             // NOTA: Esta abordagem cria um utilizador temporário no cliente.
-            // Para produção, o ideal seria usar uma Cloud Function para criar utilizadores.
+            // Para produção, o ideal seria usar uma Cloud Function para criar utilizadores
+            // e outra para apagar, de modo a manter o Auth e o Firestore sincronizados.
             const userCredential = await createUserWithEmailAndPassword(auth, newSeller.email, newSeller.password);
             const user = userCredential.user;
 
-            // Criar documento do vendedor no Firestore
+            // Criar documento do vendedor na coleção 'sellers'
             const sellerDocRef = doc(db, 'sellers', user.uid);
             await setDoc(sellerDocRef, {
                 id: user.uid,
@@ -60,10 +60,12 @@ export default function PerfilPage() {
                 workSchedule: {},
             });
 
-            // Criar documento de papel para o vendedor
+            // Criar documento de papel na coleção 'users'
             const userDocRef = doc(db, 'users', user.uid);
             await setDoc(userDocRef, {
-                role: 'seller'
+                role: 'seller',
+                email: newSeller.email,
+                name: newSeller.name,
             });
 
             toast({
@@ -81,6 +83,31 @@ export default function PerfilPage() {
             toast({ variant: 'destructive', title: 'Falha no Registo', description });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDeleteSeller = async (sellerId: string) => {
+        if (window.confirm('Tem a certeza que deseja apagar este vendedor? Esta ação irá remover permanentemente os seus dados da base de dados, mas não a sua conta de login. A remoção da conta de login deve ser feita manually no painel do Firebase.')) {
+            try {
+                // Apagar o documento do vendedor da coleção 'sellers'
+                await deleteDoc(doc(db, 'sellers', sellerId));
+                
+                // Apagar o documento do utilizador da coleção 'users'
+                await deleteDoc(doc(db, 'users', sellerId));
+
+                toast({
+                    title: 'Vendedor Apagado',
+                    description: 'O registo do vendedor foi apagado com sucesso da base de dados.',
+                });
+                // O onSnapshot no layout irá tratar de atualizar a UI.
+            } catch (error) {
+                console.error("Erro ao apagar vendedor: ", error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao Apagar',
+                    description: 'Não foi possível apagar o vendedor da base de dados.',
+                });
+            }
         }
     };
 
@@ -137,6 +164,7 @@ export default function PerfilPage() {
                         <TableRow>
                             <TableHead>Nome</TableHead>
                             <TableHead>Email</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -144,10 +172,15 @@ export default function PerfilPage() {
                             <TableRow key={seller.id}>
                                 <TableCell className="font-medium">{seller.name}</TableCell>
                                 <TableCell>{seller.email}</TableCell>
+                                <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSeller(seller.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </TableCell>
                             </TableRow>
                         )) : (
                             <TableRow>
-                                <TableCell colSpan={2} className="text-center h-24">
+                                <TableCell colSpan={3} className="text-center h-24">
                                     {isAuthReady ? "Nenhum vendedor registado." : <Loader2 className="mx-auto h-6 w-6 animate-spin" />}
                                 </TableCell>
                             </TableRow>

@@ -34,7 +34,7 @@ import {cn} from '@/lib/utils';
 import type {Seller, Goals, Mission, CycleSnapshot} from '@/lib/types';
 import {dataStore, useStore} from '@/lib/store';
 import { auth, db } from '@/lib/firebase';
-import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot } from 'firebase/firestore';
 
 interface SellerContextType {
@@ -152,59 +152,55 @@ export default function SellerLayout({children}: {children: React.ReactNode}) {
   const [isAuthReady, setIsAuthReady] = React.useState(false);
   const [userId, setUserId] = React.useState<string | null>(null);
 
+  // Efeito para gerir o estado de autenticação
   React.useEffect(() => {
-    const authSubscription = onAuthStateChanged(auth, async (user) => {
+    const authSubscription = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setUserId(user.uid);
-        // A autenticação está pronta, agora podemos buscar os dados dos vendedores
-        setIsAuthReady(true);
+        setUserId(user.uid); // Define o ID do utilizador autenticado
       } else {
-        try {
-          const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-          if (token) {
-            await signInWithCustomToken(auth, token);
-          } else {
-            await signInAnonymously(auth);
-          }
-        } catch (error: any) {
-           if (error.code === 'auth/operation-not-allowed') {
-                console.error("Firebase Sign-In Falhou: O login anónimo não está habilitado no painel do Firebase.");
-            } else {
-                console.error("Firebase sign-in failed:", error);
-            }
-        }
+        // Se não houver utilizador, redireciona para o login
+        router.push('/login');
       }
     });
-
     return () => authSubscription();
-  }, []);
+  }, [router]);
 
+  // Efeito para carregar os vendedores e definir o vendedor atual, dependente do userId
   React.useEffect(() => {
-    if (!isAuthReady) return;
+    // Só executa se o utilizador estiver autenticado (userId está definido)
+    if (!userId) return;
 
     const sellersCol = collection(db, 'sellers');
     const unsubscribe = onSnapshot(sellersCol, (snapshot) => {
         const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
-        dataStore.setSellers(() => sellersFromDb);
+        dataStore.setSellers(() => sellersFromDb); // Atualiza o estado global
 
-        // Após carregar os vendedores, encontramos o vendedor atual
+        // Agora, com a lista de vendedores atualizada, encontramos o vendedor atual
         const sellerId = localStorage.getItem('loggedInSellerId');
         if (sellerId) {
           const foundSeller = sellersFromDb.find(s => s.id === sellerId);
           if (foundSeller) {
             setCurrentSeller(foundSeller);
+            setIsAuthReady(true); // Tudo pronto, podemos renderizar
           } else {
+            // O ID do localStorage não corresponde a nenhum vendedor
+            console.error("ID do vendedor inválido no localStorage. A fazer logout.");
+            auth.signOut();
             router.push('/login');
           }
         } else {
-          router.push('/login');
+            // Não há ID no localStorage, não podemos continuar
+            console.error("Nenhum ID de vendedor no localStorage. A fazer logout.");
+            auth.signOut();
+            router.push('/login');
         }
     }, (error) => {
         console.error("Erro ao sincronizar vendedores:", error);
+        router.push('/login'); // Em caso de erro, redireciona para o login
     });
 
     return () => unsubscribe();
-  }, [isAuthReady, router]);
+  }, [userId, router]); // Este efeito depende do userId para ser executado
 
   const contextValue = React.useMemo(() => ({
     sellers: state.sellers,

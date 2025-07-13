@@ -175,7 +175,9 @@ export default function AdminWorkSchedulePage() {
                                                             </SelectTrigger>
                                                             <SelectContent>
                                                                 <SelectItem value="N/D">N/D</SelectItem>
-                                                                {shiftDefinitions.map(def => <SelectItem key={def.id} value={def.name}>{def.name}</SelectItem>)}
+                                                                {shiftDefinitions
+                                                                    .filter(def => def.name && def.name.trim() !== '') // Filtra turnos com nome vazio
+                                                                    .map(def => <SelectItem key={def.id} value={def.name}>{def.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </TableCell>
@@ -204,8 +206,8 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
     }, [definitions]);
 
     const handleAddShift = async () => {
-        if (!newShift.name || !newShift.time) {
-            toast({ variant: 'destructive', title: 'Campos obrigatórios' });
+        if (!newShift.name.trim() || !newShift.time.trim()) {
+            toast({ variant: 'destructive', title: 'Campos obrigatórios', description: 'O nome e o horário do turno não podem ser vazios.' });
             return;
         }
         try {
@@ -218,6 +220,15 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
     };
     
     const handleUpdateShift = async (id: string, field: keyof Omit<ShiftDefinition, 'id'>, value: string) => {
+        if (field === 'name' && value.trim() === '') {
+            toast({
+                variant: 'destructive',
+                title: 'Nome Inválido',
+                description: 'O nome do turno não pode ser vazio.',
+            });
+            return;
+        }
+
         const shiftRef = doc(db, collectionPath, id);
         try {
             await updateDoc(shiftRef, { [field]: value });
@@ -250,8 +261,8 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
                 <div className="space-y-4 py-4">
                     {localDefs.map((def) => (
                         <div key={def.id} className="flex items-center gap-2">
-                            <Input value={def.name} onChange={(e) => handleUpdateShift(def.id, 'name', e.target.value)} placeholder="Nome do Turno" />
-                            <Input value={def.time} onChange={(e) => handleUpdateShift(def.id, 'time', e.target.value)} placeholder="Horário (ex: 08:00-14:00)" />
+                            <Input defaultValue={def.name} onBlur={(e) => handleUpdateShift(def.id, 'name', e.target.value)} placeholder="Nome do Turno" />
+                            <Input defaultValue={def.time} onBlur={(e) => handleUpdateShift(def.id, 'time', e.target.value)} placeholder="Horário (ex: 08:00-14:00)" />
                             <Select value={def.color} onValueChange={(color) => handleUpdateShift(def.id, 'color', color)}>
                                 <SelectTrigger className={cn("w-[120px]", shiftColors[def.color])}><SelectValue /></SelectTrigger>
                                 <SelectContent>
