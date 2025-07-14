@@ -13,6 +13,7 @@ import { useSellerContext } from '@/app/seller/layout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Certificate } from '@/components/Certificate'; // Importação atualizada
 
 type Dificuldade = 'Fácil' | 'Médio' | 'Difícil';
 

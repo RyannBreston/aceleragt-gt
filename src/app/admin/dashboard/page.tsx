@@ -1,14 +1,14 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, Trophy, DollarSign, LayoutGrid, Star, Ticket, Box, Crown, Flag } from "lucide-react";
+import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag } from "lucide-react";
 import { useAdminContext } from '@/app/admin/layout';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-
+import AiInsights from '@/components/ai-insights';
 
 const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals }) => {
   const goalTiers = ['lendaria', 'metona', 'meta', 'metinha'] as const;
@@ -37,7 +37,7 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
         for (const tier of goalTiers) {
           if (sellerValue >= goals[criterion][tier].threshold && goals[criterion][tier].threshold > 0) {
             tierAchieved = tier;
-            break; // Stop at the highest tier achieved
+            break; // Para na meta mais alta atingida
           }
         }
         result[criterion][tierAchieved]++;
@@ -92,10 +92,6 @@ export default function DashboardPage() {
   const { sellers: sellersData, goals } = useAdminContext();
 
   const { 
-    bestSellerByValue,
-    bestSellerByTicket,
-    bestSellerByPA,
-    bestSellerByPoints,
     totalSellers,
     currentSales,
     totalPoints,
@@ -106,10 +102,6 @@ export default function DashboardPage() {
     
     if (totalSellers === 0) {
       return {
-        bestSellerByValue: { name: "Nenhum", salesValue: 0 },
-        bestSellerByTicket: { name: "Nenhum", ticketAverage: 0 },
-        bestSellerByPA: { name: "Nenhum", pa: 0 },
-        bestSellerByPoints: { name: "Nenhum", points: 0, extraPoints: 0, totalPoints: 0 },
         totalSellers: 0,
         currentSales: 0,
         totalPoints: 0,
@@ -123,13 +115,7 @@ export default function DashboardPage() {
     const totalTicket = sellersData.reduce((acc, seller) => acc + seller.ticketAverage, 0);
     const totalPA = sellersData.reduce((acc, seller) => acc + seller.pa, 0);
 
-    const sellersWithTotalPoints = sellersData.map(s => ({ ...s, totalPoints: s.points + s.extraPoints }));
-
     return { 
-      bestSellerByValue: sellersData.reduce((prev, current) => (prev.salesValue > current.salesValue) ? prev : current),
-      bestSellerByTicket: sellersData.reduce((prev, current) => (prev.ticketAverage > current.ticketAverage) ? prev : current),
-      bestSellerByPA: sellersData.reduce((prev, current) => (prev.pa > current.pa) ? prev : current),
-      bestSellerByPoints: sellersWithTotalPoints.reduce((prev, current) => (prev.totalPoints > current.totalPoints) ? prev : current),
       totalSellers,
       currentSales,
       totalPoints,
@@ -227,7 +213,10 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <SalesOverviewChart sellers={sellersData} />
         </div>
-        <GoalDistribution sellers={sellersData} goals={goals} />
+        <div className="space-y-4">
+            <GoalDistribution sellers={sellersData} goals={goals} />
+            <AiInsights sellers={sellersData} />
+        </div>
       </div>
     </div>
   );

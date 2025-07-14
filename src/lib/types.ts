@@ -90,6 +90,10 @@ export type Mission = {
   rewardType: 'points' | 'cash';
   startDate: Date;
   endDate: Date;
+  // --- CAMPOS ADICIONADOS ---
+  criterion: 'salesValue' | 'ticketAverage' | 'pa' | 'points'; // O que será medido
+  target: number; // O valor a ser atingido
+  completedBy: string[]; // Lista de IDs de vendedores que já resgataram
 };
 
 export type CycleSnapshot = {
@@ -182,3 +186,51 @@ export type QuizResult = {
   total: number;
   date: string;
 };
+
+// ... (restante do código do ficheiro)
+
+// --- Tipos para Loja de Prémios ---
+export type PrizeItem = {
+  id: string;
+  name: string;
+  description: string;
+  points: number;
+  imageUrl?: string;
+  stock?: number;
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+// ... (código anterior do ficheiro)
+
+// --- Tipos para Loja de Prémios ---
+export type PrizeItem = {
+  id: string;
+  name: string;
+  description: string;
+  points: number;
+  imageUrl?: string;
+  stock?: number;
+  createdAt?: any;
+  updatedAt?: any;
+};
+
+// --- Tipos para Análise de Vendas com IA ---
+export const AnalyzeSalesTrendsInputSchema = z.object({
+  salesData: z.string().describe('JSON string of sales entries.'),
+  timeFrame: z.enum(['weekly', 'monthly']),
+});
+export type AnalyzeSalesTrendsInput = z.infer<typeof AnalyzeSalesTrendsInputSchema>;
+
+export const AnalyzeSalesTrendsOutputSchema = z.object({
+  summary: z.string().describe('A brief summary of the sales trends.'),
+  topProducts: z
+    .string()
+    .describe('Identification of top-performing products.'),
+  insights: z
+    .string()
+    .describe('Key insights on what is driving sales performance.'),
+});
+export type AnalyzeSalesTrendsOutput = z.infer<
+  typeof AnalyzeSalesTrendsOutputSchema
+>;

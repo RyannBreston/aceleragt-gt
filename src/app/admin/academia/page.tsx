@@ -18,29 +18,11 @@ import { useAdminContext } from '@/app/admin/layout';
 import { cn } from '@/lib/utils';
 import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { Certificate } from '@/components/Certificate'; // Importação do novo componente
 
 // --- Dados para os Seletores ---
 const BRANDS = ['Olympikus', 'Beira Rio', 'Moleca', 'Vizzano', 'Mizuno', 'Dakota', 'Mississipi', 'Outra'];
 const PRODUCT_TYPES = ['Tênis', 'Sandália', 'Sapatilha', 'Bota', 'Chinelo', 'Scarpin', 'Mule', 'Outro'];
-
-// --- Componente do Certificado ---
-const Certificate = ({ courseTitle, sellerName }: { courseTitle: string; sellerName: string }) => (
-  <div className="bg-white text-gray-800 p-8 rounded-lg shadow-2xl max-w-2xl mx-auto border-4 border-yellow-400">
-    <div className="text-center border-b-2 pb-4 border-gray-300">
-      <h1 className="text-4xl font-bold text-gray-700">CERTIFICADO DE CONCLUSÃO</h1>
-      <p className="text-lg mt-2">Este certificado é concedido a</p>
-    </div>
-    <div className="text-center my-8">
-      <h2 className="text-5xl font-extrabold text-primary">{sellerName}</h2>
-    </div>
-    <div className="text-center">
-      <p className="text-lg">por ter concluído com sucesso o curso</p>
-      <h3 className="text-2xl font-semibold mt-2 text-gray-600">"{courseTitle}"</h3>
-      <p className="text-sm mt-8">Emitido em: {new Date().toLocaleDateString('pt-BR')}</p>
-    </div>
-  </div>
-);
-
 
 export default function AcademiaPage() {
   const { sellers } = useAdminContext();
@@ -59,11 +41,9 @@ export default function AcademiaPage() {
   const [currentCourse, setCurrentCourse] = useState<Partial<Course> | null>(null);
   const [editingQuiz, setEditingQuiz] = useState<QuizQuestionType[]>([]);
   
-  // Define o ID da aplicação, com um fallback para desenvolvimento local
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
   const coursesCollectionPath = `artifacts/${appId}/public/data/courses`;
 
-  // Carrega cursos do Firestore em tempo real
   useEffect(() => {
     const coursesCollectionRef = collection(db, coursesCollectionPath);
     const unsubscribe = onSnapshot(coursesCollectionRef, (snapshot) => {
@@ -112,7 +92,7 @@ export default function AcademiaPage() {
       setCurrentCourse(course);
       setEditingQuiz(course.quiz || []);
     } else {
-      setCurrentCourse({ title: '', content: '', quiz: [], points: 100 });
+      setCurrentCourse({ title: '', content: '', quiz: [], points: 100, dificuldade: 'Médio' });
       setEditingQuiz([]);
     }
     setIsModalOpen(true);
@@ -131,6 +111,7 @@ export default function AcademiaPage() {
       const newCourse: Partial<Course> = {
         ...result,
         points: 100,
+        dificuldade: 'Médio',
       };
       openCourseModal(newCourse as Course);
       toast({ title: "Curso gerado pela IA!", description: "Revise e salve o conteúdo gerado." });
@@ -153,16 +134,15 @@ export default function AcademiaPage() {
         content: currentCourse.content || '',
         quiz: editingQuiz,
         points: currentCourse.points || 100,
+        dificuldade: currentCourse.dificuldade || 'Médio',
     };
 
     try {
         if (currentCourse.id) {
-            // Atualizar curso existente
             const courseRef = doc(db, coursesCollectionPath, currentCourse.id);
             await updateDoc(courseRef, finalCourseData);
             toast({ title: 'Curso atualizado com sucesso!' });
         } else {
-            // Criar novo curso
             const coursesCollectionRef = collection(db, coursesCollectionPath);
             await addDoc(coursesCollectionRef, finalCourseData);
             toast({ title: 'Curso criado com sucesso!' });
@@ -252,7 +232,7 @@ export default function AcademiaPage() {
                   <Button onClick={() => openCourseModal(course)} size="sm" className="flex-1"><Edit className="mr-2 size-4" /> Editar</Button>
                   <Dialog>
                     <DialogTrigger asChild><Button variant="outline" size="sm"><FileText className="mr-2 size-4" /> Ver Certificado</Button></DialogTrigger>
-                    <DialogContent className="max-w-3xl bg-transparent border-none shadow-none"><Certificate courseTitle={course.title} sellerName="Nome do Vendedor" /></DialogContent>
+                    <DialogContent className="max-w-3xl bg-transparent border-none shadow-none p-0"><Certificate courseTitle={course.title} sellerName="Nome do Vendedor" /></DialogContent>
                   </Dialog>
                   <Button onClick={() => handleDeleteCourse(course.id)} variant="destructive" size="icon"><Trash2 className="size-4" /></Button>
                 </CardFooter>
@@ -279,20 +259,31 @@ export default function AcademiaPage() {
               <TabsTrigger value="content">Conteúdo</TabsTrigger>
               <TabsTrigger value="quiz">Quiz</TabsTrigger>
             </TabsList>
-            <TabsContent value="content" className="flex-grow overflow-y-auto mt-4 pr-4">
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="title">Título do Curso</Label>
-                        <Input id="title" value={currentCourse?.title || ''} onChange={(e) => setCurrentCourse(p => ({...p, title: e.target.value}))} />
-                    </div>
+            <TabsContent value="content" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="title">Título do Curso</Label>
+                    <Input id="title" value={currentCourse?.title || ''} onChange={(e) => setCurrentCourse(p => ({...p, title: e.target.value}))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="points">Pontos de Recompensa</Label>
                         <Input id="points" type="number" value={currentCourse?.points || 100} onChange={(e) => setCurrentCourse(p => ({...p, points: Number(e.target.value)}))} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="content">Conteúdo (Markdown)</Label>
-                        <Textarea id="content" value={currentCourse?.content || ''} onChange={(e) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/>
+                        <Label htmlFor="dificuldade">Dificuldade</Label>
+                        <Select value={currentCourse?.dificuldade || 'Médio'} onValueChange={(v) => setCurrentCourse(p => ({...p, dificuldade: v as any}))}>
+                            <SelectTrigger id="dificuldade"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Fácil">Fácil</SelectItem>
+                                <SelectItem value="Médio">Médio</SelectItem>
+                                <SelectItem value="Difícil">Difícil</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="content">Conteúdo (Markdown)</Label>
+                    <Textarea id="content" value={currentCourse?.content || ''} onChange={(e) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/>
                 </div>
             </TabsContent>
             <TabsContent value="quiz" className="flex-grow overflow-y-auto mt-4 pr-4">
