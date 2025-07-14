@@ -1,79 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import {usePathname, useRouter} from 'next/navigation';
-import {
-  GraduationCap,
-  LayoutGrid,
-  LogOut,
-  Puzzle,
-  Shield,
-  Target,
-  Trophy,
-  ShoppingBag,
-  History,
-  Loader2,
-  User,
-  CalendarDays
-} from 'lucide-react';
-
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from '@/components/ui/sidebar';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {Button} from '@/components/ui/button';
-import {Logo} from '@/components/icons/logo';
-import {cn} from '@/lib/utils';
-import type {Admin, Goals, Mission, Seller, CycleSnapshot} from '@/lib/types';
-import {dataStore, useStore} from '@/lib/store';
+import { usePathname, useRouter } from 'next/navigation';
+import { GraduationCap, LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, Loader2, User, CalendarDays } from 'lucide-react';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Logo } from '@/components/icons/logo';
+import { cn } from '@/lib/utils';
+import type { Admin, Goals, Mission, Seller, CycleSnapshot } from '@/lib/types';
+import { dataStore, useStore } from '@/lib/store';
 import { auth, db } from '@/lib/firebase';
-import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot } from 'firebase/firestore';
-
-interface AdminContextType {
-  sellers: Seller[];
-  setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
-  goals: Goals;
-  setGoals: (updater: (prev: Goals) => Goals) => void;
-  missions: Mission[];
-  setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
-  adminUser: Admin;
-  setAdminUser: (updater: (prev: Admin) => Admin) => void;
-  isDirty: boolean;
-  setIsDirty: (isDirty: boolean) => void;
-  cycleHistory: CycleSnapshot[];
-  setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => void;
-  isAuthReady: boolean;
-  userId: string | null;
-}
-
-const AdminContext = React.createContext<AdminContextType | null>(null);
-
-export const useAdminContext = () => {
-  const context = React.useContext(AdminContext);
-  if (!context) {
-    throw new Error('useAdminContext must be used within an AdminLayout');
-  }
-  return context;
-};
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { AdminContext, useAdminContext } from '@/contexts/AdminContext';
 
 const menuItems = [
   {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid},
@@ -88,16 +28,7 @@ const menuItems = [
   {href: '/admin/settings', label: 'Configurações', icon: Shield},
 ];
 
-
-function AdminLayoutContent({
-  children,
-  isDirty,
-  setIsDirty,
-}: {
-  children: React.ReactNode;
-  isDirty: boolean;
-  setIsDirty: (dirty: boolean) => void;
-}) {
+function AdminLayoutContent({ children, isDirty, setIsDirty }: { children: React.ReactNode; isDirty: boolean; setIsDirty: (dirty: boolean) => void; }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -108,9 +39,7 @@ function AdminLayoutContent({
       setPendingPath(path);
     } else {
       router.push(path);
-      if (isMobile) {
-        setOpenMobile(false);
-      }
+      if (isMobile) setOpenMobile(false);
     }
   };
 
@@ -119,15 +48,11 @@ function AdminLayoutContent({
     if (pathname === '/admin/settings' && isDirty) {
       setPendingPath(logoutPath);
     } else {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('loggedInSellerId');
-      }
+      if (typeof window !== 'undefined') localStorage.removeItem('loggedInSellerId');
       auth.signOut();
       router.push(logoutPath);
     }
-    if (isMobile) {
-      setOpenMobile(false);
-    }
+    if (isMobile) setOpenMobile(false);
   };
 
   const handleConfirmNavigation = () => {
@@ -139,89 +64,46 @@ function AdminLayoutContent({
       }
       router.push(pendingPath);
       setPendingPath(null);
-      if (isMobile) {
-        setOpenMobile(false);
-      }
+      if (isMobile) setOpenMobile(false);
     }
   };
 
   return (
     <>
       <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-3">
-            <Logo />
-            <h1 className="text-xl font-semibold text-white group-data-[collapsible=icon]:hidden">
-              Acelera GT
-            </h1>
-          </div>
-        </SidebarHeader>
+        <SidebarHeader className="p-4"><div className="flex items-center gap-3"><Logo /><h1 className="text-xl font-semibold text-white group-data-[collapsible=icon]:hidden">Acelera GT</h1></div></SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
             {menuItems.map(item => (
               <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  onClick={() => handleNavigate(item.href)}
-                  isActive={pathname === item.href}
-                  className={cn(
-                    'data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-semibold',
-                    'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                  )}
-                  tooltip={{ children: item.label }}
-                >
+                <SidebarMenuButton onClick={() => handleNavigate(item.href)} isActive={pathname === item.href} className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" tooltip={{ children: item.label }}>
                   <item.icon className="size-5" />
-                  <span className="group-data-[collapsible=icon]:hidden">
-                    {item.label}
-                  </span>
+                  <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 space-y-4">
-          <div className="flex items-center justify-center">
-            <Button
-              onClick={handleLogout}
-              variant="secondary"
-              className="w-full bg-sidebar-accent hover:bg-sidebar-accent/80 text-sidebar-accent-foreground"
-            >
+            <Button onClick={handleLogout} variant="secondary" className="w-full bg-sidebar-accent hover:bg-sidebar-accent/80 text-sidebar-accent-foreground">
               <LogOut className="mr-2 group-data-[collapsible=icon]:mr-0" />
               <span className="group-data-[collapsible=icon]:hidden">Sair</span>
             </Button>
-          </div>
         </SidebarFooter>
       </Sidebar>
       
       <div className="flex flex-col flex-1">
         <header className="sticky top-0 z-10 md:hidden flex items-center justify-between p-4 border-b bg-background">
-          <div className="flex items-center gap-2">
-            <Logo />
-            <h1 className="text-lg font-semibold text-white">Acelera GT</h1>
-          </div>
+          <div className="flex items-center gap-2"><Logo /><h1 className="text-lg font-semibold text-white">Acelera GT</h1></div>
           <SidebarTrigger />
         </header>
-        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">
-          {children}
-        </main>
+        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">{children}</main>
       </div>
 
-      <AlertDialog
-        open={!!pendingPath}
-        onOpenChange={() => setPendingPath(null)}
-      >
+      <AlertDialog open={!!pendingPath} onOpenChange={() => setPendingPath(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem alterações não salvas</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza de que deseja sair? As suas alterações serão perdidas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmNavigation}>
-              Sair
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Você tem alterações não salvas</AlertDialogTitle><AlertDialogDescription>Tem certeza de que deseja sair? As suas alterações serão perdidas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleConfirmNavigation}>Sair</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
@@ -242,57 +124,49 @@ export default function AdminLayout({children}: {children: React.ReactNode}) {
         setUserId(user.uid);
         setIsAuthReady(true);
       } else {
-        try {
-          const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-          if (token) {
-            await signInWithCustomToken(auth, token);
-          } else {
-            await signInAnonymously(auth);
-          }
-        } catch (error: any) {
-          if (error.code === 'auth/operation-not-allowed') {
-            console.error("Firebase Sign-In Falhou: O login anónimo não está habilitado no painel do Firebase.");
-          } else {
-            console.error("Firebase sign-in failed:", error);
-          }
-        }
+        await signInAnonymously(auth).catch(error => console.error("Firebase sign-in anónimo falhou:", error));
       }
     });
-
     return () => unsubscribe();
   }, []);
 
-  // Efeito para carregar e sincronizar os vendedores do Firestore
   React.useEffect(() => {
     if (!isAuthReady) return;
 
+    // Sincroniza Vendedores
     const sellersCol = collection(db, 'sellers');
-    const unsubscribe = onSnapshot(sellersCol, (snapshot) => {
+    const unsubSellers = onSnapshot(sellersCol, (snapshot) => {
         const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
         dataStore.setSellers(() => sellersFromDb);
-    }, (error) => {
-        console.error("Erro ao sincronizar vendedores:", error);
-    });
+    }, (error) => console.error("Erro ao sincronizar vendedores:", error));
 
-    return () => unsubscribe();
+    // --- LÓGICA ADICIONADA: Sincroniza Histórico de Ciclos ---
+    const historyCol = collection(db, 'cycle_history');
+    const q = query(historyCol, orderBy('endDate', 'asc'));
+    const unsubHistory = onSnapshot(q, (snapshot) => {
+        const historyFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CycleSnapshot));
+        dataStore.setCycleHistory(() => historyFromDb);
+    }, (error) => console.error("Erro ao sincronizar histórico:", error));
+
+
+    return () => {
+        unsubSellers();
+        unsubHistory();
+    };
   }, [isAuthReady]);
 
   const contextValue = React.useMemo(() => ({
-    sellers: state.sellers,
+    ...state,
     setSellers: dataStore.setSellers,
-    goals: state.goals,
     setGoals: dataStore.setGoals,
-    missions: state.missions,
     setMissions: dataStore.setMissions,
-    adminUser: state.adminUser,
     setAdminUser: dataStore.setAdminUser,
-    cycleHistory: state.cycleHistory,
     setCycleHistory: dataStore.setCycleHistory,
     isDirty,
     setIsDirty,
     isAuthReady,
     userId
-  }), [state.sellers, state.goals, state.missions, state.adminUser, state.cycleHistory, isDirty, isAuthReady, userId]);
+  }), [state, isDirty, isAuthReady, userId]);
 
   if (!isClient || !isAuthReady) {
     return (
@@ -304,7 +178,7 @@ export default function AdminLayout({children}: {children: React.ReactNode}) {
   }
 
   return (
-    <AdminContext.Provider value={contextValue}>
+    <AdminContext.Provider value={contextValue as any}>
       <SidebarProvider>
         <div className="flex min-h-screen">
           <AdminLayoutContent isDirty={isDirty} setIsDirty={setIsDirty}>

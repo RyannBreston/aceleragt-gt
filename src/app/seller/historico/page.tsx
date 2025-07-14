@@ -14,43 +14,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { History, Medal, Trophy, Award, DollarSign, Ticket, Box, Star } from 'lucide-react';
-import { useSellerContext } from '@/app/seller/layout';
-import type { Seller, Goals, SalesValueGoals } from '@/lib/types';
+import { History, Trophy, DollarSign, Star } from 'lucide-react';
+import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
-const calculateSellerPrizes = (seller: Seller, goals: Goals) => {
-    const prizes: Record<keyof Omit<Goals, 'salesValue' | 'gamification'>, number> = {
-        salesValue: 0,
-        ticketAverage: 0,
-        pa: 0,
-        points: 0,
-    };
-    const allCriteria: Array<keyof typeof prizes> = ['salesValue', 'ticketAverage', 'pa', 'points'];
-    allCriteria.forEach(crit => {
-        if (crit === 'salesValue' || crit === 'ticketAverage' || crit === 'pa' || crit === 'points') {
-            const goalLevels = goals[crit];
-            const sellerValue = crit === 'points' ? seller.points + seller.extraPoints : seller[crit];
-            let currentPrize = 0;
-            if (sellerValue >= goalLevels.metinha.threshold) currentPrize += goalLevels.metinha.prize;
-            if (sellerValue >= goalLevels.meta.threshold) currentPrize += goalLevels.meta.prize;
-            if (sellerValue >= goalLevels.metona.threshold) currentPrize += goalLevels.metona.prize;
-            if (sellerValue >= goalLevels.lendaria.threshold) currentPrize += goalLevels.lendaria.prize;
-            if (crit === 'salesValue') {
-                const salesGoals = goalLevels as SalesValueGoals;
-                if (seller.salesValue > salesGoals.lendaria.threshold && salesGoals.performanceBonus && salesGoals.performanceBonus.per > 0) {
-                    const excessSales = seller.salesValue - salesGoals.lendaria.threshold;
-                    const bonusUnits = Math.floor(excessSales / salesGoals.performanceBonus.per);
-                    currentPrize += bonusUnits * salesGoals.performanceBonus.prize;
-                }
-            }
-            prizes[crit] = currentPrize;
-        }
-    });
-    const totalPrize = Object.values(prizes).reduce((sum, p) => sum + p, 0);
-    return { ...seller, totalPrize };
-}
+import { calculateSellerPrizes } from '@/lib/utils';
+import type { Seller } from '@/lib/types';
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -69,13 +38,14 @@ export default function HistoricoPage() {
       <Card className="bg-card border-border">
         <CardHeader>
             <CardTitle>Resultados de Ciclos Anteriores</CardTitle>
-            <CardDescription>Compare sua evolução ao longo dos ciclos de premiação.</CardDescription>
+            <CardDescription>Compare a sua evolução ao longo dos ciclos de premiação.</CardDescription>
         </CardHeader>
         <CardContent>
              {reversedHistory.length > 0 ? (
                 <Accordion type="single" collapsible className="w-full">
                 {reversedHistory.map((snapshot) => {
-                    const allSellersRanked = snapshot.sellers.map(s => calculateSellerPrizes(s, snapshot.goals))
+                    const allSellersRanked = snapshot.sellers
+                        .map(s => calculateSellerPrizes(s, snapshot.sellers, snapshot.goals))
                         .sort((a, b) => b.totalPrize - a.totalPrize);
                     
                     const myData = allSellersRanked.find(s => s.id === currentSeller.id);
@@ -102,7 +72,7 @@ export default function HistoricoPage() {
                                 </Card>
                                 <Card>
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium">Prêmio Total</CardTitle>
+                                        <CardTitle className="text-sm font-medium">Prémio Total</CardTitle>
                                         <DollarSign className="h-4 w-4 text-green-400" />
                                     </CardHeader>
                                     <CardContent>
@@ -117,7 +87,7 @@ export default function HistoricoPage() {
                                     </CardHeader>
                                     <CardContent>
                                         <div className="text-2xl font-bold">{(myData.points + myData.extraPoints).toLocaleString('pt-BR')}</div>
-                                         <p className="text-xs text-muted-foreground">Cursos, quizzes e bônus</p>
+                                         <p className="text-xs text-muted-foreground">Cursos, quizzes e bónus</p>
                                     </CardContent>
                                 </Card>
                                  <Card>
@@ -141,7 +111,7 @@ export default function HistoricoPage() {
                     <History className="mx-auto h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 font-semibold">Nenhum histórico de ciclo disponível.</p>
                     <p className="text-sm">
-                        Seu desempenho em ciclos anteriores aparecerá aqui.
+                        O seu desempenho em ciclos anteriores aparecerá aqui.
                     </p>
                 </div>
              )}

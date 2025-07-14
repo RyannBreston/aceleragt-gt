@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, CheckCircle, Award, Loader2 } from 'lucide-react';
-import { useSellerContext } from '@/app/seller/layout';
+import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -105,6 +105,13 @@ export default function MissionsPage() {
     return `${mission.rewardValue} pts`;
   }
 
+  const missionCriteria = [
+      { value: 'salesValue', label: 'Valor de Venda' },
+      { value: 'ticketAverage', label: 'Ticket Médio' },
+      { value: 'pa', label: 'PA' },
+      { value: 'points', label: 'Pontos' },
+  ]
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
@@ -138,7 +145,7 @@ export default function MissionsPage() {
                     return (
                         <TableRow key={mission.id} className={status.completed ? 'text-muted-foreground' : ''}>
                         <TableCell className="font-medium">{mission.name}</TableCell>
-                        <TableCell>{criterionLabel}: {mission.target}</TableCell>
+                        <TableCell>{criterionLabel}: {mission.target.toLocaleString('pt-BR')}</TableCell>
                         <TableCell className="font-semibold text-primary">{formatReward(mission)}</TableCell>
                         <TableCell className="text-center">
                             {status.canClaim ? (

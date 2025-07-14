@@ -23,10 +23,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { History, Medal, Trophy, Award } from 'lucide-react';
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calculateSellerPrizes } from '@/lib/utils';
+import type { Seller } from '@/lib/types';
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -61,18 +62,9 @@ export default function HistoricoPage() {
           {reversedHistory.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
               {reversedHistory.map((snapshot) => {
-                const rankedSellers = snapshot.sellers.map(s => {
-                  const teamGoalMet = snapshot.sellers.length > 1 && snapshot.sellers.every(seller => seller.salesValue >= snapshot.goals.salesValue.metinha.threshold && snapshot.goals.salesValue.metinha.threshold > 0);
-                  const teamBonus = 100;
-                  const calculated = calculateSellerPrizes(s, snapshot.goals);
-                  let { totalPrize } = calculated;
-              
-                  if (teamGoalMet) {
-                      totalPrize += teamBonus;
-                  }
-              
-                  return { ...calculated, totalPrize };
-                }).sort((a, b) => b.totalPrize - a.totalPrize);
+                const rankedSellers = snapshot.sellers
+                    .map(s => calculateSellerPrizes(s, snapshot.sellers, snapshot.goals))
+                    .sort((a, b) => b.totalPrize - a.totalPrize);
 
                 return (
                   <AccordionItem value={snapshot.id} key={snapshot.id}>
@@ -80,7 +72,7 @@ export default function HistoricoPage() {
                       Ciclo Finalizado em: {format(new Date(snapshot.endDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                     </AccordionTrigger>
                     <AccordionContent>
-                      <p className='text-muted-foreground mb-4'>Ranking final do ciclo, com base no prêmio total acumulado por cada vendedor.</p>
+                      <p className='text-muted-foreground mb-4'>Ranking final do ciclo, com base no prémio total acumulado por cada vendedor.</p>
                       <div className="rounded-md border border-border">
                         <Table>
                           <TableHeader>

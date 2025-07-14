@@ -2,11 +2,11 @@
 
 import * as React from 'react';
 import { ShoppingBag, Loader2, Star } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import type { PrizeItem } from '@/lib/types';
-import { useSellerContext } from '@/app/seller/layout';
+import { useSellerContext } from '@/contexts/SellerContext';
 
 // Componentes UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -19,9 +19,10 @@ const formatPoints = (value: number) => {
 
 export default function SellerLojaPage() {
   const { toast } = useToast();
-  const { currentSeller } = useSellerContext();
+  const { currentSeller, setSellers } = useSellerContext();
   const [prizes, setPrizes] = React.useState<PrizeItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [redeemingId, setRedeemingId] = React.useState<string | null>(null);
   
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
   const prizesCollectionPath = `artifacts/${appId}/public/data/prizes`;
@@ -41,10 +42,55 @@ export default function SellerLojaPage() {
     return () => unsubscribe();
   }, [prizesCollectionPath, toast]);
   
-  const handleRedeem = (prize: PrizeItem) => {
-      // Futuramente, a lógica de resgate será implementada aqui.
-      // Por agora, apenas exibimos um alerta.
-      alert(`Funcionalidade de resgate para "${prize.name}" ainda não implementada.`);
+  const handleRedeem = async (prize: PrizeItem) => {
+      if (!currentSeller) return;
+
+      const totalPoints = (currentSeller.points || 0) + (currentSeller.extraPoints || 0);
+      if (totalPoints < prize.points) {
+          toast({ variant: 'destructive', title: 'Pontos Insuficientes!' });
+          return;
+      }
+      
+      setRedeemingId(prize.id);
+
+      try {
+        await runTransaction(db, async (transaction) => {
+            const sellerRef = doc(db, 'sellers', currentSeller.id);
+            const prizeRef = doc(db, prizesCollectionPath, prize.id);
+
+            const sellerDoc = await transaction.get(sellerRef);
+            if (!sellerDoc.exists()) throw new Error("Vendedor não encontrado.");
+            
+            const currentPoints = (sellerDoc.data().points || 0);
+            if (currentPoints < prize.points) throw new Error("Pontos insuficientes.");
+
+            // Atualiza os pontos do vendedor
+            transaction.update(sellerRef, { points: increment(-prize.points) });
+
+            // Atualiza o stock do prémio, se existir
+            if (typeof prize.stock === 'number') {
+                const prizeDoc = await transaction.get(prizeRef);
+                if (!prizeDoc.exists() || (prizeDoc.data().stock ?? 0) < 1) {
+                    throw new Error("Prémio esgotado!");
+                }
+                transaction.update(prizeRef, { stock: increment(-1) });
+            }
+        });
+        
+        // Atualiza o estado local para refletir a mudança de pontos
+        setSellers(prev => prev.map(s => s.id === currentSeller.id ? { ...s, points: s.points - prize.points } : s));
+
+        toast({
+            title: 'Resgate bem-sucedido!',
+            description: `Você resgatou "${prize.name}" por ${formatPoints(prize.points)}.`,
+        });
+
+      } catch (error: any) {
+          console.error("Erro ao resgatar o prémio:", error);
+          toast({ variant: "destructive", title: "Erro no Resgate", description: error.message });
+      } finally {
+          setRedeemingId(null);
+      }
   }
 
   const totalPoints = (currentSeller?.points || 0) + (currentSeller?.extraPoints || 0);
@@ -78,10 +124,14 @@ export default function SellerLojaPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {prizes.map(prize => {
             const canAfford = totalPoints >= prize.points;
+            const isOutOfStock = typeof prize.stock === 'number' && prize.stock <= 0;
+            const isDisabled = !canAfford || isOutOfStock || redeemingId === prize.id;
+
             return (
               <Card key={prize.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
-                <CardHeader className="p-0">
+                <CardHeader className="p-0 relative">
                   <img src={prize.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Prêmio'} alt={prize.name} className="w-full h-48 object-cover" />
+                  {isOutOfStock && <Badge variant="destructive" className="absolute top-2 right-2">Esgotado</Badge>}
                 </CardHeader>
                 <CardContent className="p-4 flex flex-col flex-grow">
                   <CardTitle className="text-lg mb-2 flex-grow">{prize.name}</CardTitle>
@@ -94,8 +144,9 @@ export default function SellerLojaPage() {
                    </div>
                 </CardContent>
                 <CardFooter className="p-4 bg-muted/50">
-                    <Button onClick={() => handleRedeem(prize)} disabled={!canAfford} className="w-full font-bold">
-                        {canAfford ? 'Resgatar' : 'Pontos Insuficientes'}
+                    <Button onClick={() => handleRedeem(prize)} disabled={isDisabled} className="w-full font-bold">
+                        {redeemingId === prize.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isOutOfStock ? 'Esgotado' : (canAfford ? 'Resgatar' : 'Pontos Insuficientes')}
                     </Button>
                 </CardFooter>
               </Card>

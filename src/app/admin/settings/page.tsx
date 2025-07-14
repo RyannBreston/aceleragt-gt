@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Flag, Shield, Info, ClipboardList, Trophy, RefreshCw, AlertTriangle, History, Loader2, Save } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import type { Seller, Goals, GoalLevels, GamificationPoints, PointsGoals, SalesValueGoals } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -159,6 +159,10 @@ export default function SettingsPage() {
   };
 
   const handleEndCycle = () => {
+    if (!window.confirm("Tem a certeza que deseja finalizar o ciclo? Esta ação é irreversível e irá zerar os dados de performance de todos os vendedores.")) {
+        return;
+    }
+
     const snapshot = {
         id: new Date().toISOString(),
         endDate: new Date().toISOString(),
@@ -176,20 +180,25 @@ export default function SettingsPage() {
         points: 0,
         extraPoints: 0,
         hasCompletedQuiz: false,
-        lastCourseCompletionDate: undefined,
+        lastCourseCompletionDate: '', // Usa string vazia ou null
         completedCourseIds: [],
     }));
 
-    const promises = resetSellers.map(s => updateDoc(doc(db, 'sellers', s.id), s));
+    const promises = resetSellers.map(s => {
+        const sellerRef = doc(db, 'sellers', s.id);
+        const { id, ...sellerData } = s;
+        return updateDoc(sellerRef, sellerData);
+    });
+
     Promise.all(promises).then(() => {
         setSellers(() => resetSellers);
         toast({
-            title: "Ciclo Finalizado!",
+            title: "Ciclo Finalizado com Sucesso!",
             description: "Os dados de performance foram zerados e um novo ciclo foi iniciado.",
         });
     }).catch(err => {
         console.error("Erro ao zerar ciclo:", err);
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar o ciclo." });
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível finalizar o ciclo no banco de dados." });
     });
   };
 
@@ -282,7 +291,6 @@ export default function SettingsPage() {
               <CardDescription>Configure os valores para cada nível de meta e os prémios associados.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              {/* Metas de Valor de Venda */}
               <div>
                 <h3 className="text-lg font-medium mb-4">Valor de Venda (R$)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -302,7 +310,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Metas de Ticket Médio */}
               <div className="border-t border-border pt-8">
                 <h3 className="text-lg font-medium mb-4">Ticket Médio (R$)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -322,7 +329,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Metas de PA */}
               <div className="border-t border-border pt-8">
                 <h3 className="text-lg font-medium mb-4">PA (Produtos por Atendimento)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -342,7 +348,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Metas de Pontos */}
               <div className="border-t border-border pt-8">
                 <h3 className="text-lg font-medium mb-4">Pontos</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -362,7 +367,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Metas de Gamificação */}
                <div className="border-t border-border pt-8">
                 <h3 className="text-lg font-medium mb-4">Pontuação de Gamificação</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">

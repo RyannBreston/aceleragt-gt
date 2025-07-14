@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User } from "lucide-react";
-import { useSellerContext } from "../layout";
+import { useSellerContext } from "@/contexts/SellerContext"; // Caminho de importação corrigido
 import { useToast } from "@/hooks/use-toast";
 
 export default function PerfilPage() {
@@ -28,8 +28,8 @@ export default function PerfilPage() {
             return;
         }
 
-        // In a real app, you would handle the update logic here.
-        // For this prototype, we'll just show a success message.
+        // Num aplicativo real, você lidaria com a lógica de atualização aqui.
+        // Para este protótipo, apenas exibiremos uma mensagem de sucesso.
         console.log({
             userId: currentSeller.id,
             newNickname: nickname,

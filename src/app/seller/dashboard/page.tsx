@@ -1,6 +1,6 @@
 'use client';
 
-import {useSellerContext} from '@/app/seller/layout';
+import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
 import {
   Card,
   CardContent,
@@ -38,6 +38,7 @@ const goalLevelConfig: Record<GoalLevelName, { label: string; className: string 
 
 
 const getGoalProgressDetails = (value: number, criterion: Criterion, goals: Goals) => {
+    if (!goals || !goals[criterion]) return { percent: 0, label: 'N/A', details: 'N/A' };
     const goalLevels = goals[criterion];
     let nextGoal, currentGoalBase, nextGoalLabel, progress;
     
@@ -56,11 +57,11 @@ const getGoalProgressDetails = (value: number, criterion: Criterion, goals: Goal
       nextGoalLabel = 'Lendária';
     } else if (value >= goalLevels.meta.threshold) {
       nextGoal = goalLevels.metona.threshold;
-      currentGoalBase = goalLevels.meta.threshold;
+      currentGoalBase = goals.meta.threshold;
       nextGoalLabel = 'Metona';
     } else if (value >= goalLevels.metinha.threshold) {
-      nextGoal = goalLevels.meta.threshold;
-      currentGoalBase = goalLevels.metinha.threshold;
+      nextGoal = goals.meta.threshold;
+      currentGoalBase = goals.metinha.threshold;
       nextGoalLabel = 'Meta';
     } else {
       nextGoal = goalLevels.metinha.threshold;
@@ -83,6 +84,7 @@ const getGoalProgressDetails = (value: number, criterion: Criterion, goals: Goal
 
 const MetricCard = ({ title, icon: Icon, value, criterion, goals, currentSeller }: { title: string, icon: React.ElementType, value: number, criterion: Criterion, goals: Goals, currentSeller: Seller }) => {
     const goalLevels = goals[criterion];
+    if (!goalLevels) return null; // Adiciona verificação para evitar erro
     const { percent, label, details } = getGoalProgressDetails(value, criterion, goals);
     
     const allGoalTiers: Array<{ name: GoalLevelName; threshold: number; prize: number }> = [
@@ -207,8 +209,8 @@ export default function SellerDashboardPage() {
                       {mission.description}
                     </TableCell>
                     <TableCell>
-                      {format(mission.startDate, 'dd/MM/yy')} -{' '}
-                      {format(mission.endDate, 'dd/MM/yy')}
+                      {mission.startDate ? format(mission.startDate, 'dd/MM/yy') : ''} -{' '}
+                      {mission.endDate ? format(mission.endDate, 'dd/MM/yy') : ''}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-primary">
                       {formatReward(mission)}

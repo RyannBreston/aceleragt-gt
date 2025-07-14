@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import PerformanceChart from './PerformanceChart';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { SellerContext } from '@/app/seller/layout';
+import { SellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const saveResultToLocalStorage = (result: QuizResult) => {

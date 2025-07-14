@@ -29,7 +29,6 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Após o login, verificar o papel do utilizador na coleção 'users'
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
@@ -39,11 +38,9 @@ export default function LoginPage() {
       
       const userData = userDoc.data();
       if (userData.role === 'admin') {
-        // Limpar qualquer ID de vendedor de sessões anteriores
         localStorage.removeItem('loggedInSellerId');
         router.push('/admin');
       } else if (userData.role === 'seller') {
-        // Definir o ID do vendedor no localStorage para que o layout do vendedor o possa encontrar
         localStorage.setItem('loggedInSellerId', user.uid);
         router.push('/seller');
       } else {
@@ -113,11 +110,7 @@ export default function LoginPage() {
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Entrar
               </Button>
-              <Button variant="outline" asChild>
-                <Link href="/signup">
-                  <ShieldCheck className="mr-2 h-4 w-4" /> Criar Conta de Administrador
-                </Link>
-              </Button>
+              {/* O botão para criar conta foi removido daqui */}
             </div>
           </form>
         </CardContent>

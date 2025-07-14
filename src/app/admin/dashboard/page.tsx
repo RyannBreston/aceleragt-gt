@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag } from "lucide-react";
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,9 +35,9 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
         let tierAchieved: keyof typeof goalLabels = 'nenhuma';
         
         for (const tier of goalTiers) {
-          if (sellerValue >= goals[criterion][tier].threshold && goals[criterion][tier].threshold > 0) {
+          if (goals[criterion] && sellerValue >= goals[criterion][tier].threshold && goals[criterion][tier].threshold > 0) {
             tierAchieved = tier;
-            break; // Para na meta mais alta atingida
+            break; 
           }
         }
         result[criterion][tierAchieved]++;
@@ -143,7 +143,7 @@ export default function DashboardPage() {
               {currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total de vendas da equipe
+              Total de vendas da equipa
             </p>
           </CardContent>
         </Card>

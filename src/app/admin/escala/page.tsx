@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, ChevronLeft, ChevronRight, Save, Loader2, Users, Settings, PlusCircle, Trash2 } from "lucide-react";
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import { addDays, startOfWeek, endOfWeek, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,6 @@ import { doc, updateDoc, collection, onSnapshot, addDoc, deleteDoc } from 'fireb
 import { db } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
-// --- Tipos e Constantes ---
 interface ShiftDefinition {
     id: string;
     name: string;
@@ -69,7 +68,6 @@ export default function AdminWorkSchedulePage() {
         }
     }, [sellers, isAuthReady]);
 
-    // Carrega e sincroniza as definições de turnos
     React.useEffect(() => {
         if (!isAuthReady) return;
         const shiftsRef = collection(db, shiftsCollectionPath);
@@ -176,7 +174,7 @@ export default function AdminWorkSchedulePage() {
                                                             <SelectContent>
                                                                 <SelectItem value="N/D">N/D</SelectItem>
                                                                 {shiftDefinitions
-                                                                    .filter(def => def.name && def.name.trim() !== '') // Filtra turnos com nome vazio
+                                                                    .filter(def => def.name && def.name.trim() !== '')
                                                                     .map(def => <SelectItem key={def.id} value={def.name}>{def.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
@@ -195,7 +193,6 @@ export default function AdminWorkSchedulePage() {
     );
 }
 
-// --- Componente do Modal de Gestão de Turnos ---
 function ShiftManagementDialog({ definitions, collectionPath }: { definitions: ShiftDefinition[], collectionPath: string }) {
     const [localDefs, setLocalDefs] = React.useState(definitions);
     const [newShift, setNewShift] = React.useState({ name: '', time: '', color: 'blue' });

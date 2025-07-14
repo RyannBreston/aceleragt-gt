@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import type { Goals, GoalLevel as GoalLevelType, Seller, SalesValueGoals } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, calculateSellerPrizes } from '@/lib/utils';
 
 type RankingCriterion = 'salesValue' | 'ticketAverage' | 'pa' | 'points' | 'totalPrize';
@@ -29,40 +29,9 @@ export default function RankingPage() {
   const { sellers: sellersData, goals: goalsData } = useAdminContext();
 
   const sortedSellers = useMemo(() => {
-    const teamGoalMet = sellersData.length > 1 && sellersData.every(s => s.salesValue >= goalsData.salesValue.metinha.threshold && goalsData.salesValue.metinha.threshold > 0);
-    const teamBonus = 100;
-    
-    const topScorer = sellersData.length > 0 ? sellersData.reduce((max, seller) => (max.points + max.extraPoints) > (seller.points + seller.extraPoints) ? max : seller) : null;
-
-    const sellersWithPrizes = sellersData.map(seller => {
-        const calculated = calculateSellerPrizes(seller, goalsData);
-        let { totalPrize, prizes } = calculated;
-        
-        let teamBonusApplied = false;
-        if (teamGoalMet) { 
-            totalPrize += teamBonus;
-            teamBonusApplied = true;
-        }
-
-        let topScorerBonus = 0;
-        if (topScorer && seller.id === topScorer.id) {
-            topScorerBonus = goalsData.points.topScorerPrize || 0;
-            totalPrize += topScorerBonus;
-        }
-        
-        // Final check: if they didn't meet the points goal, they get nothing
-        if ((seller.points + seller.extraPoints) < goalsData.points.metinha.threshold) {
-          totalPrize = 0;
-          (Object.keys(prizes) as Array<keyof typeof prizes>).forEach(k => {
-              prizes[k] = 0;
-          });
-          teamBonusApplied = false;
-          topScorerBonus = 0;
-        }
-
-
-        return { ...calculated, prizes, totalPrize, teamBonusApplied, topScorerBonus };
-    });
+    const sellersWithPrizes = sellersData.map(seller => 
+        calculateSellerPrizes(seller, sellersData, goalsData)
+    );
 
     return sellersWithPrizes.sort((a, b) => {
         if (criterion === 'totalPrize') {
@@ -71,7 +40,7 @@ export default function RankingPage() {
         if (criterion === 'points') {
             return (b.points + b.extraPoints) - (a.points + a.extraPoints);
         }
-        return b[criterion] - a[criterion];
+        return b[criterion as keyof Seller] - a[criterion as keyof Seller];
     });
   }, [sellersData, goalsData, criterion]);
   
@@ -86,7 +55,7 @@ export default function RankingPage() {
       case 'points':
         return 'Pontos';
       case 'totalPrize':
-        return 'Prêmio Total';
+        return 'Prémio Total';
       default:
         return '';
     }
@@ -210,7 +179,7 @@ export default function RankingPage() {
                       )}
                       <TableHead className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                            <span>Prêmio</span>
+                            <span>Prémio</span>
                             <Award className="size-4 text-green-400" />
                         </div>
                       </TableHead>
@@ -226,21 +195,21 @@ export default function RankingPage() {
                     {sortedSellers.map((seller, index) => {
                       const sellerValue = criterion === 'totalPrize' 
                         ? seller.totalPrize
-                        : (criterion === 'points' ? seller.points + seller.extraPoints : seller[criterion]);
+                        : (criterion === 'points' ? seller.points + seller.extraPoints : seller[criterion as keyof Seller]);
 
                       const prizeForCriterion = seller.prizes[criterion as keyof typeof seller.prizes] || 0;
                       const prizeToDisplay = criterion === 'totalPrize' ? seller.totalPrize : prizeForCriterion;
                       
-                      const criterionGoals = criterion !== 'totalPrize' ? goalsData[criterion] : null;
+                      const criterionGoals = criterion !== 'totalPrize' ? goalsData[criterion as keyof Goals] : null;
                       
                       const allGoals: Array<{ name: GoalLevelName; threshold: number; prize: number }> = criterionGoals ? [
-                        { name: 'Metinha', ...criterionGoals.metinha },
-                        { name: 'Meta', ...criterionGoals.meta },
-                        { name: 'Metona', ...criterionGoals.metona },
-                        { name: 'Lendária', ...criterionGoals.lendaria },
+                        { name: 'Metinha', ...(criterionGoals as GoalLevelType).metinha },
+                        { name: 'Meta', ...(criterionGoals as GoalLevelType).meta },
+                        { name: 'Metona', ...(criterionGoals as GoalLevelType).metona },
+                        { name: 'Lendária', ...(criterionGoals as GoalLevelType).lendaria },
                       ] : [];
 
-                      const { percent, label, details } = criterion !== 'totalPrize' ? getGoalProgress(sellerValue, criterion) : { percent: 0, label: '', details: ''};
+                      const { percent, label, details } = criterion !== 'totalPrize' ? getGoalProgress(sellerValue as number, criterion as Exclude<RankingCriterion, 'totalPrize'>) : { percent: 0, label: '', details: ''};
                       
                       return (
                         <TableRow key={seller.id} className={index < 3 ? 'bg-card-foreground/5' : ''}>
@@ -249,7 +218,7 @@ export default function RankingPage() {
                           </TableCell>
                           <TableCell className="font-medium">{seller.name}</TableCell>
                           {criterion !== 'totalPrize' && (
-                            <TableCell className="text-right font-semibold">{formatValue(sellerValue, criterion)}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatValue(sellerValue as number, criterion)}</TableCell>
                           )}
                            <TableCell className="text-right font-semibold text-green-400">
                              <div className="flex items-center justify-end gap-1.5">
@@ -261,16 +230,16 @@ export default function RankingPage() {
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <div className="p-2 text-sm text-left text-popover-foreground space-y-2 max-w-xs">
-                                                <h4 className="font-bold border-b pb-1 mb-1">Composição do Prêmio Total: {formatPrize(seller.totalPrize)}</h4>
+                                                <h4 className="font-bold border-b pb-1 mb-1">Composição do Prémio Total: {formatPrize(seller.totalPrize)}</h4>
                                                 <div className="flex justify-between gap-4"><span>Vendas:</span> <span className="font-bold">{formatPrize(seller.prizes.salesValue)}</span></div>
                                                 <div className="flex justify-between gap-4"><span>T. Médio:</span> <span className="font-bold">{formatPrize(seller.prizes.ticketAverage)}</span></div>
                                                 <div className="flex justify-between gap-4"><span>PA:</span> <span className="font-bold">{formatPrize(seller.prizes.pa)}</span></div>
                                                 <div className="flex justify-between gap-4"><span>Pontos:</span> <span className="font-bold">{formatPrize(seller.prizes.points)}</span></div>
                                                 {seller.teamBonusApplied && (
-                                                    <div className="flex justify-between gap-4 pt-1 border-t mt-1"><span>Bônus Equipe:</span> <span className="font-bold">{formatPrize(100)}</span></div>
+                                                    <div className="flex justify-between gap-4 pt-1 border-t mt-1"><span>Bónus Equipa:</span> <span className="font-bold">{formatPrize(100)}</span></div>
                                                 )}
                                                 {seller.topScorerBonus > 0 && (
-                                                    <div className="flex justify-between gap-4 pt-1 border-t mt-1 text-yellow-400"><span>Prêmio Top Pontos:</span> <span className="font-bold">{formatPrize(seller.topScorerBonus)}</span></div>
+                                                    <div className="flex justify-between gap-4 pt-1 border-t mt-1 text-yellow-400"><span>Prémio Top Pontos:</span> <span className="font-bold">{formatPrize(seller.topScorerBonus)}</span></div>
                                                 )}
                                                 {(seller.points + seller.extraPoints) < goalsData.points.metinha.threshold && (
                                                     <div className="flex justify-between gap-4 pt-1 border-t mt-1 text-destructive"><span>Não elegível:</span> <span className="font-bold">Não atingiu a metinha de pontos</span></div>
@@ -286,7 +255,7 @@ export default function RankingPage() {
                               <TableCell className="text-center">
                                 <div className="flex justify-center items-center gap-1.5 flex-wrap">
                                   {allGoals.map((goal) => {
-                                    const isAchieved = sellerValue >= goal.threshold && goal.threshold > 0;
+                                    const isAchieved = (sellerValue as number) >= goal.threshold && goal.threshold > 0;
                                     const config = goalLevelConfig[goal.name as GoalLevelName];
                                     return (
                                       <TooltipProvider key={goal.name}>
@@ -306,14 +275,14 @@ export default function RankingPage() {
                                           <TooltipContent>
                                             <div className="space-y-1 text-xs text-left">
                                               <p className="font-semibold">{goal.label}</p>
-                                              <p>Meta: {formatValue(goal.threshold, criterion)}</p>
-                                              <p>Prêmio: <span className="font-bold text-green-400">{formatPrize(goal.prize)}</span></p>
+                                              <p>Meta: {formatValue(goal.threshold, criterion as 'salesValue' | 'ticketAverage' | 'pa' | 'points')}</p>
+                                              <p>Prémio: <span className="font-bold text-green-400">{formatPrize(goal.prize)}</span></p>
                                               {criterion === 'salesValue' && goal.name === 'Lendária' && (goalsData.salesValue as SalesValueGoals).performanceBonus && (
                                                 <p className="text-xs italic text-primary/80 pt-1 border-t border-border/20 mt-1">
-                                                    Bônus: +{formatPrize((goalsData.salesValue as SalesValueGoals).performanceBonus!.prize)} a cada {formatPrize((goalsData.salesValue as SalesValueGoals).performanceBonus!.per)} extra
+                                                    Bónus: +{formatPrize((goalsData.salesValue as SalesValueGoals).performanceBonus!.prize)} a cada {formatPrize((goalsData.salesValue as SalesValueGoals).performanceBonus!.per)} extra
                                                 </p>
                                               )}
-                                              <p>Seu valor: {formatValue(sellerValue, criterion)}</p>
+                                              <p>Seu valor: {formatValue(sellerValue as number, criterion)}</p>
                                               <p className={cn("font-bold", isAchieved ? 'text-green-400' : 'text-yellow-400')}>
                                                 {isAchieved ? 'Atingida!' : 'Pendente'}
                                               </p>

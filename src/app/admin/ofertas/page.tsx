@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { ShoppingBag, Loader2, Edit, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { ShoppingBag, Loader2, Edit, Trash2, Calendar as CalendarIcon, PlusCircle, Save } from 'lucide-react';
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import { Offer } from '@/lib/types';
 
 // Componentes UI
@@ -231,8 +231,8 @@ export default function AdminOffersPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="grid gap-2"><Label htmlFor="startDate">Data de Início</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{format(currentOffer.startDate, "PPP", { locale: ptBR })}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.startDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, startDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
-                <div className="grid gap-2"><Label htmlFor="expirationDate">Data de Expiração</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{format(currentOffer.expirationDate, "PPP", { locale: ptBR })}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.expirationDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, expirationDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
+                <div className="grid gap-2"><Label htmlFor="startDate">Data de Início</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{currentOffer.startDate ? format(currentOffer.startDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.startDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, startDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
+                <div className="grid gap-2"><Label htmlFor="expirationDate">Data de Expiração</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{currentOffer.expirationDate ? format(currentOffer.expirationDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.expirationDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, expirationDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

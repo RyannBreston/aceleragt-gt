@@ -3,7 +3,7 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Quiz from "@/components/quiz";
 import { Puzzle } from "lucide-react";
-import { useSellerContext } from "../layout";
+import { useSellerContext } from "@/contexts/SellerContext"; // Caminho de importação corrigido
 
 export default function QuizPage() {
   const { goals } = useSellerContext();

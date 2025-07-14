@@ -1,24 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Sparkles, BookCopy, Trash2, GraduationCap, Star, CheckCircle, XCircle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, GraduationCap, CheckCircle, Award, ArrowLeft, Download, BookCopy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
-import { generateCourse } from "@/ai/flows/generate-course-flow";
-import type { Course } from '@/lib/types';
+import type { Course, QuizQuestion as QuizQuestionType } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useSellerContext } from '@/app/seller/layout';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
+import { db } from '@/lib/firebase';
+import { collection, doc, getDocs, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Certificate } from '@/components/Certificate'; // Importação atualizada
+import { Label } from '@/components/ui/label';
+import { Certificate } from '@/components/Certificate';
 
-type Dificuldade = 'Fácil' | 'Médio' | 'Difícil';
-
-// Component for a single course quiz
-const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: () => void }) => {
+// --- Componente do Quiz do Curso ---
+const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: (score: number) => void }) => {
     const [answers, setAnswers] = useState<(number | null)[]>(new Array(course.quiz.length).fill(null));
     const [submitted, setSubmitted] = useState(false);
 
@@ -30,231 +29,186 @@ const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: () => 
 
     const handleSubmit = () => {
         setSubmitted(true);
-        onComplete();
+        const correctAnswers = answers.filter((answer, index) => answer === course.quiz[index].correctAnswerIndex).length;
+        onComplete(correctAnswers);
     };
     
     const allQuestionsAnswered = answers.every(a => a !== null);
 
     return (
-        <div className="space-y-6">
-            <h4 className="font-semibold text-lg">Teste seus conhecimentos</h4>
+        <div className="space-y-6 mt-6 pt-6 border-t">
+            <h4 className="font-semibold text-lg text-primary">Teste seus conhecimentos</h4>
             {course.quiz.map((q, qIndex) => (
-                <div key={qIndex} className={cn(
-                    "p-4 rounded-lg bg-input transition-all",
-                    submitted && (answers[qIndex] === q.correctAnswerIndex ? 'border-2 border-green-500' : 'border-2 border-destructive')
-                )}>
+                <div key={qIndex} className={cn("p-4 rounded-lg bg-input/50 transition-all", submitted && (answers[qIndex] === q.correctAnswerIndex ? 'border-2 border-green-500' : 'border-2 border-destructive'))}>
                     <p><strong>{qIndex + 1}. {q.question}</strong></p>
-                    <RadioGroup
-                        value={answers[qIndex]?.toString()}
-                        onValueChange={(value) => handleAnswerChange(qIndex, parseInt(value))}
-                        disabled={submitted}
-                        className="mt-2 space-y-2"
-                    >
+                    <RadioGroup value={answers[qIndex]?.toString()} onValueChange={(value) => handleAnswerChange(qIndex, parseInt(value))} disabled={submitted} className="mt-2 space-y-2">
                         {q.options.map((opt, oIndex) => (
-                            <Label key={oIndex} htmlFor={`q${qIndex}-o${oIndex}`} className="flex items-center gap-3 p-2 rounded-md hover:bg-background/50 cursor-pointer">
+                            <Label key={oIndex} htmlFor={`q${qIndex}-o${oIndex}`} className="flex items-center gap-3 p-3 rounded-md hover:bg-background/50 cursor-pointer text-sm">
                                 <RadioGroupItem value={oIndex.toString()} id={`q${qIndex}-o${oIndex}`} />
                                 <span>{opt}</span>
                             </Label>
                         ))}
                     </RadioGroup>
                     {submitted && (
-                        <div className="mt-3 text-sm flex items-center gap-2">
-                             {answers[qIndex] === q.correctAnswerIndex 
-                                ? <CheckCircle className="size-4 text-green-500" />
-                                : <XCircle className="size-4 text-destructive" />}
-                            <p><span className="font-bold">Explicação:</span> {q.explanation}</p>
+                        <div className="mt-4 text-xs p-3 rounded-md bg-background/70">
+                            <p className="font-bold">Explicação:</p>
+                            <p>{q.explanation}</p>
                         </div>
                     )}
                 </div>
             ))}
-            <Button onClick={handleSubmit} disabled={!allQuestionsAnswered || submitted}>
-                {submitted ? 'Quiz Finalizado' : 'Finalizar Quiz e Concluir Curso'}
+            <Button onClick={handleSubmit} disabled={!allQuestionsAnswered || submitted} className="w-full font-bold">
+                {submitted ? 'Curso Concluído!' : 'Finalizar e Ver Resultado'}
             </Button>
         </div>
     );
 };
 
-
-export default function AcademiaPage() {
-  const { currentSeller, setSellers, goals } = useSellerContext();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [isGeneratingCourse, setIsGeneratingCourse] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
-  const [dificuldade, setDificuldade] = useState<Dificuldade>('Médio');
+// --- Página Principal da Academia ---
+export default function SellerAcademiaPage() {
+  const { currentSeller, setSellers } = useSellerContext();
   const { toast } = useToast();
   
-  const coursePointsConfig = goals.gamification.course;
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  const courseTopics = [
-    'Técnicas de Atendimento ao Cliente para Lojas de Calçados',
-    'Conhecimento de Materiais: Couro, Sintéticos e Tecidos',
-    'Como Lidar com Objeções de Clientes e Fechar Vendas',
-    'Organização de Estoque e Vitrinismo para Calçados',
-    'Vendas Adicionais: Como Oferecer Meias e Produtos de Limpeza'
-  ];
-
-  const handleGenerateCourse = async () => {
-     if (!selectedTopic) {
-        toast({
-            variant: 'destructive',
-            title: 'Selecione um tópico',
-            description: 'Você precisa escolher um tópico para gerar o curso.',
-        });
-        return;
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    if (currentSeller?.lastCourseCompletionDate === today) {
-        toast({
-            variant: 'destructive',
-            title: 'Limite Diário Atingido',
-            description: `${currentSeller.name} já concluiu um curso hoje. Volte amanhã!`,
-        });
-        return;
-    }
-
-    setIsGeneratingCourse(true);
-    setCourse(null);
-    try {
-      const seed = `${new Date().toISOString().split('T')[0]}-${currentSeller.id}-${selectedTopic}-${dificuldade}`;
-      const result = await generateCourse({ topic: selectedTopic, seed, dificuldade });
-      const points = coursePointsConfig[dificuldade];
-      const newCourse: Course = {
-        id: new Date().getTime().toString(),
-        ...result,
-        points,
-        dificuldade,
-      };
-      setCourse(newCourse);
-      toast({
-        title: "Curso Gerado com Sucesso!",
-        description: `O curso "${result.title}" foi criado.`,
-      });
-    } catch (error) {
-      console.error("Failed to generate course:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Falha ao Gerar Curso',
-        description: 'A IA não conseguiu gerar o conteúdo. Um curso padrão foi carregado.',
-      });
-    } finally {
-      setIsGeneratingCourse(false);
-    }
-  };
-
-  const handleCompleteCourse = () => {
-    if (!course) return;
-    const today = new Date().toISOString().split('T')[0];
-
-    setSellers(prevSellers =>
-        prevSellers.map(seller =>
-            seller.id === currentSeller.id
-            ? { ...seller, points: seller.points + course.points, lastCourseCompletionDate: today }
-            : seller
-        )
-    );
-
-    toast({
-        title: 'Curso Concluído!',
-        description: `${currentSeller?.name} ganhou ${course.points} pontos pelo curso "${course?.title}".`,
-    });
-  };
+  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const coursesCollectionPath = `artifacts/${appId}/public/data/courses`;
   
+  useEffect(() => {
+    const fetchCourses = async () => {
+      setLoading(true);
+      try {
+        const coursesCollectionRef = collection(db, coursesCollectionPath);
+        const snapshot = await getDocs(coursesCollectionRef);
+        const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+        setCourses(coursesData);
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erro ao Carregar Cursos', description: "Não foi possível buscar os cursos. Tente novamente." });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCourses();
+  }, [appId, toast, coursesCollectionPath]);
+
+  const handleCompleteCourse = async (score: number) => {
+      if (!selectedCourse || !currentSeller) return;
+
+      const isAlreadyCompleted = currentSeller.completedCourseIds?.includes(selectedCourse.id);
+      if(isAlreadyCompleted) {
+          toast({ title: 'Curso já concluído', description: 'Você já ganhou os pontos por este curso.' });
+          return;
+      }
+
+      const pointsEarned = selectedCourse.points || 0;
+      
+      try {
+        const sellerRef = doc(db, 'sellers', currentSeller.id);
+        await updateDoc(sellerRef, {
+            points: (currentSeller.points || 0) + pointsEarned,
+            completedCourseIds: arrayUnion(selectedCourse.id),
+            lastCourseCompletionDate: Timestamp.now()
+        });
+
+        setSellers(prevSellers => prevSellers.map(s => s.id === currentSeller.id ? {
+            ...s,
+            points: (s.points || 0) + pointsEarned,
+            completedCourseIds: [...(s.completedCourseIds || []), selectedCourse.id]
+        } : s));
+        
+        toast({
+            title: 'Parabéns!',
+            description: `Você acertou ${score} de ${selectedCourse.quiz.length} e ganhou ${pointsEarned} pontos!`,
+        });
+
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Erro ao Salvar Progresso' });
+      }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 font-semibold">Carregando cursos disponíveis...</p>
+      </div>
+    );
+  }
+
+  if (selectedCourse) {
+      const isCompleted = currentSeller?.completedCourseIds?.includes(selectedCourse.id);
+      return (
+          <div className="space-y-4">
+              <Button onClick={() => setSelectedCourse(null)} variant="outline"><ArrowLeft className="mr-2 size-4"/>Voltar para a lista de cursos</Button>
+              <Card>
+                  <CardHeader>
+                      <CardTitle className="text-2xl">{selectedCourse.title}</CardTitle>
+                      <CardDescription>{selectedCourse.points} pontos de recompensa</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
+                          <ReactMarkdown>{selectedCourse.content}</ReactMarkdown>
+                      </div>
+                      {isCompleted ? (
+                          <div className="mt-6 pt-6 border-t text-center text-green-500 font-bold flex items-center justify-center gap-2">
+                              <CheckCircle/> Curso Concluído!
+                          </div>
+                      ) : (
+                          <CourseQuiz course={selectedCourse} onComplete={handleCompleteCourse} />
+                      )}
+                  </CardContent>
+              </Card>
+          </div>
+      )
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center gap-4">
         <GraduationCap className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Academia de Vendas</h1>
       </div>
-
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-xl">Gerador de Cursos</CardTitle>
-          <CardDescription>
-             A pontuação varia conforme o nível de dificuldade selecionado.
-            <span className="ml-2 font-bold text-green-400">
-                Fácil: {coursePointsConfig['Fácil']}pts | Médio: {coursePointsConfig['Médio']}pts | Difícil: {coursePointsConfig['Difícil']}pts
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div className="flex flex-col md:flex-row items-stretch md:items-end gap-4">
-                <div className="space-y-2 flex-grow">
-                    <Label htmlFor="course-topic-select">Tópico do Curso</Label>
-                    <Select onValueChange={setSelectedTopic} value={selectedTopic}>
-                        <SelectTrigger id="course-topic-select">
-                            <SelectValue placeholder="Escolha um tópico..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {courseTopics.map((topic, index) => (
-                                <SelectItem key={index} value={topic}>{topic}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2 md:min-w-[180px]">
-                  <Label htmlFor="dificuldade-select">Dificuldade</Label>
-                  <Select value={dificuldade} onValueChange={v => setDificuldade(v as Dificuldade)}>
-                    <SelectTrigger id="dificuldade-select">
-                      <SelectValue placeholder="Dificuldade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(coursePointsConfig).map(level => (
-                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleGenerateCourse} disabled={isGeneratingCourse || !selectedTopic} className="bg-gradient-to-r from-blue-500 to-purple-600 text-primary-foreground font-semibold">
-                  {isGeneratingCourse ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Gerar Curso com IA
-                </Button>
-            </div>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-4 pt-6">
-        {course ? (
-          <Card key={course.id} className="bg-background/50">
-            <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle>{course.title}</CardTitle>
-                    <CardDescription className="flex items-center mt-2">
-                       <Star className="mr-2 size-4 text-yellow-400" />
-                       <span>{course.points} Pontos de Recompensa</span>
-                       {course.dificuldade && <span className="ml-2 text-xs font-medium bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">{course.dificuldade}</span>}
-                    </CardDescription>
-                </div>
-                <Button variant="ghost" size="icon" onClick={() => setCourse(null)} aria-label="Remover curso">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
-                    <ReactMarkdown>{course.content}</ReactMarkdown>
-                </div>
-
-                {course.quiz && course.quiz.length > 0 && (
-                    <div className="pt-6 border-t">
-                        <CourseQuiz course={course} onComplete={handleCompleteCourse} />
-                    </div>
-                )}
-            </CardContent>
-          </Card>
-        ) : (
-          !isGeneratingCourse && (
-            <div className="text-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-8">
-              <BookCopy className="mx-auto h-12 w-12 text-muted-foreground" />
-              <p className="mt-4 font-semibold">Nenhum curso gerado</p>
-              <p className="text-sm">Gere um novo curso com IA para começar seu aprendizado.</p>
-            </div>
-          )
-        )}
-      </div>
+      
+      {courses.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {courses.map(course => {
+                  const isCompleted = currentSeller?.completedCourseIds?.includes(course.id);
+                  return (
+                      <Card key={course.id} className="flex flex-col hover:border-primary/50 transition-all">
+                          <CardHeader>
+                              <CardTitle>{course.title}</CardTitle>
+                              <CardDescription>{course.points} Pontos</CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-grow">
+                              <p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p>
+                          </CardContent>
+                          <CardFooter>
+                              {isCompleted ? (
+                                  <Dialog>
+                                      <DialogTrigger asChild>
+                                          <Button variant="secondary" className="w-full"><Award className="mr-2 size-4" /> Ver Certificado</Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-3xl bg-transparent border-none shadow-none p-0">
+                                          <Certificate courseTitle={course.title} sellerName={currentSeller?.name || 'Vendedor'} />
+                                      </DialogContent>
+                                  </Dialog>
+                              ) : (
+                                  <Button onClick={() => setSelectedCourse(course)} className="w-full">Iniciar Curso</Button>
+                              )}
+                          </CardFooter>
+                      </Card>
+                  )
+              })}
+          </div>
+      ) : (
+          <div className="text-center text-muted-foreground border-2 border-dashed rounded-lg p-12">
+            <BookCopy className="mx-auto h-12 w-12" />
+            <p className="mt-4 font-semibold">Nenhum curso disponível</p>
+            <p className="text-sm">O administrador ainda não publicou nenhum curso. Volte mais tarde!</p>
+          </div>
+      )}
     </div>
   );
 }

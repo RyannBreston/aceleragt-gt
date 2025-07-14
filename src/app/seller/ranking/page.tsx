@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import {Label} from '@/components/ui/label';
 import {Badge} from '@/components/ui/badge';
-import {useSellerContext} from '@/app/seller/layout';
+import {useSellerContext} from '@/contexts/SellerContext'; // Caminho de importação corrigido
 import type {Goals, SalesValueGoals, Seller} from '@/lib/types';
 import {Progress} from '@/components/ui/progress';
 import {
@@ -139,24 +139,8 @@ export default function RankingPage() {
   ];
 
   const sortedSellers = useMemo(() => {
-    const teamGoalMet = sellersData.length > 1 && sellersData.every(s => s.salesValue >= goalsData.salesValue.metinha.threshold && goalsData.salesValue.metinha.threshold > 0);
-    const teamBonus = 100;
-
-    const topScorer = sellersData.length > 0 ? sellersData.reduce((max, seller) => (max.points + max.extraPoints) > (seller.points + seller.extraPoints) ? max : seller) : null;
-
     const sellersWithPrizes = sellersData.map(seller => {
-        const calculated = calculateSellerPrizes(seller, goalsData);
-        let { totalPrize } = calculated;
-        
-        if (teamGoalMet) {
-          totalPrize += teamBonus;
-        }
-
-        if (topScorer && seller.id === topScorer.id) {
-          totalPrize += (goalsData.points.topScorerPrize || 0);
-        }
-
-        return { ...calculated, totalPrize };
+        return calculateSellerPrizes(seller, sellersData, goalsData);
     });
 
     return sellersWithPrizes.sort((a, b) => {
@@ -166,7 +150,7 @@ export default function RankingPage() {
       if (criterion === 'points') {
         return (b.points + b.extraPoints) - (a.points + a.extraPoints);
       }
-      return b[criterion] - a[criterion];
+      return b[criterion as keyof Seller] - a[criterion as keyof Seller];
     });
   }, [sellersData, goalsData, criterion]);
 
@@ -198,6 +182,7 @@ export default function RankingPage() {
   const getGoalProgress = (value: number, criterion: RankingCriterion | 'salesValue') => {
     if (criterion === 'totalPrize')
       return {percent: 100, label: 'N/A', details: 'N/A'};
+    if (!goalsData[criterion]) return {percent: 0, label: 'N/A', details: 'N/A'};
     const goals = goalsData[criterion];
     let nextGoal, currentGoalBase, nextGoalLabel, progress;
 
@@ -260,7 +245,7 @@ export default function RankingPage() {
       : sellerData[criterion as keyof typeof sellerData];
 
   const criterionGoals =
-    criterion !== 'totalPrize' ? goalsData[criterion] : null;
+    criterion !== 'totalPrize' ? goalsData[criterion as keyof Goals] : null;
 
   const allGoals: Array<{
     name: GoalLevelName;
@@ -268,15 +253,15 @@ export default function RankingPage() {
     prize: number;
   }> = criterionGoals
     ? [
-        {name: 'Metinha', ...criterionGoals.metinha},
-        {name: 'Meta', ...criterionGoals.meta},
-        {name: 'Metona', ...criterionGoals.metona},
-        {name: 'Lendária', ...criterionGoals.lendaria},
+        {name: 'Metinha', ...(criterionGoals as any).metinha},
+        {name: 'Meta', ...(criterionGoals as any).meta},
+        {name: 'Metona', ...(criterionGoals as any).metona},
+        {name: 'Lendária', ...(criterionGoals as any).lendaria},
       ]
     : [];
 
   const {percent, label, details} = getGoalProgress(
-    sellerValue,
+    sellerValue as number,
     criterion
   );
 
@@ -370,7 +355,7 @@ export default function RankingPage() {
                       <div className="flex flex-col space-y-1 rounded-lg border p-4">
                           <p className="text-sm text-muted-foreground">Seu Resultado</p>
                           <p className="text-3xl font-bold">
-                              {formatValue(sellerValue, criterion)}
+                              {formatValue(sellerValue as number, criterion)}
                           </p>
                       </div>
                     )}
@@ -382,7 +367,8 @@ export default function RankingPage() {
                         <h4 className="font-semibold mb-3">Níveis de Meta Atingidos</h4>
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {allGoals.map((goal) => {
-                            const isAchieved = sellerValue >= goal.threshold;
+                            if (!goal) return null;
+                            const isAchieved = (sellerValue as number) >= goal.threshold;
                             const config = goalLevelConfig[goal.name as GoalLevelName];
                             return (
                                 <TooltipProvider key={goal.name}>
@@ -437,7 +423,7 @@ export default function RankingPage() {
                                         )}
                                         {criterion !== 'salesValue' && <p>
                                         Seu valor:{' '}
-                                        {formatValue(sellerValue, criterion)}
+                                        {formatValue(sellerValue as number, criterion)}
                                         </p>}
                                         <p
                                         className={cn(

@@ -203,7 +203,9 @@ export type PrizeItem = {
 
 // ... (código anterior do ficheiro)
 
-// --- Tipos para Loja de Prémios ---
+
+
+//// --- Tipos para Loja de Prémios ---
 export type PrizeItem = {
   id: string;
   name: string;
@@ -211,11 +213,12 @@ export type PrizeItem = {
   points: number;
   imageUrl?: string;
   stock?: number;
+  // --- CAMPOS ADICIONADOS ---
   createdAt?: any;
   updatedAt?: any;
 };
 
-// --- Tipos para Análise de Vendas com IA ---
+////--- Tipos para Análise de Vendas com IA ---
 export const AnalyzeSalesTrendsInputSchema = z.object({
   salesData: z.string().describe('JSON string of sales entries.'),
   timeFrame: z.enum(['weekly', 'monthly']),
