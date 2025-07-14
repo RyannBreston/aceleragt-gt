@@ -14,11 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import { generateCourse } from "@/ai/flows/generate-course-flow";
 import type { Course, QuizQuestion as QuizQuestionType } from '@/lib/types';
-import { useAdminContext } from '@/app/admin/layout';
+import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
 import { cn } from '@/lib/utils';
 import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { Certificate } from '@/components/Certificate'; // Importação do novo componente
+import { Certificate } from '@/components/Certificate';
 
 // --- Dados para os Seletores ---
 const BRANDS = ['Olympikus', 'Beira Rio', 'Moleca', 'Vizzano', 'Mizuno', 'Dakota', 'Mississipi', 'Outra'];
