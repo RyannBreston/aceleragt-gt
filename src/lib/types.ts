@@ -93,7 +93,7 @@ export type Mission = {
   // --- CAMPOS ADICIONADOS ---
   criterion: 'salesValue' | 'ticketAverage' | 'pa' | 'points'; // O que será medido
   target: number; // O valor a ser atingido
-  completedBy: string[]; // Lista de IDs de vendedores que já resgataram
+  isActive: boolean; // --- CAMPO ADICIONADO ---
 };
 
 export type CycleSnapshot = {

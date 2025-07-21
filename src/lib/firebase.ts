@@ -1,10 +1,9 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getFunctions } from 'firebase/functions'; // Importar getFunctions
 import { getStorage } from "firebase/storage";
 
-// A sua configuração do Firebase
-// Lembre-se de criar um arquivo .env.local na raiz do projeto com suas chaves
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -14,11 +13,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Inicializa o Firebase de forma segura (evita reinicialização)
+// Inicializar o Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 const storage = getStorage(app);
+const functions = getFunctions(app); // Inicializar o Firebase Functions
 
-// Exporta as instâncias para serem usadas em outras partes do aplicativo
-export { db, auth, storage };
+export { app, auth, db, storage, functions }; // Exportar o 'functions'

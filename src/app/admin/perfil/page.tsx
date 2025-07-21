@@ -3,16 +3,86 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserCog, Users, PlusCircle, Loader2, Trash2 } from "lucide-react";
+import { UserCog, PlusCircle, Loader2, Trash2, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminContext } from "@/contexts/AdminContext"; // Caminho de importação corrigido
+import { useAdminContext } from "@/contexts/AdminContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
+import type { Seller } from "@/lib/types";
 
+// --- Componente do Modal de Alteração de Senha ---
+const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
+    const { toast } = useToast();
+    const [isOpen, setIsOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isChanging, setIsChanging] = useState(false);
+
+    const handleChangePassword = async () => {
+        if (newPassword.length < 6) {
+            toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast({ variant: "destructive", title: "As senhas não coincidem" });
+            return;
+        }
+
+        setIsChanging(true);
+        try {
+            const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
+            await changePasswordFunction({ uid: seller.id, newPassword: newPassword });
+            toast({ title: 'Senha Alterada!', description: `A senha de ${seller.name} foi atualizada.` });
+            setIsOpen(false);
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            console.error("Erro ao alterar senha:", error);
+            toast({ variant: 'destructive', title: 'Erro ao Alterar Senha', description: error.message });
+        } finally {
+            setIsChanging(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="icon" aria-label={`Alterar senha de ${seller.name}`}>
+                    <KeyRound className="h-4 w-4 text-secondary" />
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Alterar Senha de {seller.name}</DialogTitle>
+                    <DialogDescription>Digite a nova senha para o vendedor. Ele será desconectado e precisará usar a nova senha para entrar.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="newPassword">Nova Senha</Label>
+                        <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                        <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleChangePassword} disabled={isChanging}>
+                        {isChanging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Nova Senha
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+};
+
+// --- Componente Principal da Página ---
 export default function PerfilPage() {
     const { toast } = useToast();
     const { sellers, isAuthReady } = useAdminContext();
@@ -38,33 +108,10 @@ export default function PerfilPage() {
 
         setIsLoading(true);
         try {
-            // NOTA: Esta abordagem cria um utilizador temporário no cliente.
-            // Para produção, o ideal seria usar uma Cloud Function para criar utilizadores
-            // e outra para apagar, de modo a manter o Auth e o Firestore sincronizados.
-            const userCredential = await createUserWithEmailAndPassword(auth, newSeller.email, newSeller.password);
-            const user = userCredential.user;
-
-            // Criar documento do vendedor na coleção 'sellers'
-            const sellerDocRef = doc(db, 'sellers', user.uid);
-            await setDoc(sellerDocRef, {
-                id: user.uid,
-                name: newSeller.name,
+            const createSellerFunction = httpsCallable(functions, 'createSeller');
+            await createSellerFunction({
                 email: newSeller.email,
-                role: 'seller',
-                salesValue: 0,
-                ticketAverage: 0,
-                pa: 0,
-                points: 0,
-                extraPoints: 0,
-                completedCourseIds: [],
-                workSchedule: {},
-            });
-
-            // Criar documento de papel na coleção 'users'
-            const userDocRef = doc(db, 'users', user.uid);
-            await setDoc(userDocRef, {
-                role: 'seller',
-                email: newSeller.email,
+                password: newSeller.password,
                 name: newSeller.name,
             });
 
@@ -76,37 +123,22 @@ export default function PerfilPage() {
 
         } catch (error: any) {
             console.error("Erro ao adicionar vendedor:", error);
-            let description = 'Ocorreu um erro ao criar o vendedor.';
-            if (error.code === 'auth/email-already-in-use') {
-                description = 'Este e-mail já está a ser utilizado.';
-            }
-            toast({ variant: 'destructive', title: 'Falha no Registo', description });
+            toast({ variant: 'destructive', title: 'Falha no Registo', description: error.message });
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleDeleteSeller = async (sellerId: string) => {
-        if (window.confirm('Tem a certeza que deseja apagar este vendedor? Esta ação irá remover permanentemente os seus dados da base de dados, mas não a sua conta de login. A remoção da conta de login deve ser feita manually no painel do Firebase.')) {
-            try {
-                // Apagar o documento do vendedor da coleção 'sellers'
-                await deleteDoc(doc(db, 'sellers', sellerId));
-                
-                // Apagar o documento do utilizador da coleção 'users'
-                await deleteDoc(doc(db, 'users', sellerId));
+    const handleDeleteSeller = async (sellerId: string, sellerName: string) => {
+        if (window.confirm(`Tem a certeza que deseja apagar ${sellerName}? Esta ação é irreversível e irá apagar a conta de login e todos os dados do vendedor.`)) {
+             try {
+                const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
+                await deleteSellerFunction({ uid: sellerId });
 
-                toast({
-                    title: 'Vendedor Apagado',
-                    description: 'O registo do vendedor foi apagado com sucesso da base de dados.',
-                });
-                // O onSnapshot no layout irá tratar de atualizar a UI.
-            } catch (error) {
+                toast({ title: 'Vendedor Apagado', description: `${sellerName} foi removido com sucesso.` });
+            } catch (error: any) {
                 console.error("Erro ao apagar vendedor: ", error);
-                toast({
-                    variant: 'destructive',
-                    title: 'Erro ao Apagar',
-                    description: 'Não foi possível apagar o vendedor da base de dados.',
-                });
+                toast({ variant: 'destructive', title: 'Erro ao Apagar', description: error.message });
             }
         }
     };
@@ -172,8 +204,9 @@ export default function PerfilPage() {
                             <TableRow key={seller.id}>
                                 <TableCell className="font-medium">{seller.name}</TableCell>
                                 <TableCell>{seller.email}</TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSeller(seller.id)}>
+                                <TableCell className="text-right space-x-2">
+                                    <ChangePasswordDialog seller={seller} />
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteSeller(seller.id, seller.name)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </TableCell>

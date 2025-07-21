@@ -2,15 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Target, Star, Calendar, Trash2, CalendarIcon, PlusCircle, Loader2 } from 'lucide-react'; // Correção aqui
-import { useAdminContext } from '@/app/admin/layout';
+import { Target, CalendarIcon, PlusCircle, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Mission } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -19,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
 
 const missionCriteria = [
     { value: 'salesValue', label: 'Valor de Venda (R$)' },
@@ -32,7 +31,7 @@ export default function MissionsPage() {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [newMission, setNewMission] = useState<Partial<Mission>>({
-      name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: []
+      name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: [], isActive: true
   });
 
   const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -53,26 +52,21 @@ export default function MissionsPage() {
     return () => unsubscribe();
   }, [missionsCollectionPath]);
   
-  const handleInputChange = (field: keyof Omit<Mission, 'id' | 'startDate' | 'endDate' | 'completedBy'>, value: string | number) => {
+  const handleInputChange = (field: keyof Omit<Mission, 'id' | 'startDate' | 'endDate' | 'completedBy' | 'createdAt'>, value: string | number | boolean) => {
       setNewMission(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAddMission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMission.name || !newMission.rewardValue || !newMission.startDate || !newMission.endDate || !newMission.criterion || !newMission.target) {
-        toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Por favor, preencha todos os campos da missão.' });
+        toast({ variant: 'destructive', title: 'Campos Obrigatórios' });
         return;
     }
-
     try {
-        await addDoc(collection(db, missionsCollectionPath), {
-            ...newMission,
-            createdAt: serverTimestamp(),
-        });
+        await addDoc(collection(db, missionsCollectionPath), { ...newMission, createdAt: serverTimestamp() });
         toast({ title: 'Missão Adicionada!' });
-        setNewMission({ name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: [] });
+        setNewMission({ name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: [], isActive: true });
     } catch (error) {
-        console.error("Erro ao adicionar missão:", error);
         toast({ variant: 'destructive', title: 'Erro ao criar missão.' });
     }
   };
@@ -84,11 +78,18 @@ export default function MissionsPage() {
     }
   };
   
+  const handleToggleMissionStatus = async (missionId: string, currentStatus: boolean) => {
+      const missionRef = doc(db, missionsCollectionPath, missionId);
+      try {
+          await updateDoc(missionRef, { isActive: !currentStatus });
+          toast({ title: `Missão ${!currentStatus ? 'ativada' : 'desativada'} com sucesso!` });
+      } catch (error) {
+          toast({ variant: 'destructive', title: 'Erro ao alterar o status da missão.' });
+      }
+  };
+
   const formatReward = (mission: Mission) => {
-    if (mission.rewardType === 'cash') {
-      return mission.rewardValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-    return `${mission.rewardValue} pts`;
+    return mission.rewardType === 'cash' ? mission.rewardValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : `${mission.rewardValue} pts`;
   }
 
   return (
@@ -142,31 +143,37 @@ export default function MissionsPage() {
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="missionStartDate">Data de Início</Label>
-                    <Popover><PopoverTrigger asChild><Button id="missionStartDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.startDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.startDate ? format(newMission.startDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.startDate} onSelect={(date) => setNewMission(p => ({...p, startDate: date}))} initialFocus /></PopoverContent></Popover>
+                    <Popover><PopoverTrigger asChild><Button id="missionStartDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.startDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.startDate ? format(newMission.startDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.startDate} onSelect={(date) => setNewMission(p => ({...p, startDate: date || undefined}))} initialFocus /></PopoverContent></Popover>
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="missionEndDate">Data de Fim</Label>
-                    <Popover><PopoverTrigger asChild><Button id="missionEndDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.endDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.endDate ? format(newMission.endDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.endDate} onSelect={(date) => setNewMission(p => ({...p, endDate: date}))} initialFocus disabled={{ before: newMission.startDate }} /></PopoverContent></Popover>
+                    <Popover><PopoverTrigger asChild><Button id="missionEndDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.endDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.endDate ? format(newMission.endDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.endDate} onSelect={(date) => setNewMission(p => ({...p, endDate: date || undefined}))} initialFocus disabled={{ before: newMission.startDate }} /></PopoverContent></Popover>
                 </div>
              </div>
             <Button type="submit"><PlusCircle className="mr-2" />Criar Nova Missão</Button>
           </form>
         </CardContent>
       </Card>
-      
+
       <Card>
-        <CardHeader><CardTitle>Missões Ativas</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Missões Criadas</CardTitle></CardHeader>
         <CardContent>
           <div className="rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Missão</TableHead><TableHead>Critério</TableHead><TableHead>Objetivo</TableHead><TableHead>Recompensa</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Status</TableHead><TableHead>Missão</TableHead><TableHead>Objetivo</TableHead><TableHead>Recompensa</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {loading ? <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
                   : missions.map((mission) => (
-                    <TableRow key={mission.id}>
+                    <TableRow key={mission.id} className={!mission.isActive ? 'text-muted-foreground bg-muted/30' : ''}>
+                      <TableCell>
+                        <Switch
+                            checked={mission.isActive}
+                            onCheckedChange={() => handleToggleMissionStatus(mission.id, mission.isActive)}
+                            aria-label="Ativar/desativar missão"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{mission.name}</TableCell>
-                      <TableCell>{missionCriteria.find(c => c.value === mission.criterion)?.label}</TableCell>
-                      <TableCell>{mission.target}</TableCell>
+                      <TableCell>{missionCriteria.find(c => c.value === mission.criterion)?.label}: {mission.target}</TableCell>
                       <TableCell className="font-semibold">{formatReward(mission)}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteMission(mission.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

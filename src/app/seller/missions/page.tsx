@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Target, CheckCircle, Award, Loader2 } from 'lucide-react';
-import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
-import { format } from 'date-fns';
+import { useSellerContext } from '@/contexts/SellerContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import type { Mission } from '@/lib/types';
@@ -12,6 +11,14 @@ import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress'; // Importação do componente de progresso
+
+const missionCriteria = [
+    { value: 'salesValue', label: 'Vendas', format: (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+    { value: 'ticketAverage', label: 'Ticket Médio', format: (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
+    { value: 'pa', label: 'PA', format: (val: number) => val.toFixed(2) },
+    { value: 'points', label: 'Pontos', format: (val: number) => val.toLocaleString('pt-BR') },
+];
 
 export default function MissionsPage() {
   const { currentSeller, setSellers } = useSellerContext();
@@ -45,36 +52,22 @@ export default function MissionsPage() {
           const sellerRef = doc(db, 'sellers', currentSeller.id);
           const missionRef = doc(db, missionsCollectionPath, mission.id);
 
-          // Atualiza o vendedor
           if (mission.rewardType === 'points') {
-              await updateDoc(sellerRef, {
-                  points: (currentSeller.points || 0) + mission.rewardValue
-              });
+              await updateDoc(sellerRef, { points: (currentSeller.points || 0) + mission.rewardValue });
           } else {
-             // Lógica para prémios em dinheiro pode ser mais complexa (ex: notificação para admin)
-             // Por agora, vamos adicionar como pontos extras como exemplo.
-              await updateDoc(sellerRef, {
-                  extraPoints: (currentSeller.extraPoints || 0) + mission.rewardValue
-              });
+              await updateDoc(sellerRef, { extraPoints: (currentSeller.extraPoints || 0) + mission.rewardValue });
           }
           
-          // Marca a missão como concluída para este utilizador
-          await updateDoc(missionRef, {
-              completedBy: arrayUnion(currentSeller.id)
-          });
+          await updateDoc(missionRef, { completedBy: arrayUnion(currentSeller.id) });
 
-          // Atualiza o estado local
           setSellers(prev => prev.map(s => {
               if (s.id !== currentSeller.id) return s;
-              if (mission.rewardType === 'points') {
-                  return { ...s, points: (s.points || 0) + mission.rewardValue };
-              }
+              if (mission.rewardType === 'points') return { ...s, points: (s.points || 0) + mission.rewardValue };
               return { ...s, extraPoints: (s.extraPoints || 0) + mission.rewardValue };
           }));
           
           toast({ title: 'Recompensa Resgatada!', description: `Você ganhou: ${formatReward(mission)}`});
       } catch (error) {
-          console.error("Erro ao resgatar recompensa:", error);
           toast({ variant: 'destructive', title: 'Erro ao resgatar.' });
       } finally {
           setClaiming(null);
@@ -82,20 +75,21 @@ export default function MissionsPage() {
   };
 
   const getMissionStatus = (mission: Mission) => {
-    if (!currentSeller) return { label: 'Ativa', completed: false, canClaim: false };
+    if (!currentSeller) return { label: 'Ativa', completed: false, canClaim: false, progress: 0, currentValue: 0 };
     
     const hasCompleted = mission.completedBy?.includes(currentSeller.id);
-    if (hasCompleted) return { label: 'Concluída', completed: true, canClaim: false };
-    
     const sellerValue = mission.criterion === 'points'
         ? (currentSeller.points || 0) + (currentSeller.extraPoints || 0)
-        : currentSeller[mission.criterion as keyof typeof currentSeller] as number;
+        : (currentSeller[mission.criterion as keyof typeof currentSeller] as number || 0);
 
+    const progress = Math.min(100, (sellerValue / mission.target) * 100);
+    
+    if (hasCompleted) return { label: 'Concluída', completed: true, canClaim: false, progress: 100, currentValue: sellerValue };
+    
     const targetMet = sellerValue >= mission.target;
+    if (targetMet) return { label: 'Resgatar Recompensa', completed: false, canClaim: true, progress: 100, currentValue: sellerValue };
     
-    if (targetMet) return { label: 'Resgatar Recompensa', completed: false, canClaim: true };
-    
-    return { label: 'Ativa', completed: false, canClaim: false };
+    return { label: 'Ativa', completed: false, canClaim: false, progress, currentValue: sellerValue };
   };
 
   const formatReward = (mission: Mission) => {
@@ -104,13 +98,6 @@ export default function MissionsPage() {
     }
     return `${mission.rewardValue} pts`;
   }
-
-  const missionCriteria = [
-      { value: 'salesValue', label: 'Valor de Venda' },
-      { value: 'ticketAverage', label: 'Ticket Médio' },
-      { value: 'pa', label: 'PA' },
-      { value: 'points', label: 'Pontos' },
-  ]
 
   return (
     <div className="space-y-8">
@@ -132,24 +119,35 @@ export default function MissionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Missão</TableHead>
-                    <TableHead>Objetivo</TableHead>
-                    <TableHead>Recompensa</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="w-[30%]">Missão</TableHead>
+                    <TableHead className="w-[40%]">Progresso</TableHead>
+                    <TableHead className="text-right">Recompensa</TableHead>
+                    <TableHead className="text-center w-[180px]">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {missions.map((mission) => {
                     const status = getMissionStatus(mission);
-                    const criterionLabel = missionCriteria.find(c => c.value === mission.criterion)?.label || mission.criterion;
+                    const criterionInfo = missionCriteria.find(c => c.value === mission.criterion);
                     return (
-                        <TableRow key={mission.id} className={status.completed ? 'text-muted-foreground' : ''}>
-                        <TableCell className="font-medium">{mission.name}</TableCell>
-                        <TableCell>{criterionLabel}: {mission.target.toLocaleString('pt-BR')}</TableCell>
-                        <TableCell className="font-semibold text-primary">{formatReward(mission)}</TableCell>
+                        <TableRow key={mission.id} className={status.completed ? 'bg-muted/30 text-muted-foreground' : ''}>
+                        <TableCell className="font-medium">
+                            <p>{mission.name}</p>
+                            <p className="text-xs text-muted-foreground">{mission.description}</p>
+                        </TableCell>
+                        <TableCell>
+                            <div className="flex flex-col gap-2">
+                                <Progress value={status.progress} className="h-3" />
+                                <div className="text-xs font-semibold text-muted-foreground">
+                                    <span>{criterionInfo?.format(status.currentValue)} / </span>
+                                    <span>{criterionInfo?.format(mission.target)}</span>
+                                </div>
+                            </div>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-primary">{formatReward(mission)}</TableCell>
                         <TableCell className="text-center">
                             {status.canClaim ? (
-                                <Button size="sm" onClick={() => handleClaimReward(mission)} disabled={claiming === mission.id}>
+                                <Button size="sm" onClick={() => handleClaimReward(mission)} disabled={claiming === mission.id} className="bg-green-600 hover:bg-green-700">
                                     {claiming === mission.id ? <Loader2 className="mr-2 size-4 animate-spin"/> : <Award className="mr-2 size-4" />}
                                     {status.label}
                                 </Button>

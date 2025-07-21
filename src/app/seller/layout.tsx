@@ -7,17 +7,20 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { cn } from '@/lib/utils';
-import type { Seller, Goals, Mission, CycleSnapshot } from '@/lib/types';
+import type { Seller } from '@/lib/types';
 import { dataStore, useStore } from '@/lib/store';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { SellerContext, useSellerContext } from '@/contexts/SellerContext'; // Importação atualizada
+import { SellerContext } from '@/contexts/SellerContext';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
+// --- COMPONENTE CORRIGIDO (Adicionado de volta) ---
 const menuItems = [
   {href: '/seller/dashboard', label: 'Dashboard', icon: LayoutGrid},
   {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays},
   {href: '/seller/ofertas', label: 'Ofertas', icon: ShoppingBag},
+  {href: '/seller/loja', label: 'Loja de Prémios', icon: ShoppingBag},
   {href: '/seller/ranking', label: 'Meu Desempenho', icon: Trophy},
   {href: '/seller/missions', label: 'Missões', icon: Target},
   {href: '/seller/academia', label: 'Academia', icon: GraduationCap},
@@ -67,76 +70,65 @@ const SellerSidebarContent = () => {
     </>
   );
 };
+// --- FIM DA CORREÇÃO ---
 
 export default function SellerLayout({children}: {children: React.ReactNode}) {
   const router = useRouter();
   const state = useStore(s => s);
-  const [currentSeller, setCurrentSeller] = React.useState<Seller | null>(null);
-  const [isAuthReady, setIsAuthReady] = React.useState(false);
-  const [userId, setUserId] = React.useState<string | null>(null);
+  const [authStatus, setAuthStatus] = React.useState<{ isLoading: boolean; user: FirebaseUser | null }>({ isLoading: true, user: null });
 
   React.useEffect(() => {
-    const authSubscription = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setUserId(user.uid);
+        setAuthStatus({ isLoading: false, user });
       } else {
+        setAuthStatus({ isLoading: false, user: null });
         router.push('/login');
       }
     });
-    return () => authSubscription();
+    return () => unsubscribe();
   }, [router]);
-
+  
   React.useEffect(() => {
-    if (!userId) return;
     const sellersCol = collection(db, 'sellers');
     const unsubscribe = onSnapshot(sellersCol, (snapshot) => {
         const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
         dataStore.setSellers(() => sellersFromDb);
-        const sellerId = localStorage.getItem('loggedInSellerId');
-        if (sellerId) {
-          const foundSeller = sellersFromDb.find(s => s.id === sellerId);
-          if (foundSeller) {
-            setCurrentSeller(foundSeller);
-            setIsAuthReady(true);
-          } else {
-            console.error("ID do vendedor inválido. A fazer logout.");
-            auth.signOut();
-            router.push('/login');
-          }
-        } else {
-            console.error("Nenhum ID de vendedor. A fazer logout.");
-            auth.signOut();
-            router.push('/login');
-        }
     }, (error) => {
         console.error("Erro ao sincronizar vendedores:", error);
-        router.push('/login');
     });
     return () => unsubscribe();
-  }, [userId, router]);
+  }, []);
+
+  const currentSeller = React.useMemo(() => {
+    if (authStatus.isLoading || !authStatus.user) return null;
+    return state.sellers.find(s => s.id === authStatus.user!.uid) || null;
+  }, [authStatus.isLoading, authStatus.user, state.sellers]);
 
   const contextValue = React.useMemo(() => ({
-    sellers: state.sellers,
+    ...state,
     setSellers: dataStore.setSellers,
-    goals: state.goals,
-    missions: state.missions,
     currentSeller: currentSeller!,
-    cycleHistory: state.cycleHistory,
-    isAuthReady,
-    userId
-  }), [state.sellers, state.goals, state.missions, currentSeller, state.cycleHistory, isAuthReady, userId]);
+    userId: authStatus.user?.uid || null,
+    isAuthReady: !authStatus.isLoading && !!currentSeller,
+  }), [state, currentSeller, authStatus]);
 
-  if (!isAuthReady || !currentSeller) {
+
+  if (authStatus.isLoading || !currentSeller) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background text-foreground">
-        <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-        A carregar dados do vendedor...
-      </div>
+       <SidebarProvider>
+          <div className="flex min-h-screen">
+            <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar hidden md:flex">
+                {/* O conteúdo da sidebar não é renderizado aqui para evitar repetição */}
+            </Sidebar>
+            <DashboardSkeleton />
+          </div>
+      </SidebarProvider>
     );
   }
 
   return (
-    <SellerContext.Provider value={contextValue}>
+    <SellerContext.Provider value={contextValue as any}>
       <SidebarProvider>
         <div className="flex min-h-screen">
           <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">

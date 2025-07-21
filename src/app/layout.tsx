@@ -1,25 +1,22 @@
-import type {Metadata} from 'next';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
+import { ReactNode } from 'react';
 
+const inter = Inter({ subsets: ['latin'] });
+
+// Este ficheiro é um Componente de Servidor e não deve conter "use client".
 export const metadata: Metadata = {
-  title: 'Acelera GT Supermoda',
-  description: 'Plataforma de gamificação para aceleração de conhecimento.',
+  title: 'Portal do colaborador SuperModa', // CORREÇÃO AQUI
+  description: 'Plataforma de gamificação para equipas de vendas.',
+  manifest: '/manifest.json', // Linha para o Progressive Web App
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-sans antialiased">
+      <body className={inter.className}>
         {children}
         <Toaster />
       </body>

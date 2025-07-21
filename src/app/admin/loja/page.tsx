@@ -8,13 +8,13 @@ import { db } from '@/lib/firebase';
 import type { PrizeItem } from '@/lib/types';
 
 // Componentes UI
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const formatPoints = (value: number) => {
     return `${value.toLocaleString('pt-BR')} pts`;
@@ -138,40 +138,19 @@ export default function AdminLojaPage() {
         </CardContent>
       </Card>
       
-      {/* Modal de Edição/Criação */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{currentPrize?.id ? 'Editar Prémio' : 'Adicionar Novo Prémio'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">Nome</Label>
-              <Input id="name" value={currentPrize?.name || ''} onChange={(e) => setCurrentPrize(p => ({...p, name: e.target.value}))} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">Descrição</Label>
-              <Textarea id="description" value={currentPrize?.description || ''} onChange={(e) => setCurrentPrize(p => ({...p, description: e.target.value}))} className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="points" className="text-right">Custo (Pontos)</Label>
-              <Input id="points" type="number" value={currentPrize?.points || 0} onChange={(e) => setCurrentPrize(p => ({...p, points: Number(e.target.value)}))} className="col-span-3" />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="stock" className="text-right">Stock</Label>
-              <Input id="stock" type="number" value={currentPrize?.stock ?? ''} onChange={(e) => setCurrentPrize(p => ({...p, stock: Number(e.target.value)}))} className="col-span-3" placeholder="Deixe em branco para ilimitado"/>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="imageUrl" className="text-right">URL da Imagem</Label>
-              <Input id="imageUrl" value={currentPrize?.imageUrl || ''} onChange={(e) => setCurrentPrize(p => ({...p, imageUrl: e.target.value}))} className="col-span-3" />
-            </div>
+            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="name" className="text-right">Nome</Label><Input id="name" value={currentPrize?.name || ''} onChange={(e) => setCurrentPrize(p => ({...p, name: e.target.value}))} className="col-span-3" /></div>
+            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="description" className="text-right">Descrição</Label><Textarea id="description" value={currentPrize?.description || ''} onChange={(e) => setCurrentPrize(p => ({...p, description: e.target.value}))} className="col-span-3" /></div>
+            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="points" className="text-right">Custo (Pontos)</Label><Input id="points" type="number" value={currentPrize?.points || 0} onChange={(e) => setCurrentPrize(p => ({...p, points: Number(e.target.value)}))} className="col-span-3" /></div>
+            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="stock" className="text-right">Stock</Label><Input id="stock" type="number" value={currentPrize?.stock ?? ''} onChange={(e) => setCurrentPrize(p => ({...p, stock: Number(e.target.value)}))} className="col-span-3" placeholder="Deixe em branco para ilimitado"/></div>
+            <div className="grid grid-cols-4 items-center gap-4"><Label htmlFor="imageUrl" className="text-right">URL da Imagem</Label><Input id="imageUrl" value={currentPrize?.imageUrl || ''} onChange={(e) => setCurrentPrize(p => ({...p, imageUrl: e.target.value}))} className="col-span-3" /></div>
           </div>
-          <DialogFooter>
-            <Button onClick={handleSavePrize} disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Salvar
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleSavePrize} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
