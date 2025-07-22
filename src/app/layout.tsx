@@ -8,9 +8,9 @@ const inter = Inter({ subsets: ['latin'] });
 
 // Este ficheiro é um Componente de Servidor e não deve conter "use client".
 export const metadata: Metadata = {
-  title: 'Portal do colaborador SuperModa', // CORREÇÃO AQUI
+  title: 'Portal do colaborador SuperModa',
   description: 'Plataforma de gamificação para equipas de vendas.',
-  manifest: '/manifest.json', // Linha para o Progressive Web App
+  manifest: '/manifest.json', // Garante que o PWA seja reconhecido
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -24,7 +24,6 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        // Mapeamento das suas cores personalizadas para as variáveis do tema
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -53,14 +52,11 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Suas cores de marca originais (mantidas para referência, se necessário)
+        // --- SUAS CORES PERSONALIZADAS DEFINIDAS AQUI ---
         supermoda: {
-          'pink': '#FF69B4',
-          'purple': '#8A2BE2',
-          'blue': '#1E90FF',
-          'gold': '#FFD700',
-          'silver': '#C0C0C0',
-          'bronze': '#CD7F32',
+          pink: '#ef476f',
+          blue: '#4b5aa6',
+          gray: '#999999',
         },
       },
       borderRadius: {

@@ -13,15 +13,18 @@
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
  
-    /* Cores da sua marca SuperModa aplicadas ao tema */
-    --primary: 326 100% 70%; /* SuperModa Pink */
-    --primary-foreground: 326 100% 10%;
- 
-    --secondary: 266 70% 50%; /* SuperModa Purple */
+    /* --- SUAS NOVAS CORES APLICADAS AO TEMA --- */
+    /* "super" (rosa) como cor primária */
+    --primary: 348 83% 64%; /* #ef476f */
+    --primary-foreground: 0 0% 100%;
+
+    /* "moda" (azul) como cor secundária */
+    --secondary: 230 39% 47%; /* #4b5aa6 */
     --secondary-foreground: 0 0% 98%;
  
     --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    /* "calçados" (cinza) para texto silenciado */
+    --muted-foreground: 0 0% 60%; /* #999999 */
  
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
@@ -31,14 +34,13 @@
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 326 100% 70%;
+    --ring: 348 83% 64%; /* O anel de foco usa a cor primária */
  
     --radius: 0.5rem;
   }
  
   .dark {
-    /* As cores já estão definidas para o tema escuro,
-       mas você pode adicionar overrides específicos aqui se necessário. */
+    /* As cores já estão otimizadas para o tema escuro. */
   }
 }
  

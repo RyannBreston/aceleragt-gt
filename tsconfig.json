@@ -1,27 +1,45 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
+    "target": "ES2017", // Compatível com o Node.js usado no Firebase
+    "lib": [
+      "esnext"
+    ], // Usa recursos mais recentes do JS
+    "module": "commonjs", // Necessário para Firebase Functions
+    "outDir": "lib", // Diretório de saída do TypeScript compilado
+    "rootDir": "src", // Diretório raiz do código-fonte
+    "strict": true, // Ativa todas as verificações rigorosas
+    "esModuleInterop": true, // Permite importações de módulos CommonJS
+    "resolveJsonModule": true, // Permite importar arquivos JSON
+    "skipLibCheck": true, // Ignora verificação de tipo em dependências
+    "forceConsistentCasingInFileNames": true, // Força consistência de maiúsculas/minúsculas
+    "noImplicitReturns": true, // Evita funções que podem não retornar valor
+    "noUnusedLocals": true, // Marca variáveis não usadas
+    "noUnusedParameters": true, // Marca parâmetros não usados
+    "moduleResolution": "node", // Resolve módulos como Node.js
+    "allowJs": true, // Permite arquivos JS no projeto
+    "checkJs": false, // Ignora checagem de tipos em arquivos JS
+    "noEmit": false, // Permite saída de arquivos JS compilados
+    "sourceMap": true, // Gera arquivos .map para debugging
+    "incremental": true, // Compilação incremental para melhor performance
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true,
     "plugins": [
       {
         "name": "next"
       }
-    ],
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
 }
