@@ -27,42 +27,45 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // 1. Autenticar o utilizador com o Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // 2. Obter o documento do utilizador no Firestore para verificar a sua função (role)
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
+      // 3. Validar se o perfil do utilizador existe
       if (!userDoc.exists()) {
+        // Se não existir, forçamos o logout para segurança e lançamos um erro.
+        await auth.signOut();
         throw new Error('Perfil de utilizador não encontrado.');
       }
 
+      // 4. Determinar o 'role' e redirecionar para o painel correto
       const userData = userDoc.data();
       const role = userData?.role;
 
       if (role === 'admin') {
-        router.push('/admin');
+        router.push('/admin/dashboard'); // Redireciona para o dashboard do admin
       } else if (role === 'seller') {
-        localStorage.setItem('loggedInSellerId', user.uid);
-        router.push('/seller');
+        // O localStorage não é mais necessário. A autenticação é gerida pelo onAuthStateChanged.
+        router.push('/seller/dashboard'); // Redireciona para o dashboard do vendedor
       } else {
+        // Se o 'role' for inválido ou não existir, forçamos o logout e lançamos um erro.
+        await auth.signOut();
         throw new Error('Perfil de utilizador inválido ou não autorizado.');
       }
+
     } catch (error: any) {
+      // 5. Tratamento de erros centralizado
       let errorMessage = 'Ocorreu um erro ao tentar entrar.';
 
+      // Mapeia códigos de erro do Firebase para mensagens amigáveis
       if (error.code?.includes('auth/')) {
-        const authErrors = [
-          'auth/invalid-credential',
-          'auth/wrong-password',
-          'auth/user-not-found',
-          'auth/invalid-email',
-        ];
-
-        if (authErrors.includes(error.code)) {
-          errorMessage = 'Email ou senha inválidos.';
-        }
+        errorMessage = 'Email ou senha inválidos. Por favor, tente novamente.';
       } else if (error.message) {
+        // Usa a mensagem de erro personalizada (ex: "Perfil não encontrado")
         errorMessage = error.message;
       }
 
@@ -107,6 +110,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -118,6 +122,7 @@ export default function LoginPage() {
               Entrar
             </Button>
           </form>
+          {/* O link para signup pode ser removido se você já apagou a página de signup */}
           <div className="mt-4 text-center text-sm">
             Não tem uma conta?{' '}
             <Link href="/signup" className="underline">

@@ -2,23 +2,82 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag } from "lucide-react";
-import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
+import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag, Icon } from "lucide-react";
+import { useAdminContext } from '@/contexts/AdminContext';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import AiInsights from '@/components/ai-insights';
 
+// ####################################################################
+// ### 1. COMPONENTE REUTILIZÁVEL: StatCard ###
+// ####################################################################
+// Este componente encapsula a lógica visual de um card de estatística.
+// Agora, em vez de repetir o JSX, apenas chamamos este componente.
+
+interface StatCardProps {
+  title: string;
+  value: string;
+  description: string;
+  Icon: Icon; // Usamos o tipo 'Icon' do Lucide para flexibilidade
+  iconClassName?: string;
+}
+
+const StatCard = ({ title, value, description, Icon, iconClassName }: StatCardProps) => (
+  <Card className="bg-card border-border shadow-lg rounded-xl">
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <Icon className={cn("h-4 w-4 text-muted-foreground", iconClassName)} />
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </CardContent>
+  </Card>
+);
+
+// ####################################################################
+// ### 2. CUSTOM HOOK: useDashboardStats ###
+// ####################################################################
+// Toda a lógica de cálculo foi movida para este hook.
+// O componente principal fica mais limpo e a lógica é reutilizável.
+
+const useDashboardStats = (sellers: Seller[]) => {
+  return useMemo(() => {
+    const totalSellers = sellers.length;
+
+    if (totalSellers === 0) {
+      return {
+        totalSellers: 0,
+        currentSales: 0,
+        totalPoints: 0,
+        averageTicket: 0,
+        averagePA: 0,
+      };
+    }
+
+    const currentSales = sellers.reduce((acc, seller) => acc + seller.salesValue, 0);
+    const totalPoints = sellers.reduce((acc, seller) => acc + seller.points + seller.extraPoints, 0);
+    const totalTicket = sellers.reduce((acc, seller) => acc + seller.ticketAverage, 0);
+    const totalPA = sellers.reduce((acc, seller) => acc + seller.pa, 0);
+
+    return {
+      totalSellers,
+      currentSales,
+      totalPoints,
+      averageTicket: totalSellers > 0 ? totalTicket / totalSellers : 0,
+      averagePA: totalSellers > 0 ? totalPA / totalSellers : 0,
+    };
+  }, [sellers]);
+};
+
+// --- Componente GoalDistribution (Sem alterações, mas com uma nota) ---
+// NOTA: Para uma organização ideal, este componente poderia ser movido
+// para o seu próprio arquivo, como `src/components/GoalDistribution.tsx`.
 const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals }) => {
   const goalTiers = ['lendaria', 'metona', 'meta', 'metinha'] as const;
-  const goalLabels = {
-    lendaria: 'Lendária',
-    metona: 'Metona',
-    meta: 'Meta',
-    metinha: 'Metinha',
-    nenhuma: 'Nenhuma'
-  };
+  const goalLabels = { lendaria: 'Lendária', metona: 'Metona', meta: 'Meta', metinha: 'Metinha', nenhuma: 'Nenhuma' };
 
   const distribution = useMemo(() => {
     const criteria = ['salesValue', 'ticketAverage', 'pa', 'points'] as const;
@@ -50,13 +109,8 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Flag className="text-primary"/>
-            <span>Distribuição de Metas</span>
-        </CardTitle>
-        <CardDescription>
-          Quantos vendedores atingiram cada nível de meta.
-        </CardDescription>
+        <CardTitle className="flex items-center gap-2"><Flag className="text-primary"/><span>Distribuição de Metas</span></CardTitle>
+        <CardDescription>Quantos vendedores atingiram cada nível de meta.</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="salesValue">
@@ -71,11 +125,8 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
               <ul className="space-y-3">
                 {Object.entries(goalLabels).map(([tierKey, tierLabel]) => (
                    <li key={tierKey} className="flex items-center justify-between text-sm">
-                      <span className={cn(
-                        "font-medium",
-                        tierKey === 'nenhuma' ? 'text-muted-foreground' : 'text-foreground'
-                      )}>{tierLabel}</span>
-                      <span className="font-bold text-primary">{distribution[criterion as keyof typeof distribution][tierKey]}</span>
+                     <span className={cn("font-medium", tierKey === 'nenhuma' ? 'text-muted-foreground' : 'text-foreground')}>{tierLabel}</span>
+                     <span className="font-bold text-primary">{distribution[criterion as keyof typeof distribution][tierKey]}</span>
                    </li>
                 ))}
               </ul>
@@ -88,41 +139,22 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
 }
 
 
+// ####################################################################
+// ### 3. DASHBOARD PAGE REATORIZADA ###
+// ####################################################################
+// O componente principal agora é muito mais limpo.
+// Ele apenas consome os dados e os hooks, e passa os resultados para os componentes de apresentação.
 export default function DashboardPage() {
-  const { sellers: sellersData, goals } = useAdminContext();
+  const { sellers, goals } = useAdminContext();
 
+  // Usa o custom hook para obter as estatísticas calculadas
   const { 
     totalSellers,
     currentSales,
     totalPoints,
     averageTicket,
     averagePA,
-  } = useMemo(() => {
-    const totalSellers = sellersData.length;
-    
-    if (totalSellers === 0) {
-      return {
-        totalSellers: 0,
-        currentSales: 0,
-        totalPoints: 0,
-        averageTicket: 0,
-        averagePA: 0,
-      };
-    }
-
-    const currentSales = sellersData.reduce((acc, seller) => acc + seller.salesValue, 0);
-    const totalPoints = sellersData.reduce((acc, seller) => acc + seller.points + seller.extraPoints, 0);
-    const totalTicket = sellersData.reduce((acc, seller) => acc + seller.ticketAverage, 0);
-    const totalPA = sellersData.reduce((acc, seller) => acc + seller.pa, 0);
-
-    return { 
-      totalSellers,
-      currentSales,
-      totalPoints,
-      averageTicket: totalSellers > 0 ? totalTicket / totalSellers : 0,
-      averagePA: totalSellers > 0 ? totalPA / totalSellers : 0,
-    };
-  }, [sellersData]);
+  } = useDashboardStats(sellers);
 
   return (
     <div className="space-y-8">
@@ -130,92 +162,49 @@ export default function DashboardPage() {
         <LayoutGrid className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Dashboard</h1>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="bg-card border-border shadow-lg rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Vendas Totais (Mês)
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total de vendas da equipa
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border shadow-lg rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-             Ticket Médio (Equipe)
-            </CardTitle>
-            <Ticket className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-             Média de ticket por venda
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border shadow-lg rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              PA Médio (Equipe)
-            </CardTitle>
-            <Box className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {averagePA.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Média de produtos por atendimento
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border shadow-lg rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pontos Totais da Equipe</CardTitle>
-            <Star className="h-4 w-4 text-yellow-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {totalPoints.toLocaleString('pt-BR')}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Soma de todos os pontos ganhos
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border col-span-1 md:col-span-2 lg:col-span-1 shadow-lg rounded-xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Vendedores Ativos
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSellers}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de vendedores na equipe
-            </p>
-          </CardContent>
-        </Card>
+
+      {/* Usa o componente StatCard para renderizar os cards de forma limpa e reutilizável */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <StatCard 
+          title="Vendas Totais (Mês)" 
+          value={currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          description="Total de vendas da equipa"
+          Icon={DollarSign}
+        />
+        <StatCard 
+          title="Ticket Médio (Equipe)"
+          value={averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          description="Média de ticket por venda"
+          Icon={Ticket}
+        />
+        <StatCard 
+          title="PA Médio (Equipe)"
+          value={averagePA.toFixed(2)}
+          description="Média de produtos por atendimento"
+          Icon={Box}
+        />
+        <StatCard 
+          title="Pontos Totais da Equipe"
+          value={totalPoints.toLocaleString('pt-BR')}
+          description="Soma de todos os pontos ganhos"
+          Icon={Star}
+          iconClassName="text-yellow-400"
+        />
+        <StatCard 
+          title="Vendedores Ativos"
+          value={String(totalSellers)}
+          description="Total de vendedores na equipe"
+          Icon={Users}
+        />
       </div>
       
-       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <SalesOverviewChart sellers={sellersData} />
+          <SalesOverviewChart sellers={sellers} />
         </div>
         <div className="space-y-4">
-            <GoalDistribution sellers={sellersData} goals={goals} />
-            <AiInsights sellers={sellersData} />
+            <GoalDistribution sellers={sellers} goals={goals} />
+            <AiInsights sellers={sellers} />
         </div>
       </div>
     </div>

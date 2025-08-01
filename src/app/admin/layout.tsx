@@ -7,33 +7,31 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
-import { cn } from '@/lib/utils';
-import type { Seller, CycleSnapshot } from '@/lib/types';
-import { dataStore, useStore } from '@/lib/store';
-import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
-import { AdminContext } from '@/contexts/AdminContext';
-import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+import { auth } from '@/lib/firebase';
+// Importa o Provider e o Hook do contexto
+import { AdminProvider, useAdminContext } from '@/contexts/AdminContext';
 
 const menuItems = [
-  {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid},
-  {href: '/admin/ranking', label: 'Ranking', icon: Trophy},
-  {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays},
-  {href: '/admin/missions', label: 'Missões', icon: Target},
-  {href: '/admin/academia', label: 'Academia', icon: GraduationCap},
-  {href: '/admin/quiz', label: 'Quiz', icon: Puzzle},
-  {href: '/admin/loja', label: 'Loja de Prémios', icon: ShoppingBag},
-  {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag},
-  {href: '/admin/historico', label: 'Histórico', icon: History},
-  {href: '/admin/perfil', label: 'Perfil', icon: User},
-  {href: '/admin/settings', label: 'Configurações', icon: Shield},
+    {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid},
+    {href: '/admin/ranking', label: 'Ranking', icon: Trophy},
+    {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays},
+    {href: '/admin/missions', label: 'Missões', icon: Target},
+    {href: '/admin/academia', label: 'Academia', icon: GraduationCap},
+    {href: '/admin/quiz', label: 'Quiz', icon: Puzzle},
+    {href: '/admin/loja', label: 'Loja de Prémios', icon: ShoppingBag},
+    {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag},
+    {href: '/admin/historico', label: 'Histórico', icon: History},
+    {href: '/admin/perfil', label: 'Perfil', icon: User},
+    {href: '/admin/settings', label: 'Configurações', icon: Shield},
 ];
 
-function AdminLayoutContent({ children, isDirty, setIsDirty }: { children: React.ReactNode; isDirty: boolean; setIsDirty: (dirty: boolean) => void; }) {
+// Componente de conteúdo que consome o contexto
+function AdminLayoutContent({ children }: { children: React.ReactNode; }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
+  // Obtém o estado 'isDirty' diretamente do contexto
+  const { isDirty, setIsDirty } = useAdminContext(); 
   const [pendingPath, setPendingPath] = React.useState<string | null>(null);
 
   const handleNavigate = (path: string) => {
@@ -59,9 +57,7 @@ function AdminLayoutContent({ children, isDirty, setIsDirty }: { children: React
   const handleConfirmNavigation = () => {
     if (pendingPath) {
       setIsDirty(false);
-      if (pendingPath === '/login') {
-        auth.signOut();
-      }
+      if (pendingPath === '/login') auth.signOut();
       router.push(pendingPath);
       setPendingPath(null);
       if (isMobile) setOpenMobile(false);
@@ -86,107 +82,25 @@ function AdminLayoutContent({ children, isDirty, setIsDirty }: { children: React
 
       <AlertDialog open={!!pendingPath} onOpenChange={() => setPendingPath(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem alterações não salvas</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem a certeza de que deseja sair? As suas alterações na página de Configurações serão perdidas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmNavigation}>Sair Mesmo Assim</AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Você tem alterações não salvas</AlertDialogTitle><AlertDialogDescription>Tem a certeza de que deseja sair? As suas alterações serão perdidas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleConfirmNavigation}>Sair Mesmo Assim</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
 
+// Layout principal que envolve tudo com o Provider
 export default function AdminLayout({children}: {children: React.ReactNode}) {
-  const router = useRouter();
-  const state = useStore(s => s);
-  const [isDirty, setIsDirty] = React.useState(false);
-  const [authStatus, setAuthStatus] = React.useState<{ isLoading: boolean; user: FirebaseUser | null; isAdmin: boolean }>({ isLoading: true, user: null, isAdmin: false });
-
-  React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setAuthStatus({ isLoading: false, user, isAdmin: true });
-        } else {
-          await auth.signOut();
-          setAuthStatus({ isLoading: false, user: null, isAdmin: false });
-          router.push('/login');
-        }
-      } else {
-        setAuthStatus({ isLoading: false, user: null, isAdmin: false });
-        router.push('/login');
-      }
-    });
-    return () => unsubscribe();
-  }, [router]);
-
-  React.useEffect(() => {
-    if (!authStatus.isAdmin) return;
-    const sellersCol = collection(db, 'sellers');
-    const unsubSellers = onSnapshot(sellersCol, (snapshot) => {
-        const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
-        dataStore.setSellers(() => sellersFromDb);
-    });
-    const historyCol = collection(db, 'cycle_history');
-    const q = query(historyCol, orderBy('endDate', 'asc'));
-    const unsubHistory = onSnapshot(q, (snapshot) => {
-        const historyFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CycleSnapshot));
-        dataStore.setCycleHistory(() => historyFromDb);
-    });
-    return () => { unsubSellers(); unsubHistory(); };
-  }, [authStatus.isAdmin]);
-  
-  React.useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (isDirty) {
-        event.preventDefault();
-        event.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [isDirty]);
-
-  const contextValue = React.useMemo(() => ({
-    ...state,
-    setSellers: dataStore.setSellers,
-    setGoals: dataStore.setGoals,
-    setMissions: dataStore.setMissions,
-    setAdminUser: dataStore.setAdminUser,
-    setCycleHistory: dataStore.setCycleHistory,
-    isDirty,
-    setIsDirty,
-    isAuthReady: !authStatus.isLoading,
-    userId: authStatus.user?.uid || null
-  }), [state, isDirty, authStatus]);
-
-  if (authStatus.isLoading || !authStatus.isAdmin) {
-    return (
-      <div className="flex min-h-screen">
-        <DashboardSkeleton />
-      </div>
-    );
-  }
-
   return (
-    <AdminContext.Provider value={contextValue as any}>
+    <AdminProvider>
       <SidebarProvider>
         <div className="flex min-h-screen">
-          <AdminLayoutContent isDirty={isDirty} setIsDirty={setIsDirty}>
+          <AdminLayoutContent>
             {children}
           </AdminLayoutContent>
         </div>
       </SidebarProvider>
-    </AdminContext.Provider>
+    </AdminProvider>
   );
 }

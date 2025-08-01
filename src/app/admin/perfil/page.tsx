@@ -10,6 +10,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogTrigger, DialogDescription
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserCog, PlusCircle, Loader2, Trash2, KeyRound } from "lucide-react";
@@ -23,7 +28,7 @@ import type { Seller } from "@/lib/types";
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
-// --- Componente do Modal de Alteração de Senha ---
+// --- Componente do Modal de Alteração de Senha (Sem alterações) ---
 const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -33,39 +38,23 @@ const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
 
   const handleChangePassword = async () => {
     if (newPassword.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Senha muito curta",
-        description: "A nova senha deve ter no mínimo 6 caracteres."
-      });
+      toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
       return;
     }
-
     if (newPassword !== confirmPassword) {
       toast({ variant: "destructive", title: "As senhas não coincidem" });
       return;
     }
-
     setIsChanging(true);
     try {
       const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
-      await changePasswordFunction({
-        uid: seller.id,
-        newPassword
-      });
-      toast({
-        title: 'Senha Alterada!',
-        description: `A senha de ${seller.name} foi atualizada.`
-      });
+      await changePasswordFunction({ uid: seller.id, newPassword });
+      toast({ title: 'Senha Alterada!', description: `A senha de ${seller.name} foi atualizada.` });
       setIsOpen(false);
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao Alterar Senha',
-        description: error.message
-      });
+      toast({ variant: 'destructive', title: 'Erro ao Alterar Senha', description: error.message });
     } finally {
       setIsChanging(false);
     }
@@ -88,22 +77,11 @@ const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="newPassword">Nova Senha</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
-            />
+            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
+            <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
@@ -118,6 +96,42 @@ const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   );
 };
 
+// --- Componente AlertDialog para confirmar a exclusão (Sem alterações) ---
+const DeleteSellerDialog = ({ seller, onDelete }: { seller: Seller, onDelete: (sellerId: string, sellerName: string) => void }) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    await onDelete(seller.id, seller.name);
+    setIsDeleting(false);
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`Apagar ${seller.name}`}>
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Tem a certeza absoluta?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. Isto irá apagar permanentemente a conta de <span className="font-bold">{seller.name}</span> e todos os seus dados associados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Sim, apagar vendedor
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // --- Componente Principal da Página ---
 export default function PerfilPage() {
   const { toast } = useToast();
@@ -127,57 +141,44 @@ export default function PerfilPage() {
 
   const handleAddSeller = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!newSeller.name.trim() || !newSeller.email.trim() || !newSeller.password.trim()) {
       toast({ variant: 'destructive', title: 'Campos obrigatórios' });
       return;
     }
-
     if (newSeller.password.length < 6) {
-      toast({
-        variant: "destructive",
-        title: "Senha Muito Curta",
-        description: "A senha deve ter no mínimo 6 caracteres."
-      });
+      toast({ variant: "destructive", title: "Senha Muito Curta", description: "A senha deve ter no mínimo 6 caracteres." });
       return;
     }
-
     setIsLoading(true);
     try {
       const createSellerFunction = httpsCallable(functions, 'createSeller');
-      await createSellerFunction(newSeller);
-      toast({
-        title: 'Vendedor Adicionado!',
-        description: `A conta para ${newSeller.name} foi criada.`
-      });
+      await createSellerFunction({ name: newSeller.name, email: newSeller.email, password: newSeller.password });
+      toast({ title: 'Vendedor Adicionado!', description: `A conta para ${newSeller.name} foi criada.` });
+      
+      // ### ALTERAÇÃO AQUI: Limpa completamente o estado após o sucesso ###
       setNewSeller({ name: '', email: '', password: '' });
+
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Falha no Registro',
-        description: error.message
-      });
+      toast({ variant: 'destructive', title: 'Falha no Registro', description: error.message });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeleteSeller = async (sellerId: string, sellerName: string) => {
-    if (window.confirm(`Tem certeza que deseja apagar ${sellerName}?`)) {
-      try {
-        const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
-        await deleteSellerFunction({ uid: sellerId });
-        toast({
-          title: 'Vendedor Apagado',
-          description: `${sellerName} foi removido com sucesso.`
-        });
-      } catch (error: any) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao Apagar',
-          description: error.message
-        });
-      }
+    try {
+      const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
+      await deleteSellerFunction({ uid: sellerId });
+      toast({
+        title: 'Vendedor Apagado',
+        description: `${sellerName} foi removido com sucesso.`
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Apagar',
+        description: error.message
+      });
     }
   };
 
@@ -202,34 +203,23 @@ export default function PerfilPage() {
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="sellerName">Nome Completo</Label>
-                <Input
-                  id="sellerName"
-                  placeholder="Nome do Vendedor"
-                  value={newSeller.name}
-                  onChange={(e) => setNewSeller(s => ({ ...s, name: e.target.value }))}
-                  required disabled={isLoading}
-                />
+                <Input id="sellerName" placeholder="Nome do Vendedor" value={newSeller.name} onChange={(e) => setNewSeller(s => ({ ...s, name: e.target.value }))} required disabled={isLoading} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sellerEmail">Email de Login</Label>
-                <Input
-                  id="sellerEmail"
-                  type="email"
-                  placeholder="email@vendedor.com"
-                  value={newSeller.email}
-                  onChange={(e) => setNewSeller(s => ({ ...s, email: e.target.value }))}
-                  required disabled={isLoading}
-                />
+                <Input id="sellerEmail" type="email" placeholder="email@vendedor.com" value={newSeller.email} onChange={(e) => setNewSeller(s => ({ ...s, email: e.target.value }))} required disabled={isLoading} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sellerPassword">Senha Inicial</Label>
+                {/* ### ALTERAÇÃO AQUI: tipo de input alterado para 'password' ### */}
                 <Input
                   id="sellerPassword"
-                  type="text"
-                  placeholder="Mínimo 6 caracteres"
+                  type="password"
+                  placeholder="••••••••"
                   value={newSeller.password}
                   onChange={(e) => setNewSeller(s => ({ ...s, password: e.target.value }))}
-                  required disabled={isLoading}
+                  required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -266,13 +256,7 @@ export default function PerfilPage() {
                     <TableCell>{seller.email}</TableCell>
                     <TableCell className="text-right space-x-2">
                       <ChangePasswordDialog seller={seller} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteSeller(seller.id, seller.name)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <DeleteSellerDialog seller={seller} onDelete={handleDeleteSeller} />
                     </TableCell>
                   </TableRow>
                 )) : (

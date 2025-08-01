@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -20,6 +20,44 @@ import { useToast } from '@/hooks/use-toast';
 import { analyzeSalesTrends } from '@/ai/flows/analyze-sales-trends';
 import type { AnalyzeSalesTrendsOutput, Seller } from '@/lib/types';
 import { Lightbulb, Loader2, Sparkles } from 'lucide-react';
+import { Skeleton } from './ui/skeleton'; // Importe o componente Skeleton
+
+// ####################################################################
+// ### 1. COMPONENTE DE RESULTADOS ###
+// ####################################################################
+// Separa a lógica de exibição dos resultados para maior clareza.
+const AnalysisResult = ({ analysis }: { analysis: AnalyzeSalesTrendsOutput }) => (
+  <div className="space-y-4 pt-4 border-t">
+    <div>
+      <h4 className="font-semibold">Resumo</h4>
+      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.summary}</p>
+    </div>
+    <div>
+      <h4 className="font-semibold">Produtos em Destaque</h4>
+      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.topProducts}</p>
+    </div>
+    <div>
+      <h4 className="font-semibold">Principais Insights</h4>
+      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysis.insights}</p>
+    </div>
+  </div>
+);
+
+// Componente para o estado de carregamento dos resultados
+const AnalysisSkeleton = () => (
+    <div className="space-y-4 pt-4 border-t">
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+        </div>
+    </div>
+);
+
 
 type AiInsightsProps = {
   sellers: Seller[];
@@ -31,22 +69,39 @@ export default function AiInsights({ sellers }: AiInsightsProps) {
   const [analysis, setAnalysis] = useState<AnalyzeSalesTrendsOutput | null>(null);
   const { toast } = useToast();
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (isInitialLoad = false) => {
     if (sellers.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Dados Insuficientes',
-        description: 'É necessário ter pelo menos um vendedor com dados para realizar a análise.',
-      });
+      if (!isInitialLoad) { // Só mostra o toast se não for no carregamento inicial
+          toast({
+            variant: 'destructive',
+            title: 'Dados Insuficientes',
+            description: 'É necessário ter pelo menos um vendedor com dados para realizar a análise.',
+          });
+      }
       return;
     }
 
     setIsLoading(true);
-    setAnalysis(null);
+    if (!isInitialLoad) { // Só limpa a análise anterior se for um clique do utilizador
+        setAnalysis(null);
+    }
 
     try {
+      // ####################################################################
+      // ### 2. OTIMIZAÇÃO DE PAYLOAD ###
+      // ####################################################################
+      // Mapeamos os dados dos vendedores para enviar apenas o que é necessário para a análise.
+      const relevantSalesData = sellers.map(seller => ({
+        name: seller.name,
+        salesValue: seller.salesValue,
+        ticketAverage: seller.ticketAverage,
+        pa: seller.pa,
+        points: seller.points,
+      }));
+
       const result = await analyzeSalesTrends({
-        salesData: JSON.stringify(sellers),
+        // Enviamos apenas os dados relevantes, reduzindo o tamanho da requisição.
+        salesData: JSON.stringify(relevantSalesData),
         timeFrame,
       });
       setAnalysis(result);
@@ -55,12 +110,21 @@ export default function AiInsights({ sellers }: AiInsightsProps) {
       toast({
         variant: 'destructive',
         title: 'Análise Falhou',
-        description: 'Ocorreu um erro ao analisar os dados de vendas. Por favor, tente novamente.',
+        description: 'Ocorreu um erro ao analisar os dados. Por favor, tente novamente.',
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  // ####################################################################
+  // ### 3. MELHORIA DE UX: ANÁLISE INICIAL ###
+  // ####################################################################
+  // Executa a análise automaticamente quando o componente é montado.
+  useEffect(() => {
+    handleAnalyze(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executa apenas uma vez no início
 
   return (
     <Card>
@@ -86,27 +150,15 @@ export default function AiInsights({ sellers }: AiInsightsProps) {
                     <SelectItem value="monthly">Mensal</SelectItem>
                     </SelectContent>
                 </Select>
-                <Button onClick={handleAnalyze} disabled={isLoading} className="flex-grow">
+                <Button onClick={() => handleAnalyze()} disabled={isLoading} className="flex-grow">
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Analisar Vendas
                 </Button>
             </div>
-            {analysis && (
-                <div className="space-y-4 pt-4 border-t">
-                    <div>
-                        <h4 className="font-semibold">Resumo</h4>
-                        <p className="text-sm text-muted-foreground">{analysis.summary}</p>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold">Produtos em Destaque</h4>
-                        <p className="text-sm text-muted-foreground">{analysis.topProducts}</p>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold">Principais Insights</h4>
-                        <p className="text-sm text-muted-foreground">{analysis.insights}</p>
-                    </div>
-                </div>
-            )}
+            
+            {/* Exibe o esqueleto durante o carregamento ou o resultado quando disponível */}
+            {isLoading ? <AnalysisSkeleton /> : analysis && <AnalysisResult analysis={analysis} />}
+
         </div>
       </CardContent>
     </Card>
