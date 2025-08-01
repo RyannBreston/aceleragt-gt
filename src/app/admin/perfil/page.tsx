@@ -28,7 +28,7 @@ import type { Seller } from "@/lib/types";
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
-// --- Componente do Modal de Alteração de Senha (Sem alterações) ---
+// --- Componente do Modal de Alteração de Senha ---
 const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -96,7 +96,7 @@ const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   );
 };
 
-// --- Componente AlertDialog para confirmar a exclusão (Sem alterações) ---
+// --- Componente AlertDialog para confirmar a exclusão ---
 const DeleteSellerDialog = ({ seller, onDelete }: { seller: Seller, onDelete: (sellerId: string, sellerName: string) => void }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -141,21 +141,43 @@ export default function PerfilPage() {
 
   const handleAddSeller = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // ####################################################################
+    // ### LINHA DE DEPURAÇÃO ADICIONADA ###
+    // ####################################################################
+    // Verifique o console do navegador para ver exatamente o que está a ser enviado.
+    console.log("Dados que serão enviados para a Cloud Function:", newSeller);
+
+    // Validação dos campos do formulário
     if (!newSeller.name.trim() || !newSeller.email.trim() || !newSeller.password.trim()) {
-      toast({ variant: 'destructive', title: 'Campos obrigatórios' });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Campos obrigatórios',
+        description: 'Por favor, preencha todos os campos para adicionar um vendedor.'
+      });
       return;
     }
     if (newSeller.password.length < 6) {
-      toast({ variant: "destructive", title: "Senha Muito Curta", description: "A senha deve ter no mínimo 6 caracteres." });
+      toast({ 
+        variant: "destructive", 
+        title: "Senha Muito Curta", 
+        description: "A senha deve ter no mínimo 6 caracteres." 
+      });
       return;
     }
+
     setIsLoading(true);
     try {
       const createSellerFunction = httpsCallable(functions, 'createSeller');
-      await createSellerFunction({ name: newSeller.name, email: newSeller.email, password: newSeller.password });
+      await createSellerFunction({ 
+        name: newSeller.name, 
+        email: newSeller.email, 
+        password: newSeller.password 
+      });
+      
       toast({ title: 'Vendedor Adicionado!', description: `A conta para ${newSeller.name} foi criada.` });
       
-      // ### ALTERAÇÃO AQUI: Limpa completamente o estado após o sucesso ###
+      // Limpa completamente o estado após o sucesso
       setNewSeller({ name: '', email: '', password: '' });
 
     } catch (error: any) {
@@ -211,7 +233,6 @@ export default function PerfilPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sellerPassword">Senha Inicial</Label>
-                {/* ### ALTERAÇÃO AQUI: tipo de input alterado para 'password' ### */}
                 <Input
                   id="sellerPassword"
                   type="password"
