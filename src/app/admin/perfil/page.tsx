@@ -25,6 +25,7 @@ import {
   TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import type { Seller } from "@/lib/types";
+// Importações essenciais do Firebase
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
@@ -117,7 +118,7 @@ const DeleteSellerDialog = ({ seller, onDelete }: { seller: Seller, onDelete: (s
         <AlertDialogHeader>
           <AlertDialogTitle>Tem a certeza absoluta?</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta ação não pode ser desfeita. Isto irá apagar permanentemente a conta de <span className="font-bold">{seller.name}</span> e todos os seus dados associados.
+            Esta ação não pode ser desfeita. Isto irá apagar permanentemente a conta de <span className="font-bold">{seller.name}</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -142,13 +143,7 @@ export default function PerfilPage() {
   const handleAddSeller = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ####################################################################
-    // ### LINHA DE DEPURAÇÃO ADICIONADA ###
-    // ####################################################################
-    // Verifique o console do navegador para ver exatamente o que está a ser enviado.
-    console.log("Dados que serão enviados para a Cloud Function:", newSeller);
-
-    // Validação dos campos do formulário
+    // Validação no frontend antes de enviar
     if (!newSeller.name.trim() || !newSeller.email.trim() || !newSeller.password.trim()) {
       toast({ 
         variant: 'destructive', 
@@ -168,7 +163,10 @@ export default function PerfilPage() {
 
     setIsLoading(true);
     try {
+      // Cria a referência para a função chamável
       const createSellerFunction = httpsCallable(functions, 'createSeller');
+
+      // Executa a função. O SDK do Firebase faz um POST seguro em segundo plano.
       await createSellerFunction({ 
         name: newSeller.name, 
         email: newSeller.email, 
@@ -177,10 +175,10 @@ export default function PerfilPage() {
       
       toast({ title: 'Vendedor Adicionado!', description: `A conta para ${newSeller.name} foi criada.` });
       
-      // Limpa completamente o estado após o sucesso
       setNewSeller({ name: '', email: '', password: '' });
 
     } catch (error: any) {
+      // Captura qualquer erro que o backend tenha enviado
       toast({ variant: 'destructive', title: 'Falha no Registro', description: error.message });
     } finally {
       setIsLoading(false);
@@ -211,7 +209,6 @@ export default function PerfilPage() {
         <h1 className="text-3xl font-bold">Gerir Vendedores</h1>
       </div>
 
-      {/* Formulário de Criação */}
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -253,8 +250,7 @@ export default function PerfilPage() {
           </form>
         </CardContent>
       </Card>
-
-      {/* Tabela de Vendedores */}
+      
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle>Vendedores Registados</CardTitle>

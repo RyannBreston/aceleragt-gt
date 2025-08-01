@@ -24,7 +24,7 @@ export const createSeller = functions.https.onCall(async (data: any, context) =>
   }
 
   try {
-    // Cria o usuário no sistema de autenticação do Firebase
+    // Cria o utilizador no sistema de autenticação do Firebase
     const userRecord = await admin.auth().createUser({
       email,
       password,
