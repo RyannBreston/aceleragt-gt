@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getFunctions } from 'firebase/functions'; // Importar getFunctions
+// Importe o 'connectFunctionsEmulator' se precisar de testes locais no futuro
+import { getFunctions } from 'firebase/functions';
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -18,6 +19,15 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const functions = getFunctions(app); // Inicializar o Firebase Functions
 
-export { app, auth, db, storage, functions }; // Exportar o 'functions'
+// ####################################################################
+// ### CORREÇÃO APLICADA AQUI ###
+// ####################################################################
+// Estamos a especificar explicitamente a região das suas Cloud Functions.
+// Isto resolve problemas de conexão em alguns casos.
+const functions = getFunctions(app, 'us-central1');
+
+// Se no futuro você usar o emulador local do Firebase, descomente a linha abaixo
+// connectFunctionsEmulator(functions, "localhost", 5001);
+
+export { app, auth, db, storage, functions };

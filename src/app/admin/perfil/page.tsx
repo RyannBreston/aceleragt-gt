@@ -25,11 +25,10 @@ import {
   TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import type { Seller } from "@/lib/types";
-// Importações essenciais do Firebase
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 
-// --- Componente do Modal de Alteração de Senha ---
+// --- Componente do Modal de Alteração de Senha (Sem alterações) ---
 const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
@@ -97,7 +96,7 @@ const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
   );
 };
 
-// --- Componente AlertDialog para confirmar a exclusão ---
+// --- Componente AlertDialog para confirmar a exclusão (Sem alterações) ---
 const DeleteSellerDialog = ({ seller, onDelete }: { seller: Seller, onDelete: (sellerId: string, sellerName: string) => void }) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -140,46 +139,47 @@ export default function PerfilPage() {
   const [newSeller, setNewSeller] = useState({ name: '', email: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * VERSÃO DE TESTE DA FUNÇÃO handleAddSeller
+   * Esta função ignora os dados do formulário e envia dados fixos
+   * para a Cloud Function para isolar a causa do erro.
+   */
   const handleAddSeller = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validação no frontend antes de enviar
-    if (!newSeller.name.trim() || !newSeller.email.trim() || !newSeller.password.trim()) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Campos obrigatórios',
-        description: 'Por favor, preencha todos os campos para adicionar um vendedor.'
-      });
-      return;
-    }
-    if (newSeller.password.length < 6) {
-      toast({ 
-        variant: "destructive", 
-        title: "Senha Muito Curta", 
-        description: "A senha deve ter no mínimo 6 caracteres." 
-      });
-      return;
-    }
-
     setIsLoading(true);
+
+    // Dados de teste fixos para garantir que a requisição é válida.
+    const testData = {
+      name: "Teste de Vendedor",
+      email: `teste-${Date.now()}@teste.com`, // Email único para cada teste
+      password: "senhaSegura123"
+    };
+
+    console.log("A ENVIAR DADOS DE TESTE FIXOS:", testData);
+
     try {
       // Cria a referência para a função chamável
       const createSellerFunction = httpsCallable(functions, 'createSeller');
 
-      // Executa a função. O SDK do Firebase faz um POST seguro em segundo plano.
-      await createSellerFunction({ 
-        name: newSeller.name, 
-        email: newSeller.email, 
-        password: newSeller.password 
+      // Executa a função com os dados de teste
+      await createSellerFunction(testData);
+      
+      toast({ 
+        title: 'TESTE BEM-SUCEDIDO!', 
+        description: `O vendedor de teste foi criado com sucesso.` 
       });
       
-      toast({ title: 'Vendedor Adicionado!', description: `A conta para ${newSeller.name} foi criada.` });
-      
+      // Limpa o formulário real
       setNewSeller({ name: '', email: '', password: '' });
 
     } catch (error: any) {
-      // Captura qualquer erro que o backend tenha enviado
-      toast({ variant: 'destructive', title: 'Falha no Registro', description: error.message });
+      // Se ainda der erro, será um erro do backend (ex: permissões)
+      toast({ 
+        variant: 'destructive', 
+        title: 'TESTE FALHOU', 
+        description: `Erro: ${error.message}` 
+      });
+      console.error("ERRO NO TESTE:", error);
     } finally {
       setIsLoading(false);
     }
@@ -218,6 +218,7 @@ export default function PerfilPage() {
           <CardDescription>Crie uma nova conta de login para um vendedor.</CardDescription>
         </CardHeader>
         <CardContent>
+          {/* O formulário ainda é renderizado, mas a sua submissão usará os dados de teste */}
           <form onSubmit={handleAddSeller} className="space-y-4">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -244,7 +245,7 @@ export default function PerfilPage() {
             <div className="flex justify-end">
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Adicionar Vendedor
+                Adicionar Vendedor (Modo de Teste)
               </Button>
             </div>
           </form>
