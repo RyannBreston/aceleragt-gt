@@ -1,15 +1,13 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
-import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import type { Admin, Goals, Mission, Seller, CycleSnapshot } from '@/lib/types';
 
-// 1. Definição da Interface
+// 1. Definição da Interface (adicionado isAdmin)
 interface AdminContextType {
   sellers: Seller[];
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
@@ -24,46 +22,44 @@ interface AdminContextType {
   cycleHistory: CycleSnapshot[];
   setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => void;
   isAuthReady: boolean;
+  isAdmin: boolean; // Propriedade chave para a proteção de rotas
   userId: string | null;
 }
 
 // 2. Criação do Contexto
 const AdminContext = createContext<AdminContextType | null>(null);
 
-// 3. Criação do Provider com toda a lógica
+// 3. Provider Refatorado: Apenas fornece os dados
 export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
-  const router = useRouter();
   const state = useStore(s => s);
   const [isDirty, setIsDirty] = useState(false);
-  const [authStatus, setAuthStatus] = useState<{ isLoading: boolean; user: FirebaseUser | null; isAdmin: boolean }>({ isLoading: true, user: null, isAdmin: false });
+  const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isAdmin: boolean }>({ isAuthReady: false, user: null, isAdmin: false });
 
-  // Efeito para verificar autenticação e permissão
+  // Efeito para verificar o estado de autenticação e a permissão 'admin'
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
+        // Define o estado com base na verificação
         if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setAuthStatus({ isLoading: false, user, isAdmin: true });
+          setAuthStatus({ isAuthReady: true, user, isAdmin: true });
         } else {
-          // Se não for admin, faz logout e redireciona
-          await auth.signOut();
-          setAuthStatus({ isLoading: false, user: null, isAdmin: false });
-          router.push('/login');
+          // Se o utilizador existe mas não é admin, marca como não-admin
+          setAuthStatus({ isAuthReady: true, user: null, isAdmin: false });
         }
       } else {
-        // Se não houver usuário, redireciona
-        setAuthStatus({ isLoading: false, user: null, isAdmin: false });
-        router.push('/login');
+        // Se não há utilizador, marca como pronto e não-admin
+        setAuthStatus({ isAuthReady: true, user: null, isAdmin: false });
       }
     });
     return () => unsubscribe();
-  }, [router]);
+  }, []);
 
-  // Efeito para carregar dados do Firestore (sellers, histórico, etc.)
+  // Efeito para carregar os dados do Firestore se o utilizador for admin
   useEffect(() => {
-    if (!authStatus.isAdmin) return; // Só carrega os dados se for admin
-    
+    if (!authStatus.isAdmin) return; // Só executa se a verificação de admin for positiva
+
     const unsubSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
       const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
       dataStore.setSellers(() => sellersFromDb);
@@ -75,23 +71,9 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
       dataStore.setCycleHistory(() => historyFromDb);
     });
 
-    // Limpa os listeners quando o componente é desmontado
     return () => { unsubSellers(); unsubHistory(); };
   }, [authStatus.isAdmin]);
 
-  // Efeito para o "beforeunload" (alterações não salvas)
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (isDirty) {
-        event.preventDefault();
-        event.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty]);
-
-  // Cria o valor do contexto
   const contextValue = useMemo(() => ({
     ...state,
     setSellers: dataStore.setSellers,
@@ -101,24 +83,17 @@ export const AdminProvider = ({ children }: { children: React.ReactNode }) => {
     setCycleHistory: dataStore.setCycleHistory,
     isDirty,
     setIsDirty,
-    isAuthReady: !authStatus.isLoading,
+    isAuthReady: authStatus.isAuthReady,
+    isAdmin: authStatus.isAdmin,
     userId: authStatus.user?.uid || null,
   }), [state, isDirty, authStatus]);
 
-  // Enquanto carrega ou se não for admin, mostra um esqueleto de carregamento
-  if (authStatus.isLoading || !authStatus.isAdmin) {
-    return (
-      <div className="flex min-h-screen">
-        <DashboardSkeleton />
-      </div>
-    );
-  }
-
-  // Se for admin, fornece o contexto para os filhos
+  // O Provider agora SEMPRE retorna o contexto, envolvendo os seus filhos.
+  // A decisão de mostrar o conteúdo ou redirecionar será feita no Layout.
   return <AdminContext.Provider value={contextValue as any}>{children}</AdminContext.Provider>;
 };
 
-// 4. Hook para usar o contexto (sem alterações)
+// 4. Hook para usar o contexto
 export const useAdminContext = () => {
   const context = useContext(AdminContext);
   if (!context) {

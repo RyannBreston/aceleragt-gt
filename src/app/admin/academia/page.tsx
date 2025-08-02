@@ -18,34 +18,38 @@ import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Certificate } from '@/components/Certificate';
 
-// --- Dados para os Seletores (sem alterações) ---
+// --- Dados para os Seletores ---
 const BRANDS = ['Olympikus', 'Beira Rio', 'Moleca', 'Vizzano', 'Mizuno', 'Dakota', 'Mississipi', 'Outra'];
 const PRODUCT_TYPES = ['Tênis', 'Sandália', 'Sapatilha', 'Bota', 'Chinelo', 'Scarpin', 'Mule', 'Outro'];
 
 
-// --- NOVO SUB-COMPONENTE: Pré-visualização do Certificado ---
+// --- Sub-componente: Pré-visualização do Certificado ---
 const CertificatePreview = ({ course }: { course: Course }) => {
     const { sellers } = useAdminContext();
     const [selectedSellerId, setSelectedSellerId] = useState<string>('');
 
-    const selectedSeller = useMemo(() => 
+    const selectedSeller = useMemo(() =>
         sellers.find(s => s.id === selectedSellerId),
         [sellers, selectedSellerId]
     );
 
-    // Dados de exemplo para o certificado dinâmico
     const sellerNameForCertificate = selectedSeller?.name || "Nome do Vendedor (Exemplo)";
-    const verificationCode = `ACGT-2025-${selectedSeller?.name.substring(0, 2).toUpperCase() || 'XX'}-${course.id?.substring(0, 4) || '0000'}`;
+    const verificationCode = `ACGT-DEMO-${course.id?.substring(0, 4) || '0000'}`;
     const qrCodeValue = `https://apps-das-supermoda.netlify.app/verify?code=${verificationCode}`;
 
     return (
         <DialogContent className="max-w-4xl bg-transparent border-none shadow-none p-0">
+            {/* ✅ CORREÇÃO DE ACESSIBILIDADE APLICADA AQUI */}
+            {/* Adicionado um DialogHeader com um DialogTitle apenas para leitores de tela (sr-only) */}
             <DialogHeader className="sr-only">
                 <DialogTitle>Certificado de Conclusão: {course.title}</DialogTitle>
-                <DialogDescription>Pré-visualização do certificado para o curso "{course.title}".</DialogDescription>
+                <DialogDescription>
+                    Pré-visualização do certificado de conclusão para o curso "{course.title}".
+                </DialogDescription>
             </DialogHeader>
+
             <div className="absolute top-4 left-4 z-20 w-64">
-                <Label className="text-white font-semibold">Pré-visualizar para:</Label>
+                <Label className="text-white font-semibold text-shadow">Pré-visualizar para:</Label>
                 <Select onValueChange={setSelectedSellerId}>
                     <SelectTrigger className="bg-white/90">
                         <SelectValue placeholder="Selecione um vendedor..." />
@@ -57,13 +61,13 @@ const CertificatePreview = ({ course }: { course: Course }) => {
                     </SelectContent>
                 </Select>
             </div>
-            <Certificate 
-                courseTitle={course.title} 
+            <Certificate
+                courseTitle={course.title}
                 sellerName={sellerNameForCertificate}
                 verificationCode={verificationCode}
                 qrCodeValue={qrCodeValue}
-                performanceLevel="gold" // Exemplo, pode ser dinâmico
-                achievements={["Habilidade 1", "Habilidade 2"]} // Exemplo
+                performanceLevel="gold"
+                achievements={["Competência Chave", "Destaque Prático"]}
             />
         </DialogContent>
     );
@@ -73,23 +77,20 @@ const CertificatePreview = ({ course }: { course: Course }) => {
 export default function AcademiaPage() {
     const { sellers } = useAdminContext();
     const { toast } = useToast();
-    
+
     const [courses, setCourses] = useState<Course[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
+    // ... (resto dos seus estados) ...
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
     const [selectedBrand, setSelectedBrand] = useState('');
     const [selectedProductType, setSelectedProductType] = useState('');
     const [customTopic, setCustomTopic] = useState('');
-
     const [currentCourse, setCurrentCourse] = useState<Partial<Course> | null>(null);
     const [editingQuiz, setEditingQuiz] = useState<QuizQuestionType[]>([]);
-
-    // --- NOVA FUNÇÃO 1: Estado para a busca ---
     const [searchTerm, setSearchTerm] = useState('');
-    
+
     const coursesCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/courses`;
 
     useEffect(() => {
@@ -98,27 +99,19 @@ export default function AcademiaPage() {
             const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
             setCourses(coursesData);
             setLoadingCourses(false);
-        }, (error) => {
-            console.error("Erro ao carregar cursos: ", error);
-            toast({
-                variant: "destructive",
-                title: "Erro de Permissão",
-                description: "Não foi possível carregar os cursos.",
-            });
+        }, () => {
             setLoadingCourses(false);
         });
         return () => unsubscribe();
-    }, [toast, coursesCollectionPath]);
-    
-    // --- NOVA FUNÇÃO 2: Lógica de filtro dos cursos ---
+    }, [coursesCollectionPath]);
+
     const filteredCourses = useMemo(() => {
         if (!searchTerm) return courses;
-        return courses.filter(course => 
+        return courses.filter(course =>
             course.title.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [courses, searchTerm]);
 
-    // --- NOVA FUNÇÃO 3: Cálculo de estatísticas de conclusão ---
     const courseCompletions = useMemo(() => {
         const completions = new Map<string, number>();
         courses.forEach(course => {
@@ -127,40 +120,25 @@ export default function AcademiaPage() {
         });
         return completions;
     }, [courses, sellers]);
-    
-    // ... (suas outras funções como handleQuizChange, addQuizQuestion, etc. permanecem iguais)
+
     const handleQuizChange = (qIndex: number, field: keyof QuizQuestionType, value: any) => {
         const updatedQuiz = [...editingQuiz];
         const question = { ...updatedQuiz[qIndex] };
-        
         if (field === 'options') {
             question.options[value.index] = value.value;
-        } else if (field === 'correctAnswerIndex') {
-            question.correctAnswerIndex = parseInt(value, 10);
         } else {
-            (question as any)[field] = value;
+            (question as any)[field] = field === 'correctAnswerIndex' ? parseInt(value, 10) : value;
         }
-        
         updatedQuiz[qIndex] = question;
         setEditingQuiz(updatedQuiz);
     };
 
-    const addQuizQuestion = () => {
-        setEditingQuiz([...editingQuiz, { question: '', options: ['', '', '', ''], correctAnswerIndex: 0, explanation: '' }]);
-    };
-
-    const removeQuizQuestion = (qIndex: number) => {
-        setEditingQuiz(editingQuiz.filter((_, i) => i !== qIndex));
-    };
+    const addQuizQuestion = () => setEditingQuiz([...editingQuiz, { question: '', options: ['', '', '', ''], correctAnswerIndex: 0, explanation: '' }]);
+    const removeQuizQuestion = (qIndex: number) => setEditingQuiz(editingQuiz.filter((_, i) => i !== qIndex));
 
     const openCourseModal = (course?: Course) => {
-        if (course) {
-            setCurrentCourse(course);
-            setEditingQuiz(course.quiz || []);
-        } else {
-            setCurrentCourse({ title: '', content: '', quiz: [], points: 100, dificuldade: 'Médio' });
-            setEditingQuiz([]);
-        }
+        setCurrentCourse(course || { title: '', content: '', quiz: [], points: 100, dificuldade: 'Médio' });
+        setEditingQuiz(course?.quiz || []);
         setIsModalOpen(true);
     };
 
@@ -183,11 +161,10 @@ export default function AcademiaPage() {
     };
 
     const handleSaveCourse = async () => {
-        if (!currentCourse || !currentCourse.title) {
+        if (!currentCourse?.title) {
             toast({ variant: 'destructive', title: 'Título é obrigatório!' });
             return;
         }
-        
         setIsSubmitting(true);
         const finalCourseData = {
             title: currentCourse.title,
@@ -196,7 +173,6 @@ export default function AcademiaPage() {
             points: currentCourse.points || 100,
             dificuldade: currentCourse.dificuldade || 'Médio',
         };
-
         try {
             if (currentCourse.id) {
                 await updateDoc(doc(db, coursesCollectionPath, currentCourse.id), finalCourseData);
@@ -232,7 +208,6 @@ export default function AcademiaPage() {
             </div>
 
             <Card>
-                {/* ... (Seu card de Criador de Cursos permanece igual) ... */}
                 <CardHeader>
                     <CardTitle className="text-xl">Criador de Cursos</CardTitle>
                     <CardDescription>Gere cursos com IA ou crie um do zero.</CardDescription>
@@ -245,7 +220,7 @@ export default function AcademiaPage() {
                     <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou</span></div></div>
                     <div className="space-y-2"><Label>Tópico Customizado</Label><Input placeholder="Ex: Técnicas de venda para botas" value={customTopic} onChange={(e) => setCustomTopic(e.target.value)} /></div>
                     <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                        <Button onClick={handleGenerateCourse} disabled={isGenerating} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-primary-foreground font-semibold">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Gerar com IA</Button>
+                        <Button onClick={handleGenerateCourse} disabled={isGenerating} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Gerar com IA</Button>
                         <Button onClick={() => openCourseModal()} variant="secondary" className="flex-1"><PlusCircle className="mr-2 h-4 w-4" /> Criar Manualmente</Button>
                     </div>
                 </CardContent>
@@ -254,43 +229,25 @@ export default function AcademiaPage() {
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <h3 className="text-xl font-semibold">Cursos Criados</h3>
-                    {/* --- BARRA DE BUSCA ADICIONADA --- */}
                     <div className="relative w-full max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Buscar curso pelo título..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9"
-                        />
+                        <Input placeholder="Buscar curso..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
                     </div>
                 </div>
                 {loadingCourses ? (
-                    <div className="flex justify-center items-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : filteredCourses.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {filteredCourses.map(course => (
                             <Card key={course.id} className="flex flex-col">
                                 <CardHeader>
                                     <CardTitle className="truncate">{course.title}</CardTitle>
-                                    <CardDescription>
-                                        {/* --- ESTATÍSTICAS DE CONCLUSÃO ADICIONADAS --- */}
-                                        <div className="flex items-center gap-1.5 text-xs">
-                                            <Users className="size-3" />
-                                            <span>{courseCompletions.get(course.id!) || 0} / {sellers.length} vendedores concluíram</span>
-                                        </div>
-                                    </CardDescription>
+                                    <CardDescription className="flex items-center gap-1.5 text-xs"><Users className="size-3" /><span>{courseCompletions.get(course.id!) || 0} / {sellers.length} concluíram</span></CardDescription>
                                 </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p>
-                                </CardContent>
+                                <CardContent className="flex-grow"><p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p></CardContent>
                                 <CardFooter className="flex gap-2">
                                     <Button onClick={() => openCourseModal(course)} size="sm" className="flex-1"><Edit className="mr-2 size-4" /> Editar</Button>
-                                    <Dialog>
-                                        {/* --- PRÉ-VISUALIZAÇÃO DO CERTIFICADO ADICIONADA --- */}
-                                        <DialogTrigger asChild><Button variant="outline" size="sm"><FileText className="mr-2 size-4" /> Certificado</Button></DialogTrigger>
-                                        <CertificatePreview course={course} />
-                                    </Dialog>
+                                    <Dialog><DialogTrigger asChild><Button variant="outline" size="sm"><FileText className="mr-2 size-4" /> Certificado</Button></DialogTrigger><CertificatePreview course={course} /></Dialog>
                                     <Button onClick={() => handleDeleteCourse(course.id!)} variant="destructive" size="icon"><Trash2 className="size-4" /></Button>
                                 </CardFooter>
                             </Card>
@@ -300,13 +257,11 @@ export default function AcademiaPage() {
                     <div className="text-center text-muted-foreground border-2 border-dashed rounded-lg p-12">
                         <BookCopy className="mx-auto h-12 w-12" />
                         <p className="mt-4 font-semibold">{searchTerm ? 'Nenhum curso encontrado' : 'Nenhum curso criado'}</p>
-                        <p className="text-sm">{searchTerm ? 'Tente uma busca diferente.' : 'Use as opções acima para começar.'}</p>
                     </div>
                 )}
             </div>
 
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                {/* ... (Seu Dialog de edição de curso permanece igual) ... */}
                 <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle>{currentCourse?.id ? 'Editar Curso' : 'Criar Novo Curso'}</DialogTitle>
@@ -315,16 +270,16 @@ export default function AcademiaPage() {
                     <Tabs defaultValue="content" className="flex-grow flex flex-col min-h-0">
                         <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="content">Conteúdo</TabsTrigger><TabsTrigger value="quiz">Quiz</TabsTrigger></TabsList>
                         <TabsContent value="content" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-4">
-                            <div className="space-y-2"><Label htmlFor="title">Título do Curso</Label><Input id="title" value={currentCourse?.title || ''} onChange={(e) => setCurrentCourse(p => ({...p, title: e.target.value}))} /></div>
+                            <div className="space-y-2"><Label>Título</Label><Input value={currentCourse?.title || ''} onChange={(e) => setCurrentCourse(p => ({...p, title: e.target.value}))} /></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><Label htmlFor="points">Pontos</Label><Input id="points" type="number" value={currentCourse?.points || 100} onChange={(e) => setCurrentCourse(p => ({...p, points: Number(e.target.value)}))} /></div>
-                                <div className="space-y-2"><Label htmlFor="dificuldade">Dificuldade</Label><Select value={currentCourse?.dificuldade || 'Médio'} onValueChange={(v) => setCurrentCourse(p => ({...p, dificuldade: v as any}))}><SelectTrigger id="dificuldade"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Fácil">Fácil</SelectItem><SelectItem value="Médio">Médio</SelectItem><SelectItem value="Difícil">Difícil</SelectItem></SelectContent></Select></div>
+                                <div className="space-y-2"><Label>Pontos</Label><Input type="number" value={currentCourse?.points || 100} onChange={(e) => setCurrentCourse(p => ({...p, points: Number(e.target.value)}))} /></div>
+                                <div className="space-y-2"><Label>Dificuldade</Label><Select value={currentCourse?.dificuldade || 'Médio'} onValueChange={(v) => setCurrentCourse(p => ({...p, dificuldade: v as any}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Fácil">Fácil</SelectItem><SelectItem value="Médio">Médio</SelectItem><SelectItem value="Difícil">Difícil</SelectItem></SelectContent></Select></div>
                             </div>
-                            <div className="space-y-2"><Label htmlFor="content">Conteúdo (Markdown)</Label><Textarea id="content" value={currentCourse?.content || ''} onChange={(e) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/></div>
+                            <div className="space-y-2"><Label>Conteúdo (Markdown)</Label><Textarea value={currentCourse?.content || ''} onChange={(e) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/></div>
                         </TabsContent>
                         <TabsContent value="quiz" className="flex-grow overflow-y-auto mt-4 pr-4">
                             <div className="space-y-4">
-                                <div className="flex justify-between items-center sticky top-0 bg-background py-2"><h4 className="font-semibold">Editor de Quiz</h4><Button size="sm" onClick={addQuizQuestion}><PlusCircle className="mr-2 size-4" /> Adicionar</Button></div>
+                                <div className="flex justify-between items-center"><h4 className="font-semibold">Editor de Quiz</h4><Button size="sm" onClick={addQuizQuestion}><PlusCircle className="mr-2 size-4" /> Adicionar</Button></div>
                                 {editingQuiz.map((q, qIndex) => (
                                     <Card key={qIndex} className="bg-muted/50 p-4 space-y-3 relative">
                                         <Button variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => removeQuizQuestion(qIndex)}><X className="size-4" /></Button>

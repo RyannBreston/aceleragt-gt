@@ -3,23 +3,24 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, GraduationCap, CheckCircle, Award, ArrowLeft, Download, BookCopy } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, GraduationCap, CheckCircle, Award, ArrowLeft, BookCopy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
 import type { Course, QuizQuestion as QuizQuestionType } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
+import { useSellerContext } from '@/contexts/SellerContext';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDocs, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Certificate } from '@/components/Certificate';
 
-// --- Componente do Quiz do Curso ---
-const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: (score: number) => void }) => {
+// --- Sub-componente para o Quiz ---
+const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: (score: number, passed: boolean) => void }) => {
     const [answers, setAnswers] = useState<(number | null)[]>(new Array(course.quiz.length).fill(null));
     const [submitted, setSubmitted] = useState(false);
+    const passingScore = Math.ceil(course.quiz.length * 0.7); // 70% para passar
 
     const handleAnswerChange = (questionIndex: number, answerIndex: number) => {
         const newAnswers = [...answers];
@@ -30,7 +31,7 @@ const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: (score
     const handleSubmit = () => {
         setSubmitted(true);
         const correctAnswers = answers.filter((answer, index) => answer === course.quiz[index].correctAnswerIndex).length;
-        onComplete(correctAnswers);
+        onComplete(correctAnswers, correctAnswers >= passingScore);
     };
     
     const allQuestionsAnswered = answers.every(a => a !== null);
@@ -64,151 +65,168 @@ const CourseQuiz = ({ course, onComplete }: { course: Course; onComplete: (score
     );
 };
 
-// --- Página Principal da Academia ---
-export default function SellerAcademiaPage() {
-  const { currentSeller, setSellers } = useSellerContext();
-  const { toast } = useToast();
-  
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+// --- Sub-componente para a Visualização do Curso ---
+const CourseView = ({ course, onBack, onComplete }: { course: Course; onBack: () => void; onComplete: (score: number, passed: boolean) => void }) => {
+    const { currentSeller } = useSellerContext();
+    const isCompleted = currentSeller?.completedCourseIds?.includes(course.id!);
+    
+    // Simulação de dados de performance para o certificado
+    const score = 9;
+    const totalQuestions = 10;
+    const performance = score / totalQuestions;
+    let performanceLevel: 'bronze' | 'silver' | 'gold' | 'platinum' = 'bronze';
+    if (performance >= 0.95) performanceLevel = 'platinum';
+    else if (performance >= 0.85) performanceLevel = 'gold';
+    else if (performance >= 0.7) performanceLevel = 'silver';
 
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const coursesCollectionPath = `artifacts/${appId}/public/data/courses`;
-  
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setLoading(true);
-      try {
-        const coursesCollectionRef = collection(db, coursesCollectionPath);
-        const snapshot = await getDocs(coursesCollectionRef);
-        const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-        setCourses(coursesData);
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Erro ao Carregar Cursos', description: "Não foi possível buscar os cursos. Tente novamente." });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCourses();
-  }, [appId, toast, coursesCollectionPath]);
-
-  const handleCompleteCourse = async (score: number) => {
-      if (!selectedCourse || !currentSeller) return;
-
-      const isAlreadyCompleted = currentSeller.completedCourseIds?.includes(selectedCourse.id);
-      if(isAlreadyCompleted) {
-          toast({ title: 'Curso já concluído', description: 'Você já ganhou os pontos por este curso.' });
-          return;
-      }
-
-      const pointsEarned = selectedCourse.points || 0;
-      
-      try {
-        const sellerRef = doc(db, 'sellers', currentSeller.id);
-        await updateDoc(sellerRef, {
-            points: (currentSeller.points || 0) + pointsEarned,
-            completedCourseIds: arrayUnion(selectedCourse.id),
-            lastCourseCompletionDate: Timestamp.now()
-        });
-
-        setSellers(prevSellers => prevSellers.map(s => s.id === currentSeller.id ? {
-            ...s,
-            points: (s.points || 0) + pointsEarned,
-            completedCourseIds: [...(s.completedCourseIds || []), selectedCourse.id]
-        } : s));
-        
-        toast({
-            title: 'Parabéns!',
-            description: `Você acertou ${score} de ${selectedCourse.quiz.length} e ganhou ${pointsEarned} pontos!`,
-        });
-
-      } catch (error) {
-          toast({ variant: 'destructive', title: 'Erro ao Salvar Progresso' });
-      }
-  };
-
-  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 font-semibold">Carregando cursos disponíveis...</p>
-      </div>
+        <div className="space-y-4">
+            <Button onClick={onBack} variant="outline"><ArrowLeft className="mr-2 size-4"/>Voltar para a lista</Button>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-2xl">{course.title}</CardTitle>
+                    <CardDescription>{course.points} pontos de recompensa</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="prose prose-sm prose-invert max-w-none text-muted-foreground"><ReactMarkdown>{course.content}</ReactMarkdown></div>
+                    {isCompleted ? (
+                        <div className="mt-6 pt-6 border-t text-center space-y-4">
+                            <h3 className="font-bold text-lg text-green-500 flex items-center justify-center gap-2"><CheckCircle/> Curso Concluído!</h3>
+                            <Dialog>
+                                <DialogTrigger asChild><Button variant="secondary"><Award className="mr-2 size-4" /> Ver o meu Certificado</Button></DialogTrigger>
+                                <DialogContent className="max-w-4xl bg-transparent border-none shadow-none p-0">
+                                    <DialogHeader className="sr-only">
+                                        <DialogTitle>Certificado de Conclusão: {course.title}</DialogTitle>
+                                        <DialogDescription>
+                                            Este é o seu certificado de conclusão para o curso "{course.title}".
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <Certificate 
+                                        courseTitle={course.title}
+                                        sellerName={currentSeller?.name || 'Vendedor'}
+                                        verificationCode={`ACGT-${new Date().getFullYear()}-${currentSeller?.name.substring(0,2).toUpperCase()}-${course.id!.substring(0,4)}`}
+                                        qrCodeValue={`https://apps-das-supermoda.netlify.app/verify?id=${course.id!}-${currentSeller?.id}`}
+                                        performanceLevel={performanceLevel}
+                                        achievements={["Negociação", "Pós-venda"]}
+                                    />
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    ) : (
+                        <CourseQuiz course={course} onComplete={onComplete} />
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     );
-  }
+};
 
-  if (selectedCourse) {
-      const isCompleted = currentSeller?.completedCourseIds?.includes(selectedCourse.id);
-      return (
-          <div className="space-y-4">
-              <Button onClick={() => setSelectedCourse(null)} variant="outline"><ArrowLeft className="mr-2 size-4"/>Voltar para a lista de cursos</Button>
-              <Card>
-                  <CardHeader>
-                      <CardTitle className="text-2xl">{selectedCourse.title}</CardTitle>
-                      <CardDescription>{selectedCourse.points} pontos de recompensa</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <div className="prose prose-sm prose-invert max-w-none text-muted-foreground">
-                          <ReactMarkdown>{selectedCourse.content}</ReactMarkdown>
-                      </div>
-                      {isCompleted ? (
-                          <div className="mt-6 pt-6 border-t text-center text-green-500 font-bold flex items-center justify-center gap-2">
-                              <CheckCircle/> Curso Concluído!
-                          </div>
-                      ) : (
-                          <CourseQuiz course={selectedCourse} onComplete={handleCompleteCourse} />
-                      )}
-                  </CardContent>
-              </Card>
-          </div>
-      )
-  }
+// --- Componente da Página Principal ---
+export default function SellerAcademiaPage() {
+    const { currentSeller, setSellers } = useSellerContext();
+    const { toast } = useToast();
+    
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <GraduationCap className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Academia de Vendas</h1>
-      </div>
-      
-      {courses.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {courses.map(course => {
-                  const isCompleted = currentSeller?.completedCourseIds?.includes(course.id);
-                  return (
-                      <Card key={course.id} className="flex flex-col hover:border-primary/50 transition-all">
-                          <CardHeader>
-                              <CardTitle>{course.title}</CardTitle>
-                              <CardDescription>{course.points} Pontos</CardDescription>
-                          </CardHeader>
-                          <CardContent className="flex-grow">
-                              <p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p>
-                          </CardContent>
-                          <CardFooter>
-                              {isCompleted ? (
-                                  <Dialog>
-                                      <DialogTrigger asChild>
-                                          <Button variant="secondary" className="w-full"><Award className="mr-2 size-4" /> Ver Certificado</Button>
-                                      </DialogTrigger>
-                                      <DialogContent className="max-w-3xl bg-transparent border-none shadow-none p-0">
-                                          <Certificate courseTitle={course.title} sellerName={currentSeller?.name || 'Vendedor'} />
-                                      </DialogContent>
-                                  </Dialog>
-                              ) : (
-                                  <Button onClick={() => setSelectedCourse(course)} className="w-full">Iniciar Curso</Button>
-                              )}
-                          </CardFooter>
-                      </Card>
-                  )
-              })}
-          </div>
-      ) : (
-          <div className="text-center text-muted-foreground border-2 border-dashed rounded-lg p-12">
-            <BookCopy className="mx-auto h-12 w-12" />
-            <p className="mt-4 font-semibold">Nenhum curso disponível</p>
-            <p className="text-sm">O administrador ainda não publicou nenhum curso. Volte mais tarde!</p>
-          </div>
-      )}
-    </div>
-  );
+    const coursesCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/courses`;
+    
+    useEffect(() => {
+        const fetchCourses = async () => {
+            setLoading(true);
+            try {
+                const snapshot = await getDocs(collection(db, coursesCollectionPath));
+                setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course)));
+            } catch (err) {
+                toast({ variant: 'destructive', title: 'Erro ao Carregar Cursos' });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCourses();
+    }, [toast, coursesCollectionPath]);
+
+    const handleCompleteCourse = async (score: number, passed: boolean) => {
+        if (!selectedCourse || !currentSeller) return;
+
+        const isAlreadyCompleted = currentSeller.completedCourseIds?.includes(selectedCourse.id!);
+        if(isAlreadyCompleted) {
+            toast({ title: 'Curso já concluído' });
+            return;
+        }
+
+        if (!passed) {
+            toast({ variant: 'destructive', title: 'Não foi desta vez!', description: `Você acertou ${score} de ${selectedCourse.quiz.length}. Tente novamente.` });
+            return;
+        }
+
+        const pointsEarned = selectedCourse.points || 0;
+        
+        try {
+            const sellerRef = doc(db, 'sellers', currentSeller.id);
+            await updateDoc(sellerRef, {
+                points: (currentSeller.points || 0) + pointsEarned,
+                completedCourseIds: arrayUnion(selectedCourse.id),
+                lastCourseCompletionDate: Timestamp.now()
+            });
+
+            setSellers(prevSellers => prevSellers.map(s => s.id === currentSeller.id ? {
+                ...s,
+                points: (s.points || 0) + pointsEarned,
+                completedCourseIds: [...(s.completedCourseIds || []), selectedCourse.id!]
+            } : s));
+            
+            toast({ title: 'Parabéns!', description: `Você passou no teste e ganhou ${pointsEarned} pontos!` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao Salvar Progresso' });
+        }
+    };
+
+    if (loading || !currentSeller) {
+        return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+    }
+
+    if (selectedCourse) {
+        return <CourseView course={selectedCourse} onBack={() => setSelectedCourse(null)} onComplete={handleCompleteCourse} />;
+    }
+
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center gap-4">
+                <GraduationCap className="size-8 text-primary" />
+                <h1 className="text-3xl font-bold">Academia de Vendas</h1>
+            </div>
+            
+            {courses.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {courses.map(course => {
+                        const isCompleted = currentSeller.completedCourseIds?.includes(course.id!);
+                        return (
+                            <Card key={course.id} className="flex flex-col hover:border-primary/50 transition-all">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">{course.title}</CardTitle>
+                                    <CardDescription>{course.points} Pontos</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button onClick={() => setSelectedCourse(course)} className="w-full">
+                                        {isCompleted ? <><CheckCircle className="mr-2 size-4"/> Revisar Curso</> : "Iniciar Curso"}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        )
+                    })}
+                </div>
+            ) : (
+                <div className="text-center text-muted-foreground border-2 border-dashed rounded-lg p-12">
+                    <BookCopy className="mx-auto h-12 w-12" />
+                    <p className="mt-4 font-semibold">Nenhum curso disponível</p>
+                    <p className="text-sm">Volte mais tarde para novas formações!</p>
+                </div>
+            )}
+        </div>
+    );
 }

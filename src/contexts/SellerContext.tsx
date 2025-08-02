@@ -9,13 +9,13 @@ import { useStore, dataStore } from '@/lib/store';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import type { Seller, Goals, Mission, CycleSnapshot } from '@/lib/types';
 
-// 1. Definição da Interface
+// 1. Definição da Interface do Contexto
 interface SellerContextType {
   sellers: Seller[];
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
   goals: Goals;
   missions: Mission[];
-  currentSeller: Seller | null; // Pode ser null durante o carregamento
+  currentSeller: Seller | null;
   cycleHistory: CycleSnapshot[];
   isAuthReady: boolean;
   userId: string | null;
@@ -31,25 +31,29 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
   const [authStatus, setAuthStatus] = useState<{ isLoading: boolean; user: FirebaseUser | null; isSeller: boolean }>({ isLoading: true, user: null, isSeller: false });
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
 
-  // Efeito para verificar autenticação e permissão
+  // Efeito principal para verificar autenticação e permissão.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // ### CORREÇÃO DE SEGURANÇA AQUI ###
-        // Busca o 'role' do utilizador na coleção 'users'
+        // Um utilizador está logado. Vamos verificar a sua permissão.
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
-        // Verifica se o utilizador existe e se tem a função 'seller'
+
+        // ### PONTO CRÍTICO DA VERIFICAÇÃO DE SEGURANÇA ###
+        // A linha abaixo verifica se o documento do utilizador existe no Firestore
+        // E se o campo 'role' é exatamente 'seller'.
         if (userDoc.exists() && userDoc.data().role === 'seller') {
+          // Se for, o acesso é permitido.
           setAuthStatus({ isLoading: false, user, isSeller: true });
         } else {
-          // Se não for um vendedor, faz logout e redireciona
+          // Se não for, o acesso é negado.
+          // O utilizador é deslogado e redirecionado por segurança.
           await auth.signOut();
           setAuthStatus({ isLoading: false, user: null, isSeller: false });
           router.push('/login');
         }
       } else {
-        // Se não houver utilizador, redireciona
+        // Se não houver utilizador logado, redireciona para o login.
         setAuthStatus({ isLoading: false, user: null, isSeller: false });
         router.push('/login');
       }
@@ -57,7 +61,7 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubscribe();
   }, [router]);
 
-  // Efeito para carregar os dados de todos os vendedores (para rankings, etc.)
+  // Efeito para carregar os dados de todos os vendedores
   useEffect(() => {
     const unsubSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
       const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
@@ -66,7 +70,7 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     return () => unsubSellers();
   }, []);
 
-  // Efeito para definir o vendedor atual (currentSeller)
+  // Efeito para definir o vendedor atualmente logado
   useEffect(() => {
     if (authStatus.isSeller && authStatus.user) {
       const sellerData = state.sellers.find(s => s.id === authStatus.user!.uid);
@@ -78,7 +82,7 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [authStatus, state.sellers]);
 
-  // Cria o valor do contexto
+  // Cria o valor do contexto para ser partilhado com os componentes filhos
   const contextValue = useMemo(() => ({
     ...state,
     setSellers: dataStore.setSellers,
@@ -87,8 +91,8 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     isAuthReady: !authStatus.isLoading && !!currentSeller,
   }), [state, currentSeller, authStatus]);
 
-  // Enquanto carrega ou se não for um vendedor válido, mostra um esqueleto
-  if (authStatus.isLoading || !authStatus.isSeller || !currentSeller) {
+  // Mostra um ecrã de carregamento enquanto a verificação de segurança acontece
+  if (authStatus.isLoading || !currentSeller) {
     return (
       <div className="flex min-h-screen">
         <DashboardSkeleton />
@@ -96,7 +100,7 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Se for um vendedor válido, fornece o contexto
+  // Se a verificação for bem-sucedida, mostra o conteúdo protegido
   return <SellerContext.Provider value={contextValue as any}>{children}</SellerContext.Provider>;
 };
 
