@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,6 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     useEffect(() => {
-        // Quando o 'seller' muda, reinicia o formulário. Se 'seller' for nulo, prepara para criar um novo.
         setFormData(seller || { name: '', email: '', password: '' });
     }, [seller]);
 
@@ -40,7 +39,6 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input value={formData.name || ''} onChange={(e) => setFormData(p => ({...p, name: e.target.value}))} /></div>
                     <div className="space-y-2"><Label>Email de Login</Label><Input type="email" value={formData.email || ''} onChange={(e) => setFormData(p => ({...p, email: e.target.value}))} /></div>
-                    {/* O campo de senha só aparece ao criar um novo vendedor */}
                     {!seller?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input type="password" placeholder="Mínimo 6 caracteres" onChange={(e) => setFormData(p => ({...p, password: e.target.value}))} /></div>}
                 </div>
                 <DialogFooter>
@@ -61,14 +59,8 @@ const ChangePasswordModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | n
 
     const handleUpdate = async () => {
         if (!seller) return;
-        if (newPassword.length < 6) {
-            toast({ variant: "destructive", title: "Senha muito curta" });
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            toast({ variant: "destructive", title: "As senhas não coincidem" });
-            return;
-        }
+        if (newPassword.length < 6) { toast({ variant: "destructive", title: "Senha muito curta" }); return; }
+        if (newPassword !== confirmPassword) { toast({ variant: "destructive", title: "As senhas não coincidem" }); return; }
 
         setIsUpdating(true);
         try {
@@ -88,10 +80,7 @@ const ChangePasswordModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | n
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Alterar Senha de {seller?.name}</DialogTitle>
-                    <DialogDescription>O vendedor será desconectado e precisará usar a nova senha.</DialogDescription>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Alterar Senha de {seller?.name}</DialogTitle><DialogDescription>O vendedor será desconectado e precisará usar a nova senha.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4">
                     <div className="space-y-2"><Label htmlFor="newPassword">Nova Senha</Label><Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/></div>
                     <div className="space-y-2"><Label htmlFor="confirmPassword">Confirmar Nova Senha</Label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>
@@ -111,20 +100,14 @@ const EditPointsModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null;
     const [points, setPoints] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        if (seller) {
-            setPoints(seller.points || 0);
-        }
-    }, [seller]);
+    useEffect(() => { if (seller) { setPoints(seller.points || 0); } }, [seller]);
 
     const handleSavePoints = async (newPoints: number) => {
         if (!seller) return;
-
         setIsSubmitting(true);
         try {
             const updatePointsFunction = httpsCallable(functions, 'updateSellerPoints');
             await updatePointsFunction({ uid: seller.id, points: newPoints });
-
             toast({ title: 'Pontos Atualizados!', description: `A pontuação de ${seller.name} foi definida para ${newPoints}.` });
             setIsOpen(false);
         } catch (error: any) {
@@ -137,43 +120,19 @@ const EditPointsModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null;
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Editar Pontos de {seller?.name}</DialogTitle>
-                    <DialogDescription>
-                        Altere o valor dos pontos base do vendedor. Os pontos extras são geridos na página de Configurações.
-                    </DialogDescription>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Editar Pontos de {seller?.name}</DialogTitle><DialogDescription>Altere o valor dos pontos base do vendedor. Os pontos extras são geridos na página de Configurações.</DialogDescription></DialogHeader>
                 <div className="py-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="points">Pontuação Base</Label>
-                        <Input 
-                            id="points" 
-                            type="number" 
-                            value={points}
-                            onChange={(e) => setPoints(Number(e.target.value))}
-                        />
-                    </div>
-                    <Button 
-                        variant="destructive" 
-                        className="w-full"
-                        onClick={() => handleSavePoints(0)}
-                        disabled={isSubmitting}
-                    >
-                        Zerar Pontuação Base
-                    </Button>
+                    <div className="space-y-2"><Label htmlFor="points">Pontuação Base</Label><Input id="points" type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))}/></div>
+                    <Button variant="destructive" className="w-full" onClick={() => handleSavePoints(0)} disabled={isSubmitting}>Zerar Pontuação Base</Button>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={() => handleSavePoints(points)} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
-                        Salvar Pontos
-                    </Button>
+                    <Button onClick={() => handleSavePoints(points)} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar Pontos</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 };
-
 
 // --- Página Principal de Perfil ---
 export default function PerfilPage() {
@@ -212,7 +171,7 @@ export default function PerfilPage() {
         try {
             const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
             await deleteSellerFunction({ uid: seller.id });
-            toast({ title: 'Vendedor apagado!', description: `${seller.name} foi removido com sucesso.` });
+            toast({ title: 'Vendedor apagado!', description: `${seller.name} foi removido.` });
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Erro ao apagar', description: error.message });
         }
@@ -226,21 +185,11 @@ export default function PerfilPage() {
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>Vendedores Registados</CardTitle>
-                    <CardDescription>Adicione, edite e gira as permissões dos seus vendedores.</CardDescription>
-                </CardHeader>
+                <CardHeader><CardTitle>Vendedores Registados</CardTitle><CardDescription>Adicione, edite e gira as permissões dos seus vendedores.</CardDescription></CardHeader>
                 <CardContent>
                     <div className="rounded-md border">
                         <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Nome</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead className="text-center">Pontos Totais</TableHead>
-                                    <TableHead className="text-right">Ações</TableHead>
-                                </TableRow>
-                            </TableHeader>
+                            <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead className="text-center">Pontos Totais</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {sellers.length > 0 ? sellers.map(seller => (
                                     <TableRow key={seller.id}>
@@ -252,18 +201,10 @@ export default function PerfilPage() {
                                             <Button title="Editar Vendedor" variant="ghost" size="icon" onClick={() => openModal('edit', seller)}><Edit className="size-4" /></Button>
                                             <Button title="Alterar Senha" variant="ghost" size="icon" onClick={() => openModal('password', seller)}><KeyRound className="size-4" /></Button>
                                             <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button title="Apagar Vendedor" variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
-                                                </AlertDialogTrigger>
+                                                <AlertDialogTrigger asChild><Button title="Apagar Vendedor" variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
-                                                        <AlertDialogDescription>Esta ação não pode ser desfeita e irá apagar permanentemente o vendedor {seller.name}.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={() => handleDeleteSeller(seller)} className="bg-destructive hover:bg-destructive/90">Apagar</AlertDialogAction>
-                                                    </AlertDialogFooter>
+                                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação irá apagar permanentemente o vendedor {seller.name}.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteSeller(seller)} className="bg-destructive hover:bg-destructive/90">Apagar</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
                                         </TableCell>
