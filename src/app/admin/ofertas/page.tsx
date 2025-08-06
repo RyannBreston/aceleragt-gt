@@ -1,13 +1,12 @@
 'use client';
 
-import * as React from 'react';
-import { ShoppingBag, Loader2, Edit, Trash2, Calendar as CalendarIcon, PlusCircle, Save } from 'lucide-react';
-import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save, Image as ImageIcon, Calendar as CalendarIcon } from 'lucide-react';
+import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
-import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
-import { Offer } from '@/lib/types';
+import type { Offer } from '@/lib/types';
 
 // Componentes UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,243 +17,245 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from '@/components/ui/checkbox';
-
-// Utilidades
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+// ✅ IMPORTAÇÃO CORRIGIDA AQUI: Adicionado DialogFooter
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const OFFER_CATEGORIES = ['Calçados', 'Roupas', 'Acessórios', 'Eletrônicos', 'Esportes', 'Outros'];
 
+// ####################################################################
+// ### 1. SUB-COMPONENTE: MODAL DO FORMULÁRIO ###
+// ####################################################################
+const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; offer: Partial<Offer> | null; onSave: (offerData: Partial<Offer>, imageFile: File | null) => Promise<void> }) => {
+    const [formData, setFormData] = useState<Partial<Offer>>({});
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const initialOfferState: Partial<Offer> = {
+            name: '', description: '', imageUrl: '', originalPrice: undefined, promotionalPrice: 0,
+            startDate: new Date(), expirationDate: new Date(), isActive: true, category: '',
+            productCode: '', reference: '', isFlashOffer: false, isBestSeller: false,
+        };
+        setFormData(offer || initialOfferState);
+        setImageFile(null);
+    }, [offer]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        const numericValue = parseFloat(value.replace(',', '.') || '0');
+        setFormData(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) { // 5MB
+                toast({ variant: 'destructive', title: 'Imagem muito grande!' });
+                return;
+            }
+            setImageFile(file);
+            setFormData(prev => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
+        }
+    };
+
+    const handleSave = async () => {
+        if (!formData.name || !formData.promotionalPrice || !formData.category) {
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios' });
+            return;
+        }
+        setIsSubmitting(true);
+        await onSave(formData, imageFile);
+        setIsSubmitting(false);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{formData.id ? 'Editar Oferta' : 'Adicionar Nova Oferta'}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Nome do Produto</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
+                        <div className="space-y-2"><Label>Categoria</Label><Select value={formData.category || ''} onValueChange={(v) => setFormData(p => ({...p, category: v}))}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{OFFER_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></div>
+                    </div>
+                    <div className="space-y-2"><Label>Descrição</Label><Textarea name="description" value={formData.description || ''} onChange={handleChange} /></div>
+                    <div className="space-y-2"><Label>Upload de Imagem (Max 5MB)</Label><Input type="file" accept="image/*" onChange={handleFileChange} /></div>
+                    <div className="space-y-2"><Label>Ou cole a URL da Imagem</Label><Input name="imageUrl" value={formData.imageUrl || ''} onChange={handleChange} disabled={!!imageFile} /></div>
+                    {formData.imageUrl && <div className="flex justify-center"><img src={formData.imageUrl} alt="Pré-visualização" className="w-32 h-32 object-cover rounded-md border"/></div>}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Valor Original (R$)</Label><Input name="originalPrice" type="text" value={formData.originalPrice || ''} onChange={handlePriceChange} /></div>
+                        <div className="space-y-2"><Label>Preço Promocional (R$)</Label><Input name="promotionalPrice" type="text" value={formData.promotionalPrice || ''} onChange={handlePriceChange} required /></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Data de Início</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><CalendarIcon className="mr-2 h-4 w-4" />{formData.startDate ? format(formData.startDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.startDate} onSelect={(d) => setFormData(p => ({...p, startDate: d || new Date()}))} /></PopoverContent></Popover></div>
+                        <div className="space-y-2"><Label>Data de Expiração</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><CalendarIcon className="mr-2 h-4 w-4" />{formData.expirationDate ? format(formData.expirationDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.expirationDate} onSelect={(d) => setFormData(p => ({...p, expirationDate: d || new Date()}))} /></PopoverContent></Popover></div>
+                    </div>
+                    <div className="space-y-3 pt-4">
+                        <div className="flex items-center space-x-3"><Switch id="isActive" checked={formData.isActive} onCheckedChange={(c) => setFormData(p => ({...p, isActive: c}))} /><Label htmlFor="isActive">Oferta Ativa</Label></div>
+                        <div className="flex items-center space-x-3"><Checkbox id="isFlashOffer" checked={formData.isFlashOffer} onCheckedChange={(c) => setFormData(p => ({...p, isFlashOffer: !!c}))} /><Label htmlFor="isFlashOffer">Oferta Relâmpago</Label></div>
+                        <div className="flex items-center space-x-3"><Checkbox id="isBestSeller" checked={formData.isBestSeller} onCheckedChange={(c) => setFormData(p => ({...p, isBestSeller: !!c}))} /><Label htmlFor="isBestSeller">Mais Vendido</Label></div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+// ####################################################################
+// ### 2. COMPONENTE PRINCIPAL DA PÁGINA ###
+// ####################################################################
 export default function AdminOffersPage() {
-  const { toast } = useToast();
-  const { isAuthReady } = useAdminContext();
-  const [offers, setOffers] = React.useState<Offer[]>([]);
-  const [loadingOffers, setLoadingOffers] = React.useState(true);
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isUploading, setIsUploading] = React.useState(false);
-  const [imageFile, setImageFile] = React.useState<File | null>(null);
+    const { toast } = useToast();
+    const [offers, setOffers] = useState<Offer[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentOffer, setCurrentOffer] = useState<Partial<Offer> | null>(null);
+    const offersCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/offers`;
 
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const offersCollectionPath = `artifacts/${appId}/public/data/offers`;
+    useEffect(() => {
+        const offersQuery = query(collection(db, offersCollectionPath), orderBy('createdAt', 'desc'));
+        const unsubscribe = onSnapshot(offersQuery, (snapshot) => {
+            const offersList = snapshot.docs.map(d => ({
+                id: d.id, ...d.data(),
+                startDate: d.data().startDate?.toDate(),
+                expirationDate: d.data().expirationDate?.toDate(),
+            } as Offer));
+            setOffers(offersList);
+            setLoading(false);
+        }, () => setLoading(false));
+        return () => unsubscribe();
+    }, [offersCollectionPath]);
 
-  const initialOfferState: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'> = {
-    name: '',
-    description: '',
-    imageUrl: '',
-    originalPrice: undefined,
-    promotionalPrice: 0,
-    startDate: new Date(),
-    expirationDate: new Date(),
-    isActive: true,
-    category: '',
-    productCode: '',
-    reference: '',
-    isFlashOffer: false,
-    isBestSeller: false,
-  };
+    const openModal = (offer?: Offer) => {
+        setCurrentOffer(offer || null);
+        setIsModalOpen(true);
+    };
 
-  const [currentOffer, setCurrentOffer] = React.useState(initialOfferState);
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [editOfferId, setEditOfferId] = React.useState<string | null>(null);
+    const handleSaveOffer = async (offerData: Partial<Offer>, imageFile: File | null) => {
+        let finalImageUrl = offerData.imageUrl || '';
+        try {
+            if (imageFile) {
+                const storageRef = ref(storage, `offers/${Date.now()}-${imageFile.name}`);
+                const uploadTask = await uploadBytes(storageRef, imageFile);
+                finalImageUrl = await getDownloadURL(uploadTask.ref);
+            }
+            const dataToSave = { ...offerData, imageUrl: finalImageUrl, updatedAt: serverTimestamp() };
 
-  React.useEffect(() => {
-    if (!isAuthReady) return;
+            if (offerData.id) {
+                await updateDoc(doc(db, offersCollectionPath, offerData.id), dataToSave);
+                toast({ title: 'Oferta Atualizada!' });
+            } else {
+                await addDoc(collection(db, offersCollectionPath), { ...dataToSave, createdAt: serverTimestamp() });
+                toast({ title: 'Oferta Adicionada!' });
+            }
+            setIsModalOpen(false);
+        } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Falha ao Salvar', description: err.message });
+        }
+    };
 
-    const offersCollectionRef = collection(db, offersCollectionPath);
-    const unsubscribe = onSnapshot(offersCollectionRef, (snapshot) => {
-      const offersList = snapshot.docs.map(d => ({
-        id: d.id,
-        ...d.data(),
-        startDate: d.data().startDate?.toDate(),
-        expirationDate: d.data().expirationDate?.toDate(),
-      } as Offer));
-      setOffers(offersList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-      setLoadingOffers(false);
-    }, (error) => {
-      console.error("Erro ao carregar ofertas:", error);
-      toast({ variant: 'destructive', title: 'Erro ao Carregar Ofertas', description: error.message });
-      setLoadingOffers(false);
-    });
+    const handleDeleteOffer = async (offerId: string) => {
+        try {
+            await deleteDoc(doc(db, offersCollectionPath, offerId));
+            toast({ title: 'Oferta Excluída!' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao Excluir' });
+        }
+    };
 
-    return () => unsubscribe();
-  }, [isAuthReady, offersCollectionPath, toast]);
-
-  const resetForm = () => {
-    setCurrentOffer(initialOfferState);
-    setImageFile(null);
-    setIsEditing(false);
-    setEditOfferId(null);
-    const fileInput = document.getElementById('imageUpload') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'Selecione uma imagem com menos de 5MB.' });
-        return;
-      }
-      setImageFile(file);
-      setCurrentOffer(prev => ({ ...prev, imageUrl: URL.createObjectURL(file) }));
-    }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setCurrentOffer(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const numericValue = parseFloat(value.replace(',', '.') || '0');
-    setCurrentOffer(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
-  };
-
-  const handleEditClick = (offer: Offer) => {
-    resetForm();
-    setCurrentOffer({
-      ...offer,
-      startDate: offer.startDate,
-      expirationDate: offer.expirationDate,
-    });
-    setIsEditing(true);
-    setEditOfferId(offer.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSaveOffer = async () => {
-    if (!currentOffer.name || !currentOffer.promotionalPrice || !currentOffer.startDate || !currentOffer.expirationDate || !currentOffer.category) {
-      toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Preencha nome, preço promocional, datas e categoria.' });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      let finalImageUrl = currentOffer.imageUrl;
-
-      if (imageFile) {
-        setIsUploading(true);
-        const storageRef = ref(storage, `offers/${Date.now()}-${imageFile.name}`);
-        const uploadTask = await uploadBytes(storageRef, imageFile);
-        finalImageUrl = await getDownloadURL(uploadTask.ref);
-        setIsUploading(false);
-      }
-
-      const offerDataToSave = {
-        ...currentOffer,
-        imageUrl: finalImageUrl,
-        startDate: new Date(currentOffer.startDate),
-        expirationDate: new Date(currentOffer.expirationDate),
-        updatedAt: serverTimestamp(),
-      };
-
-      const offersCollectionRef = collection(db, offersCollectionPath);
-      if (isEditing && editOfferId) {
-        await updateDoc(doc(offersCollectionRef, editOfferId), offerDataToSave as any);
-        toast({ title: 'Oferta Atualizada!' });
-      } else {
-        await addDoc(offersCollectionRef, { ...offerDataToSave, createdAt: serverTimestamp() } as any);
-        toast({ title: 'Oferta Adicionada!' });
-      }
-
-      resetForm();
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Falha ao Salvar', description: err.message });
-    } finally {
-      setIsSubmitting(false);
-      setIsUploading(false);
-    }
-  };
-
-  const handleDeleteOffer = async (offerId: string, offerName: string) => {
-    if (window.confirm(`Tem certeza que deseja excluir a oferta "${offerName}"?`)) {
-        await deleteDoc(doc(db, offersCollectionPath, offerId));
-        toast({ title: 'Oferta Excluída!' });
-    }
-  };
-
-
-  if (loadingOffers) return <div className="flex h-screen w-full items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-4 text-muted-foreground">A carregar...</p></div>;
-
-  return (
-    <div className="space-y-8 p-4 md:p-8 bg-background">
-      <div className="flex items-center gap-4">
-        <div className="bg-primary/10 p-3 rounded-lg">
-            <ShoppingBag className="size-8 text-primary" />
-        </div>
-        <div>
-            <h1 className="text-3xl font-bold text-foreground">Gestão de Ofertas</h1>
-            <p className="text-muted-foreground">Crie e administre as promoções da sua loja</p>
-        </div>
-      </div>
-
-      <Card className="shadow-sm border border-border/50">
-        <CardHeader>
-          <CardTitle className="text-xl">{isEditing ? 'Editar Oferta' : 'Criar Nova Oferta'}</CardTitle>
-          <CardDescription>Preencha os detalhes abaixo para configurar a promoção.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveOffer(); }} className="space-y-6">
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="grid gap-2"><Label htmlFor="name">Nome do Produto</Label><Input id="name" name="name" value={currentOffer.name || ''} onChange={handleInputChange} /></div>
-              <div className="grid gap-2"><Label htmlFor="category">Categoria</Label><Select value={currentOffer.category || ''} onValueChange={(value) => setCurrentOffer(prev => ({...prev, category: value}))}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{OFFER_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent></Select></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="grid gap-2"><Label htmlFor="productCode">Código do Produto (SKU)</Label><Input id="productCode" name="productCode" value={currentOffer.productCode || ''} onChange={handleInputChange} placeholder="Ex: SKU12345" /></div>
-                <div className="grid gap-2"><Label htmlFor="reference">Referência</Label><Input id="reference" name="reference" value={currentOffer.reference || ''} onChange={handleInputChange} placeholder="Ex: REF-001-B" /></div>
-            </div>
-
-            <div className="grid gap-2"><Label htmlFor="description">Descrição (Opcional)</Label><Textarea id="description" name="description" value={currentOffer.description || ''} onChange={handleInputChange} /></div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <div className="grid gap-2">
-                    <Label htmlFor="imageUpload">Upload de Imagem</Label>
-                    <Input id="imageUpload" type="file" accept="image/png, image/jpeg, image/webp" onChange={handleFileChange} disabled={isSubmitting} className="file:text-primary file:font-semibold" />
-                    <p className="text-sm text-muted-foreground">Ou cole a URL no campo ao lado.</p>
+    return (
+        <div className="space-y-8">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <ShoppingBag className="size-8 text-primary" />
+                    <h1 className="text-3xl font-bold">Gestão de Ofertas</h1>
                 </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="imageUrl">URL da Imagem</Label>
-                    <Input id="imageUrl" name="imageUrl" value={currentOffer.imageUrl || ''} onChange={handleInputChange} placeholder="https://exemplo.com/imagem.jpg" disabled={isSubmitting || !!imageFile} />
-                </div>
+                <Button onClick={() => openModal()}><PlusCircle className="mr-2" /> Adicionar Oferta</Button>
             </div>
 
-            {currentOffer.imageUrl && (
-              <div className="mt-2"><Label>Pré-visualização</Label><div className="mt-2 w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted">{isUploading ? <Loader2 className="animate-spin text-primary" /> : <img src={currentOffer.imageUrl} alt="Pré-visualização" className="object-cover w-full h-full" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none';}} />}</div></div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="grid gap-2"><Label htmlFor="startDate">Data de Início</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{currentOffer.startDate ? format(currentOffer.startDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.startDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, startDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
-                <div className="grid gap-2"><Label htmlFor="expirationDate">Data de Expiração</Label><Popover><PopoverTrigger asChild><Button variant={"outline"} className={cn("w-full justify-start text-left font-normal")}><CalendarIcon className="mr-2 h-4 w-4" />{currentOffer.expirationDate ? format(currentOffer.expirationDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={currentOffer.expirationDate} onSelect={(date) => setCurrentOffer(prev => ({ ...prev, expirationDate: date || new Date() }))} initialFocus /></PopoverContent></Popover></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="grid gap-2"><Label htmlFor="originalPrice">Valor Original (R$)</Label><Input id="originalPrice" name="originalPrice" type="text" value={currentOffer.originalPrice || ''} onChange={handlePriceChange} placeholder="De: 199,99" /></div>
-              <div className="grid gap-2"><Label htmlFor="promotionalPrice">Preço Promocional (R$)</Label><Input id="promotionalPrice" name="promotionalPrice" type="text" value={currentOffer.promotionalPrice || ''} onChange={handlePriceChange} placeholder="Por: 99,99" required /></div>
-            </div>
-
-            <div className="space-y-4 pt-4">
-                <div className="flex items-center space-x-3"><Switch id="isActive" checked={currentOffer.isActive} onCheckedChange={(checked) => setCurrentOffer(prev => ({...prev, isActive: checked}))} /><Label htmlFor="isActive" className="cursor-pointer">Oferta Ativa</Label></div>
-                <div className="flex items-center space-x-3"><Checkbox id="isFlashOffer" checked={currentOffer.isFlashOffer} onCheckedChange={(checked) => setCurrentOffer(prev => ({...prev, isFlashOffer: !!checked}))} /><Label htmlFor="isFlashOffer" className="cursor-pointer">Marcar como Oferta Relâmpago</Label></div>
-                <div className="flex items-center space-x-3"><Checkbox id="isBestSeller" checked={currentOffer.isBestSeller} onCheckedChange={(checked) => setCurrentOffer(prev => ({...prev, isBestSeller: !!checked}))} /><Label htmlFor="isBestSeller" className="cursor-pointer">Marcar como Mais Vendido</Label></div>
-            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ofertas Atuais</CardTitle>
+                    <CardDescription>Lista de todas as promoções criadas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Produto</TableHead>
+                                    <TableHead>Preço Promocional</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow><TableCell colSpan={4} className="h-24 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></TableCell></TableRow>
+                                ) : offers.length > 0 ? offers.map(offer => (
+                                    <TableRow key={offer.id}>
+                                        <TableCell className="font-medium flex items-center gap-4">
+                                            <img src={offer.imageUrl || 'https://placehold.co/60x60/27272a/FFF?text=Oferta'} alt={offer.name} className="w-12 h-12 object-cover rounded-md bg-muted" />
+                                            <div>
+                                                <p>{offer.name}</p>
+                                                <p className="text-xs text-muted-foreground">{offer.category}</p>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="font-semibold text-primary">{`R$ ${offer.promotionalPrice.toFixed(2)}`}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={offer.isActive ? "default" : "outline"}>
+                                                {offer.isActive ? "Ativa" : "Inativa"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => openModal(offer)}><Edit className="h-4 w-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação irá remover a oferta "{offer.name}" permanentemente.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteOffer(offer.id)} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-24 text-center">
+                                            <p className="font-semibold">Nenhuma oferta criada.</p>
+                                            <p className="text-sm text-muted-foreground">Clique em "Adicionar Oferta" para começar.</p>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
             
-            <div className="flex flex-col sm:flex-row gap-4 pt-6">
-              <Button type="submit" disabled={isSubmitting} className="flex-1 font-semibold text-lg py-6 bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all duration-300 hover:scale-[1.02]">
-                {isSubmitting ? <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Salvando...</> : (isEditing ? 'Salvar Alterações' : 'Adicionar Oferta')}
-              </Button>
-              {isEditing && (<Button type="button" variant="outline" onClick={resetForm} className="flex-1 text-lg py-6">Cancelar Edição</Button>)}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  );
+            <OfferFormModal 
+                isOpen={isModalOpen} 
+                setIsOpen={setIsModalOpen} 
+                offer={currentOffer}
+                onSave={handleSaveOffer}
+            />
+        </div>
+    );
 }

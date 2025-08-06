@@ -11,7 +11,6 @@ const db = admin.firestore();
  */
 export const createSeller = onCall(async (request) => {
   const { email, password, name } = request.data;
-  console.log("Função v2 createSeller chamada com os dados:", request.data);
 
   if (!email || !password || !name) {
     throw new HttpsError('invalid-argument', 'Email, senha e nome são obrigatórios.');
@@ -100,10 +99,6 @@ export const deleteSeller = onCall(async (request) => {
 export const changeSellerPassword = onCall(async (request) => {
   const { uid, newPassword } = request.data;
 
-  // ####################################################################
-  // ### CORREÇÃO APLICADA AQUI ###
-  // ####################################################################
-  // O '!' antes de 'newPassword.length' foi removido.
   if (!uid || !newPassword || newPassword.length < 6) {
     throw new HttpsError("invalid-argument", "Dados inválidos: Verifique o ID e a nova senha (mínimo 6 caracteres).");
   }
@@ -120,5 +115,79 @@ export const changeSellerPassword = onCall(async (request) => {
       throw new HttpsError('not-found', 'Utilizador não encontrado.');
     }
     throw new HttpsError("internal", "Ocorreu um erro ao alterar a senha.");
+  }
+});
+
+/**
+ * FUNÇÃO 4: Atualizar os dados de um vendedor (nome e email).
+ */
+export const updateSeller = onCall(async (request) => {
+  const { uid, name, email } = request.data;
+  const auth = request.auth;
+
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'Apenas administradores podem executar esta ação.');
+  }
+
+  if (!uid || !name || !email) {
+    throw new HttpsError('invalid-argument', 'UID, nome e email são obrigatórios.');
+  }
+
+  try {
+    await admin.auth().updateUser(uid, {
+      email: email,
+      displayName: name,
+    });
+
+    const batch = db.batch();
+    const sellerRef = db.collection('sellers').doc(uid);
+    const userRef = db.collection('users').doc(uid);
+
+    batch.update(sellerRef, { name, email });
+    batch.update(userRef, { name, email });
+    
+    await batch.commit();
+
+    return { result: `Vendedor ${name} atualizado com sucesso.` };
+
+  } catch (error: any) {
+    console.error("Erro ao atualizar vendedor:", error);
+    if (error.code === 'auth/user-not-found') {
+      throw new HttpsError('not-found', 'Utilizador não encontrado.');
+    }
+    throw new HttpsError('internal', 'Ocorreu um erro inesperado ao atualizar o vendedor.');
+  }
+});
+
+/**
+ * FUNÇÃO 5: Atualizar os pontos de um vendedor.
+ */
+export const updateSellerPoints = onCall(async (request) => {
+  const { uid, points } = request.data;
+  const auth = request.auth;
+
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'Ação não autorizada.');
+  }
+
+  if (!uid || points === undefined || typeof points !== 'number' || points < 0) {
+    throw new HttpsError('invalid-argument', 'UID do vendedor e um valor de pontos válido (número >= 0) são obrigatórios.');
+  }
+
+  try {
+    const sellerRef = db.collection('sellers').doc(uid);
+    
+    await sellerRef.update({
+      points: Math.floor(points)
+    });
+
+    return { result: `Pontos do vendedor ${uid} atualizados para ${Math.floor(points)}.` };
+
+  } catch (error: any) {
+    console.error("Erro ao atualizar pontos:", error);
+    if (error.code === 5) { // Código de erro 'NOT_FOUND' do Firestore
+       throw new HttpsError('not-found', 'Vendedor não encontrado na base de dados.');
+    }
+    throw new HttpsError('internal', 'Ocorreu um erro inesperado ao atualizar os pontos.');
   }
 });

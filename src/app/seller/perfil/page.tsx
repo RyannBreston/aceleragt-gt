@@ -1,50 +1,75 @@
-'use client'
+'use client';
 
-import { useState } from "react";
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User } from "lucide-react";
-import { useSellerContext } from "@/contexts/SellerContext"; // Caminho de importação corrigido
+import { Loader2, User, KeyRound, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSellerContext } from '@/contexts/SellerContext';
+// ✅ 1. Importações necessárias do Firebase
+import { functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 
-export default function PerfilPage() {
-    const { currentSeller } = useSellerContext();
-    const { toast } = useToast();
-    const [nickname, setNickname] = useState(currentSeller.nickname || '');
-    const [email, setEmail] = useState(currentSeller.email || '');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
+export default function SellerProfilePage() {
+  const { currentSeller } = useSellerContext();
+  const { toast } = useToast();
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (password !== confirmPassword) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro de Validação',
-                description: 'As senhas não coincidem. Por favor, tente novamente.',
-            });
-            return;
-        }
-
-        // Num aplicativo real, você lidaria com a lógica de atualização aqui.
-        // Para este protótipo, apenas exibiremos uma mensagem de sucesso.
-        console.log({
-            userId: currentSeller.id,
-            newNickname: nickname,
-            newEmail: email,
-            newPassword: password,
-        });
-
-        toast({
-            title: 'Perfil Atualizado!',
-            description: 'Suas informações foram salvas com sucesso.',
-        });
-
-        setPassword('');
-        setConfirmPassword('');
+  const handleUpdatePassword = async () => {
+    // Validação no frontend
+    if (newPassword.length < 6) {
+      toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
+      return;
     }
+    if (newPassword !== confirmPassword) {
+      toast({ variant: "destructive", title: "As senhas não coincidem" });
+      return;
+    }
+    if (!currentSeller) {
+      toast({ variant: "destructive", title: "Erro", description: "Utilizador não encontrado." });
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      // ✅ 2. Lógica para chamar a Cloud Function
+      const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
+      await changePasswordFunction({
+        uid: currentSeller.id,
+        newPassword: newPassword
+      });
+
+      toast({ title: 'Senha atualizada com sucesso!', description: 'Você será desconectado e precisará de fazer login com a nova senha.' });
+      
+      // Limpa os campos e fecha o modal
+      setNewPassword('');
+      setConfirmPassword('');
+      setIsModalOpen(false);
+      
+      // Opcional: Deslogar o utilizador imediatamente
+      // auth.signOut();
+
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao alterar senha',
+        description: error.message,
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  if (!currentSeller) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -52,39 +77,63 @@ export default function PerfilPage() {
         <User className="size-8 text-primary" />
         <h1 className="text-3xl font-bold">Meu Perfil</h1>
       </div>
-      <Card className="bg-card border-border max-w-2xl">
+
+      <Card>
         <CardHeader>
-            <CardTitle>Configurações da Conta</CardTitle>
-            <CardDescription>Atualize suas informações de login.</CardDescription>
+          <CardTitle>{currentSeller.name}</CardTitle>
+          <CardDescription>As suas informações de perfil e segurança.</CardDescription>
         </CardHeader>
-        <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Email</Label>
+            <Input value={currentSeller.email} disabled />
+          </div>
+          
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <KeyRound className="mr-2 size-4" />
+                Alterar Senha
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Alterar a sua Senha</DialogTitle>
+                <DialogDescription>
+                  Digite e confirme a sua nova senha. Você será desconectado de todos os dispositivos após a alteração.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input id="name" value={currentSeller.name} disabled className="bg-input" />
+                  <Label htmlFor="newPassword">Nova Senha</Label>
+                  <Input 
+                    id="newPassword" 
+                    type="password" 
+                    value={newPassword} 
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                  />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor="nickname">Login (Nickname)</Label>
-                    <Input id="nickname" type="text" placeholder="Seu nickname de login" value={nickname} onChange={(e) => setNickname(e.target.value)} className="bg-input" />
+                  <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                  <Input 
+                    id="confirmPassword" 
+                    type="password" 
+                    value={confirmPassword} 
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="email">Email (Opcional)</Label>
-                    <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="bg-input" />
-                </div>
-                 <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="password">Nova Senha</Label>
-                        <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bg-input" placeholder="Deixe em branco para não alterar" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-                        <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="bg-input" />
-                    </div>
-                 </div>
-                 <div className="flex justify-end">
-                    <Button type="submit">Salvar Alterações</Button>
-                 </div>
-            </form>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword}>
+                  {isUpdatingPassword ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
+                  Salvar Nova Senha
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </CardContent>
       </Card>
     </div>

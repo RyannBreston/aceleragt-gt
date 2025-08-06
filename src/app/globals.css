@@ -4,46 +4,69 @@
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 0 0% 100%;
+    --foreground: 348 75% 15%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
- 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
- 
-    /* --- SUAS NOVAS CORES APLICADAS AO TEMA --- */
-    /* "super" (rosa) como cor primária */
-    --primary: 348 83% 64%; /* #ef476f */
+    --card: 0 0% 100%;
+    --card-foreground: 348 75% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 348 75% 15%;
+
+    /* Cores tema rosa */
+    --primary: 348 83% 64%;
     --primary-foreground: 0 0% 100%;
 
-    /* "moda" (azul) como cor secundária */
-    --secondary: 230 39% 47%; /* #4b5aa6 */
+    --secondary: 230 39% 47%;
     --secondary-foreground: 0 0% 98%;
- 
-    --muted: 240 3.7% 15.9%;
-    /* "calçados" (cinza) para texto silenciado */
-    --muted-foreground: 0 0% 60%; /* #999999 */
- 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 348 83% 64%; /* O anel de foco usa a cor primária */
- 
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 60%;
+
+    --accent: 348 83% 85%;
+    --accent-foreground: 348 75% 25%;
+
+    --destructive: 0 85% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 348 83% 90%;
+    --input: 348 83% 90%;
+    --ring: 348 83% 64%;
+
     --radius: 0.5rem;
   }
- 
-  .dark {
-    /* As cores já estão otimizadas para o tema escuro. */
+
+  html.dark {
+    --background: 348 30% 8%;
+    --foreground: 348 60% 95%;
+
+    --card: 348 30% 10%;
+    --card-foreground: 348 60% 95%;
+
+    --popover: 348 30% 12%;
+    --popover-foreground: 348 60% 95%;
+
+    --primary: 348 83% 64%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 230 39% 47%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 348 20% 15%;
+    --muted-foreground: 348 10% 70%;
+
+    --accent: 348 30% 30%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 348 20% 30%;
+    --input: 348 20% 30%;
+    --ring: 348 83% 64%;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;

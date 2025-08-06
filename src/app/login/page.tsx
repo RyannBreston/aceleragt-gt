@@ -86,7 +86,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Logo />
           </div>
-          <CardTitle className="text-2xl text-center">Aceder ao Painel</CardTitle>
+          <CardTitle className="text-2xl text-center">bem-vindo ao app da SuperModa</CardTitle>
           <CardDescription className="text-center">
             Entre com o seu e-mail e senha para aceder.
           </CardDescription>

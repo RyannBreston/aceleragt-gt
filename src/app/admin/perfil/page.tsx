@@ -1,294 +1,283 @@
 'use client';
 
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import {
-  Card, CardContent, CardHeader,
-  CardTitle, CardDescription
-} from "@/components/ui/card";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-  DialogFooter, DialogTrigger, DialogDescription
-} from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserCog, PlusCircle, Loader2, Trash2, KeyRound } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { UserCog, PlusCircle, Loader2, Trash2, KeyRound, Edit, Save, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAdminContext } from "@/contexts/AdminContext";
-import {
-  Table, TableBody, TableCell,
-  TableHead, TableHeader, TableRow
-} from "@/components/ui/table";
-import type { Seller } from "@/lib/types";
+import { useAdminContext } from '@/contexts/AdminContext';
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
+import type { Seller } from '@/lib/types';
 
-// --- Componente do Modal de Alteração de Senha (Sem alterações) ---
-const ChangePasswordDialog = ({ seller }: { seller: Seller }) => {
-  const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isChanging, setIsChanging] = useState(false);
+// --- Sub-componente: Modal de Gestão de Vendedor (Criar/Editar) ---
+const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; seller: Partial<Seller> | null; onSave: (data: Partial<Seller>) => Promise<void> }) => {
+    const [formData, setFormData] = useState<Partial<Seller>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    useEffect(() => {
+        // Quando o 'seller' muda, reinicia o formulário. Se 'seller' for nulo, prepara para criar um novo.
+        setFormData(seller || { name: '', email: '', password: '' });
+    }, [seller]);
 
-  const handleChangePassword = async () => {
-    if (newPassword.length < 6) {
-      toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast({ variant: "destructive", title: "As senhas não coincidem" });
-      return;
-    }
-    setIsChanging(true);
-    try {
-      const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
-      await changePasswordFunction({ uid: seller.id, newPassword });
-      toast({ title: 'Senha Alterada!', description: `A senha de ${seller.name} foi atualizada.` });
-      setIsOpen(false);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Erro ao Alterar Senha', description: error.message });
-    } finally {
-      setIsChanging(false);
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={`Alterar senha de ${seller.name}`}>
-          <KeyRound className="h-4 w-4 text-secondary" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Alterar Senha de {seller.name}</DialogTitle>
-          <DialogDescription>
-            Digite a nova senha para o vendedor. Ele será desconectado e precisará usar a nova senha para entrar.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">Nova Senha</Label>
-            <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-            <Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-          <Button onClick={handleChangePassword} disabled={isChanging}>
-            {isChanging && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Salvar Nova Senha
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// --- Componente AlertDialog para confirmar a exclusão (Sem alterações) ---
-const DeleteSellerDialog = ({ seller, onDelete }: { seller: Seller, onDelete: (sellerId: string, sellerName: string) => void }) => {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    await onDelete(seller.id, seller.name);
-    setIsDeleting(false);
-  }
-
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={`Apagar ${seller.name}`}>
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Tem a certeza absoluta?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta ação não pode ser desfeita. Isto irá apagar permanentemente a conta de <span className="font-bold">{seller.name}</span>.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Sim, apagar vendedor
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-// --- Componente Principal da Página ---
-export default function PerfilPage() {
-  const { toast } = useToast();
-  const { sellers, isAuthReady } = useAdminContext();
-  const [newSeller, setNewSeller] = useState({ name: '', email: '', password: '' });
-  const [isLoading, setIsLoading] = useState(false);
-
-  /**
-   * VERSÃO DE TESTE DA FUNÇÃO handleAddSeller
-   * Esta função ignora os dados do formulário e envia dados fixos
-   * para a Cloud Function para isolar a causa do erro.
-   */
-  const handleAddSeller = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    // Dados de teste fixos para garantir que a requisição é válida.
-    const testData = {
-      name: "Teste de Vendedor",
-      email: `teste-${Date.now()}@teste.com`, // Email único para cada teste
-      password: "senhaSegura123"
+    const handleSave = async () => {
+        setIsSubmitting(true);
+        await onSave(formData);
+        setIsSubmitting(false);
     };
 
-    console.log("A ENVIAR DADOS DE TESTE FIXOS:", testData);
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{seller?.id ? 'Editar Vendedor' : 'Adicionar Novo Vendedor'}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="space-y-2"><Label>Nome Completo</Label><Input value={formData.name || ''} onChange={(e) => setFormData(p => ({...p, name: e.target.value}))} /></div>
+                    <div className="space-y-2"><Label>Email de Login</Label><Input type="email" value={formData.email || ''} onChange={(e) => setFormData(p => ({...p, email: e.target.value}))} /></div>
+                    {/* O campo de senha só aparece ao criar um novo vendedor */}
+                    {!seller?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input type="password" placeholder="Mínimo 6 caracteres" onChange={(e) => setFormData(p => ({...p, password: e.target.value}))} /></div>}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
-    try {
-      // Cria a referência para a função chamável
-      const createSellerFunction = httpsCallable(functions, 'createSeller');
+// --- Sub-componente: Modal para Alterar a Senha ---
+const ChangePasswordModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null; isOpen: boolean; setIsOpen: (open: boolean) => void; }) => {
+    const { toast } = useToast();
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
 
-      // Executa a função com os dados de teste
-      await createSellerFunction(testData);
-      
-      toast({ 
-        title: 'TESTE BEM-SUCEDIDO!', 
-        description: `O vendedor de teste foi criado com sucesso.` 
-      });
-      
-      // Limpa o formulário real
-      setNewSeller({ name: '', email: '', password: '' });
+    const handleUpdate = async () => {
+        if (!seller) return;
+        if (newPassword.length < 6) {
+            toast({ variant: "destructive", title: "Senha muito curta" });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast({ variant: "destructive", title: "As senhas não coincidem" });
+            return;
+        }
 
-    } catch (error: any) {
-      // Se ainda der erro, será um erro do backend (ex: permissões)
-      toast({ 
-        variant: 'destructive', 
-        title: 'TESTE FALHOU', 
-        description: `Erro: ${error.message}` 
-      });
-      console.error("ERRO NO TESTE:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setIsUpdating(true);
+        try {
+            const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
+            await changePasswordFunction({ uid: seller.id, newPassword });
+            toast({ title: 'Senha atualizada com sucesso!' });
+            setIsOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: error.message });
+        } finally {
+            setIsUpdating(false);
+            setNewPassword('');
+            setConfirmPassword('');
+        }
+    };
 
-  const handleDeleteSeller = async (sellerId: string, sellerName: string) => {
-    try {
-      const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
-      await deleteSellerFunction({ uid: sellerId });
-      toast({
-        title: 'Vendedor Apagado',
-        description: `${sellerName} foi removido com sucesso.`
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao Apagar',
-        description: error.message
-      });
-    }
-  };
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Alterar Senha de {seller?.name}</DialogTitle>
+                    <DialogDescription>O vendedor será desconectado e precisará usar a nova senha.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2"><Label htmlFor="newPassword">Nova Senha</Label><Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/></div>
+                    <div className="space-y-2"><Label htmlFor="confirmPassword">Confirmar Nova Senha</Label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleUpdate} disabled={isUpdating}>{isUpdating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar Nova Senha</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <UserCog className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Gerir Vendedores</h1>
-      </div>
+// --- Sub-componente: Modal para Editar Pontos ---
+const EditPointsModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null; isOpen: boolean; setIsOpen: (open: boolean) => void; }) => {
+    const { toast } = useToast();
+    const [points, setPoints] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PlusCircle className="size-6" />
-            <span>Adicionar Novo Vendedor</span>
-          </CardTitle>
-          <CardDescription>Crie uma nova conta de login para um vendedor.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* O formulário ainda é renderizado, mas a sua submissão usará os dados de teste */}
-          <form onSubmit={handleAddSeller} className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="sellerName">Nome Completo</Label>
-                <Input id="sellerName" placeholder="Nome do Vendedor" value={newSeller.name} onChange={(e) => setNewSeller(s => ({ ...s, name: e.target.value }))} required disabled={isLoading} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sellerEmail">Email de Login</Label>
-                <Input id="sellerEmail" type="email" placeholder="email@vendedor.com" value={newSeller.email} onChange={(e) => setNewSeller(s => ({ ...s, email: e.target.value }))} required disabled={isLoading} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sellerPassword">Senha Inicial</Label>
-                <Input
-                  id="sellerPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newSeller.password}
-                  onChange={(e) => setNewSeller(s => ({ ...s, password: e.target.value }))}
-                  required
-                  disabled={isLoading}
-                />
-              </div>
+    useEffect(() => {
+        if (seller) {
+            setPoints(seller.points || 0);
+        }
+    }, [seller]);
+
+    const handleSavePoints = async (newPoints: number) => {
+        if (!seller) return;
+
+        setIsSubmitting(true);
+        try {
+            const updatePointsFunction = httpsCallable(functions, 'updateSellerPoints');
+            await updatePointsFunction({ uid: seller.id, points: newPoints });
+
+            toast({ title: 'Pontos Atualizados!', description: `A pontuação de ${seller.name} foi definida para ${newPoints}.` });
+            setIsOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao atualizar pontos', description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Editar Pontos de {seller?.name}</DialogTitle>
+                    <DialogDescription>
+                        Altere o valor dos pontos base do vendedor. Os pontos extras são geridos na página de Configurações.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="points">Pontuação Base</Label>
+                        <Input 
+                            id="points" 
+                            type="number" 
+                            value={points}
+                            onChange={(e) => setPoints(Number(e.target.value))}
+                        />
+                    </div>
+                    <Button 
+                        variant="destructive" 
+                        className="w-full"
+                        onClick={() => handleSavePoints(0)}
+                        disabled={isSubmitting}
+                    >
+                        Zerar Pontuação Base
+                    </Button>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={() => handleSavePoints(points)} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
+                        Salvar Pontos
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+
+// --- Página Principal de Perfil ---
+export default function PerfilPage() {
+    const { toast } = useToast();
+    const { sellers } = useAdminContext();
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [isPointsModalOpen, setIsPointsModalOpen] = useState(false);
+    const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
+
+    const openModal = (type: 'edit' | 'password' | 'points', seller?: Seller) => {
+        setSelectedSeller(seller || null);
+        if (type === 'edit') setIsEditModalOpen(true);
+        if (type === 'password') setIsPasswordModalOpen(true);
+        if (type === 'points') setIsPointsModalOpen(true);
+    };
+
+    const handleSaveSeller = async (data: Partial<Seller>) => {
+        try {
+            if (data.id) { // Modo de Edição
+                const updateSellerFunction = httpsCallable(functions, 'updateSeller');
+                await updateSellerFunction({ uid: data.id, name: data.name, email: data.email });
+                toast({ title: 'Vendedor atualizado!' });
+            } else { // Modo de Criação
+                const createSellerFunction = httpsCallable(functions, 'createSeller');
+                await createSellerFunction(data);
+                toast({ title: 'Vendedor adicionado!' });
+            }
+            setIsEditModalOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao salvar', description: error.message });
+        }
+    };
+    
+    const handleDeleteSeller = async (seller: Seller) => {
+        try {
+            const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
+            await deleteSellerFunction({ uid: seller.id });
+            toast({ title: 'Vendedor apagado!', description: `${seller.name} foi removido com sucesso.` });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao apagar', description: error.message });
+        }
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4"><UserCog className="size-8 text-primary" /><h1 className="text-3xl font-bold">Gerir Vendedores</h1></div>
+                <Button onClick={() => openModal('edit')}><PlusCircle className="mr-2 size-4" /> Adicionar Vendedor</Button>
             </div>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Adicionar Vendedor (Modo de Teste)
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle>Vendedores Registados</CardTitle>
-          <CardDescription>Lista de todos os vendedores com contas na plataforma.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sellers.length > 0 ? sellers.map(seller => (
-                  <TableRow key={seller.id}>
-                    <TableCell className="font-medium">{seller.name}</TableCell>
-                    <TableCell>{seller.email}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <ChangePasswordDialog seller={seller} />
-                      <DeleteSellerDialog seller={seller} onDelete={handleDeleteSeller} />
-                    </TableCell>
-                  </TableRow>
-                )) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center h-24">
-                      {isAuthReady ? "Nenhum vendedor registado." : <Loader2 className="mx-auto h-6 w-6 animate-spin" />}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Vendedores Registados</CardTitle>
+                    <CardDescription>Adicione, edite e gira as permissões dos seus vendedores.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead className="text-center">Pontos Totais</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {sellers.length > 0 ? sellers.map(seller => (
+                                    <TableRow key={seller.id}>
+                                        <TableCell className="font-medium">{seller.name}</TableCell>
+                                        <TableCell>{seller.email}</TableCell>
+                                        <TableCell className="text-center font-semibold">{(seller.points || 0) + (seller.extraPoints || 0)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button title="Editar Pontos" variant="ghost" size="icon" onClick={() => openModal('points', seller)}><Star className="size-4 text-yellow-500" /></Button>
+                                            <Button title="Editar Vendedor" variant="ghost" size="icon" onClick={() => openModal('edit', seller)}><Edit className="size-4" /></Button>
+                                            <Button title="Alterar Senha" variant="ghost" size="icon" onClick={() => openModal('password', seller)}><KeyRound className="size-4" /></Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button title="Apagar Vendedor" variant="ghost" size="icon"><Trash2 className="size-4 text-destructive" /></Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+                                                        <AlertDialogDescription>Esta ação não pode ser desfeita e irá apagar permanentemente o vendedor {seller.name}.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteSeller(seller)} className="bg-destructive hover:bg-destructive/90">Apagar</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                )) : <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum vendedor registado.</TableCell></TableRow>}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <SellerFormModal isOpen={isEditModalOpen} setIsOpen={setIsEditModalOpen} seller={selectedSeller} onSave={handleSaveSeller} />
+            <ChangePasswordModal seller={selectedSeller} isOpen={isPasswordModalOpen} setIsOpen={setIsPasswordModalOpen} />
+            <EditPointsModal seller={selectedSeller} isOpen={isPointsModalOpen} setIsOpen={setIsPointsModalOpen} />
+        </div>
+    );
 }
