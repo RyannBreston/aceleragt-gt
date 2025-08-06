@@ -66,18 +66,21 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, any>(({ field, ...props
     );
 
     useEffect(() => {
+        // Atualiza o valor exibido se o valor do formulário mudar externamente
         setStringValue(field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
     }, [field.value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setStringValue(value);
+        setStringValue(value); // Permite que o utilizador digite livremente
     };
 
     const handleBlur = () => {
+        // Ao sair, limpa, converte para número e atualiza o formulário
         const sanitizedValue = stringValue.replace(/[^0-9,]/g, '').replace(',', '.');
         const numericValue = parseFloat(sanitizedValue) || 0;
         field.onChange(numericValue);
+        // E formata o valor exibido
         setStringValue(numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
     };
 

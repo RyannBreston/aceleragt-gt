@@ -11,16 +11,10 @@ import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 type Metric = 'salesValue' | 'ticketAverage' | 'pa' | 'points';
 
-/**
- * ✅ FUNÇÃO CORRIGIDA: getGoalProgressDetails
- * Adicionámos verificações de segurança (usando '?.') para garantir que o código não quebra
- * se os dados de 'goals' ainda não estiverem disponíveis.
- */
+// Função segura que calcula o progresso para uma meta individual.
 const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) => {
     const sellerValue = metric === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : seller[metric] || 0;
 
-    // A utilização de '?.' (Optional Chaining) previne o erro.
-    // Se 'goals[metric]' ou qualquer nível de meta for undefined, a verificação falha graciosamente.
     const goalData = goals?.[metric];
     if (!goalData || !goalData.metinha?.threshold) {
         return { percent: 0, label: "Metas não definidas", details: "N/A" };
@@ -59,10 +53,16 @@ const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) =>
     };
 };
 
-
-// Sub-componente para os cartões de métrica
-const MetricCard = ({ title, value, Icon, seller, goals, metric }: { title: string; value: string; Icon: React.ElementType; seller: Seller; goals: Goals; metric: Metric }) => {
+// Sub-componente para os cartões de progresso de meta.
+const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: string; Icon: React.ElementType; seller: Seller; goals: Goals; metric: Metric }) => {
     const progress = getGoalProgressDetails(seller, goals, metric);
+    const sellerValue = metric === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : seller[metric] || 0;
+    
+    const valueFormatter = (val: number) => {
+        if (metric === 'pa') return val.toFixed(2);
+        if (metric === 'points') return val.toLocaleString('pt-BR');
+        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
 
     return (
         <Card>
@@ -71,7 +71,7 @@ const MetricCard = ({ title, value, Icon, seller, goals, metric }: { title: stri
                 <Icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
+                <div className="text-2xl font-bold">{valueFormatter(sellerValue)}</div>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -90,40 +90,19 @@ const MetricCard = ({ title, value, Icon, seller, goals, metric }: { title: stri
     );
 };
 
-
+// --- Componente principal da página ---
 export default function SellerDashboardPage() {
     const { currentSeller, goals, isAuthReady } = useSellerContext();
 
-    // Enquanto os dados essenciais (autenticação e vendedor) não estiverem prontos, mostre o skeleton.
     if (!isAuthReady || !currentSeller) {
         return <DashboardSkeleton />;
     }
 
-    const metrics: { title: string; value: string; Icon: React.ElementType; metric: Metric }[] = [
-        {
-            title: 'Minhas Vendas (Mês)',
-            value: (currentSeller.salesValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-            Icon: DollarSign,
-            metric: 'salesValue'
-        },
-        {
-            title: 'Meu Ticket Médio',
-            value: (currentSeller.ticketAverage || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-            Icon: Ticket,
-            metric: 'ticketAverage'
-        },
-        {
-            title: 'Meu PA',
-            value: (currentSeller.pa || 0).toFixed(2),
-            Icon: Box,
-            metric: 'pa'
-        },
-        {
-            title: 'Meus Pontos',
-            value: ((currentSeller.points || 0) + (currentSeller.extraPoints || 0)).toLocaleString('pt-BR'),
-            Icon: Star,
-            metric: 'points'
-        },
+    // ✅ CORREÇÃO: A lógica foi movida para ANTES do return.
+    const metrics: { title: string; Icon: React.ElementType; metric: Metric }[] = [
+        { title: 'Meta de Vendas (Mês)', Icon: DollarSign, metric: 'salesValue' },
+        { title: 'Meta de Ticket Médio', Icon: Ticket, metric: 'ticketAverage' },
+        { title: 'Meta de PA', Icon: Box, metric: 'pa' },
     ];
 
     return (
@@ -138,20 +117,29 @@ export default function SellerDashboardPage() {
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {metrics.map(m => (
-                    <MetricCard 
+                    <GoalProgressCard 
                         key={m.metric}
                         title={m.title}
-                        value={m.value}
                         Icon={m.Icon}
                         seller={currentSeller}
-                        // Passa o objeto 'goals' para o MetricCard. A verificação de segurança é feita lá dentro.
                         goals={goals}
                         metric={m.metric}
                     />
                 ))}
+                
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Meus Pontos</CardTitle>
+                        <Star className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {((currentSeller.points || 0) + (currentSeller.extraPoints || 0)).toLocaleString('pt-BR')}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Total de pontos acumulados no ciclo.</p>
+                    </CardContent>
+                </Card>
             </div>
-
-            {/* Aqui você pode adicionar outros componentes, como gráficos de desempenho, etc. */}
         </div>
     );
 }

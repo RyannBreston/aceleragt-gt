@@ -15,11 +15,6 @@ import {
   Ticket,
   Box,
   Star,
-  Users,
-  CheckCircle,
-  Medal,
-  Award,
-  Info,
   Loader2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +28,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn, calculateSellerPrizes } from '@/lib/utils';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // ####################################################################
 // ### 1. TIPOS, CONSTANTES E FUNÇÕES AUXILIARES ###
@@ -67,12 +61,13 @@ const formatValue = (value: number, criterion: RankingCriterion | 'salesValue') 
 };
 
 // ####################################################################
-// ### 2. CUSTOM HOOK PARA TODA A LÓGICA DE DADOS ###
+// ### 2. CUSTOM HOOK PARA A LÓGICA DE DADOS ###
 // ####################################################################
 
 const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
+    // Calcula os prémios para todos para determinar o ranking
     const sortedSellers = useMemo(() => {
         const sellersWithPrizes = sellers.map(s => calculateSellerPrizes(s, sellers, goals));
         return [...sellersWithPrizes].sort((a, b) => {
@@ -82,16 +77,19 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
         });
     }, [sellers, goals, criterion]);
 
+    // Encontra os dados específicos do vendedor logado
     const sellerData = useMemo(() => {
         if (!currentSeller) return null;
         return sortedSellers.find(s => s.id === currentSeller.id);
     }, [currentSeller, sortedSellers]);
     
+    // Encontra a posição do vendedor logado no ranking
     const currentUserRank = useMemo(() => {
         if (!sellerData) return -1;
         return sortedSellers.indexOf(sellerData);
     }, [sortedSellers, sellerData]);
 
+    // Calcula o progresso das metas apenas para o vendedor logado
     const goalProgress = useMemo(() => {
         if (!sellerData || !goals || criterion === 'totalPrize') return { percent: 0, label: 'N/A', details: '', achievedGoals: [] };
         
@@ -130,33 +128,18 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
         };
     }, [sellerData, goals, criterion]);
 
-    return { sellerData, sortedSellers, currentUserRank, goalProgress };
+    return { sellerData, currentUserRank, totalSellers: sortedSellers.length, goalProgress };
 };
 
-
 // ####################################################################
-// ### 3. SUB-COMPONENTES VISUAIS ###
-// ####################################################################
-
-const PodiumIcon = React.memo(({ rank }: { rank: number }) => {
-    if (rank === 0) return <Trophy className="h-6 w-6 text-yellow-400" />;
-    if (rank === 1) return <Medal className="h-6 w-6 text-gray-400" />;
-    if (rank === 2) return <Award className="h-6 w-6 text-orange-400" />;
-    return <span className="font-bold text-lg text-muted-foreground">{rank + 1}</span>;
-});
-PodiumIcon.displayName = 'PodiumIcon';
-
-
-// ####################################################################
-// ### 4. COMPONENTE PRINCIPAL DA PÁGINA ###
+// ### 3. COMPONENTE PRINCIPAL DA PÁGINA ###
 // ####################################################################
 
 export default function SellerPerformancePage() {
     const [criterion, setCriterion] = useState<RankingCriterion | 'salesValue'>('salesValue');
-    const { sellerData, sortedSellers, currentUserRank, goalProgress } = useSellerPerformance(criterion);
-    const { currentSeller } = useSellerContext();
+    const { sellerData, currentUserRank, totalSellers, goalProgress } = useSellerPerformance(criterion);
 
-    if (!currentSeller || !sellerData) {
+    if (!sellerData) {
         return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin size-8" /></div>;
     }
 
@@ -171,35 +154,59 @@ export default function SellerPerformancePage() {
                 <h1 className="text-3xl font-bold">Meu Desempenho</h1>
             </div>
 
-            {/* Grid principal que divide a página em duas colunas em ecrãs grandes */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                
-                {/* Coluna da Esquerda: Detalhes do desempenho */}
-                <div className="lg:col-span-1 space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Análise por Critério</CardTitle>
+                    <CardDescription>Selecione um critério para visualizar os seus resultados individuais.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Tabs value={criterion} onValueChange={(value) => setCriterion(value as any)}>
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-input p-1 h-auto">
+                            {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
+                                <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </Tabs>
+                </CardContent>
+            </Card>
+
+            {/* ✅ NOVO LAYOUT DE CARDS FOCADO NO INDIVÍDUO */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {/* Card da Posição */}
+                <div className="md:col-span-1">
                     <Card>
                         <CardHeader>
                             <CardTitle>Sua Posição</CardTitle>
-                            <CardDescription>Critério: <span className="font-bold text-primary">{TABS_CONFIG.find(t => t.value === criterion)?.label}</span></CardDescription>
+                            <CardDescription>Com base em <span className="font-bold">{TABS_CONFIG.find(t => t.value === criterion)?.label}</span>.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <p className="text-4xl font-bold">
+                            <p className="text-6xl font-bold">
                                 {currentUserRank !== -1 ? `${currentUserRank + 1}º` : '...'}
-                                <span className="text-muted-foreground text-2xl"> / {sortedSellers.length}</span>
                             </p>
+                            <p className="text-muted-foreground">de {totalSellers} vendedores</p>
                         </CardContent>
                     </Card>
+                </div>
 
+                {/* Card de Detalhes da Performance */}
+                <div className="md:col-span-2">
                     <Card>
-                        <CardHeader><CardTitle>Detalhes da Performance</CardTitle></CardHeader>
+                        <CardHeader>
+                            <CardTitle>Seus Detalhes</CardTitle>
+                            <CardDescription>O seu resultado detalhado para o critério selecionado.</CardDescription>
+                        </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm text-muted-foreground">Seu Resultado</p>
-                                <p className="text-2xl font-bold">{formatValue(sellerValue as number, criterion)}</p>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="flex flex-col space-y-1 rounded-lg border p-4">
+                                    <p className="text-sm text-muted-foreground">Seu Resultado</p>
+                                    <p className="text-3xl font-bold">{formatValue(sellerValue as number, criterion)}</p>
+                                </div>
+                                <div className="flex flex-col space-y-1 rounded-lg border p-4">
+                                    <p className="text-sm text-muted-foreground">Prémio Acumulado (neste critério)</p>
+                                    <p className="text-3xl font-bold text-green-400">{formatCurrency(criterion === 'totalPrize' ? sellerData.totalPrize : (sellerData.prizes[criterion as keyof typeof sellerData.prizes] || 0))}</p>
+                                </div>
                             </div>
-                            <div className="flex flex-col space-y-1">
-                                <p className="text-sm text-muted-foreground">Prémio Acumulado (neste critério)</p>
-                                <p className="text-2xl font-bold text-green-400">{formatCurrency(criterion === 'totalPrize' ? sellerData.totalPrize : (sellerData.prizes[criterion as keyof typeof sellerData.prizes] || 0))}</p>
-                            </div>
+
                             {criterion !== 'totalPrize' && (
                                 <div>
                                     <h4 className="font-semibold mb-2 text-sm text-muted-foreground">Progresso para a Próxima Meta</h4>
@@ -224,39 +231,6 @@ export default function SellerPerformancePage() {
                                     </div>
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Coluna da Direita: Ranking Geral */}
-                <div className="lg:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Ranking Geral da Equipa</CardTitle>
-                            <CardDescription>Selecione um critério para ver a classificação completa.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Tabs value={criterion} onValueChange={(value) => setCriterion(value as any)}>
-                                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-input p-1 h-auto">
-                                    {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
-                                        <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
-                                    ))}
-                                </TabsList>
-                            </Tabs>
-                            <div className="rounded-md border border-border mt-4 overflow-x-auto">
-                                <Table>
-                                    <TableHeader><TableRow><TableHead className="w-[80px] text-center">Pos.</TableHead><TableHead>Vendedor</TableHead><TableHead className="text-right">{TABS_CONFIG.find(t => t.value === criterion)?.label}</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {sortedSellers.map((seller, index) => (
-                                            <TableRow key={seller.id} className={seller.id === currentSeller.id ? 'bg-primary/10' : ''}>
-                                                <TableCell className="text-center"><PodiumIcon rank={index} /></TableCell>
-                                                <TableCell className="font-medium">{seller.name}</TableCell>
-                                                <TableCell className="text-right font-semibold">{formatValue((criterion === 'totalPrize' ? seller.totalPrize : (criterion === 'points' ? seller.points + seller.extraPoints : seller[criterion as keyof Seller])) as number, criterion)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </div>
                         </CardContent>
                     </Card>
                 </div>
