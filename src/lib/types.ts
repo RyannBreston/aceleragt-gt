@@ -1,239 +1,159 @@
-import {z} from 'zod';
+import { z } from 'zod';
+import { type User as FirebaseUser } from 'firebase/auth';
 
-// --- Tipos Base ---
-export type SalesEntry = {
+// ====================================================================
+// TIPOS E ESQUEMAS PARA AUTENTICAÇÃO E UTILIZADORES
+// ====================================================================
+
+export const PasswordResetInputSchema = z.object({
+  email: z.string().email('Por favor, insira um email válido.'),
+});
+export const PasswordResetOutputSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export type PasswordResetInput = z.infer<typeof PasswordResetInputSchema>;
+export type PasswordResetOutput = z.infer<typeof PasswordResetOutputSchema>;
+
+export interface Seller {
   id: string;
-  date: Date;
-  salesValue: number;
-  ticketAverage: number;
-  productsPerService: number;
-};
-
-export type UserRole = 'admin' | 'seller';
-
-export interface BaseUser {
-  id: string; // Corresponde ao UID do Firebase Auth
   name: string;
   email: string;
-  role: UserRole;
-}
-
-export interface Seller extends BaseUser {
   role: 'seller';
-  nickname?: string;
   salesValue: number;
   ticketAverage: number;
   pa: number;
   points: number;
   extraPoints: number;
-  hasCompletedQuiz?: boolean;
-  lastCourseCompletionDate?: string;
   completedCourseIds?: string[];
-  workSchedule?: { [key: string]: string };
+  workSchedule?: Record<string, string>;
+  createdAt?: any; // Mantido como 'any' para compatibilidade com Timestamp do Firebase
 }
 
-export interface Admin extends BaseUser {
-  role: 'admin';
-  nickname: string;
+export interface Admin {
+    id: string;
+    name: string;
+    email: string;
+    role: 'admin';
 }
 
-// --- Tipos de Metas e Missões ---
-export type GoalLevel = {
-  threshold: number;
-  prize: number;
-};
+// ====================================================================
+// TIPOS E ESQUEMAS PARA METAS E GAMIFICAÇÃO
+// ====================================================================
 
-export type GoalLevels = {
-  metinha: GoalLevel;
-  meta: GoalLevel;
-  metona: GoalLevel;
-  lendaria: GoalLevel;
-};
-
-export type SalesValueGoals = GoalLevels & {
-  performanceBonus?: {
-    per: number;
+export interface GoalLevel {
+    threshold: number;
     prize: number;
-  };
-};
-
-export type GamificationPoints = {
-  course: {
-    Fácil: number;
-    Médio: number;
-    Difícil: number;
-  };
-  quiz: {
-    Fácil: number;
-    Médio: number;
-    Difícil: number;
-  };
-};
-
-export type PointsGoals = GoalLevels & {
-  topScorerPrize?: number;
-};
-
-export type Goals = {
-  salesValue: SalesValueGoals;
-  ticketAverage: GoalLevels;
-  pa: GoalLevels;
-  points: PointsGoals;
-  gamification: GamificationPoints;
-};
-
-export type Mission = {
-  id: string;
-  name: string;
-  description: string;
-  rewardValue: number;
-  rewardType: 'points' | 'cash';
-  startDate: Date;
-  endDate: Date;
-  // --- CAMPOS ADICIONADOS ---
-  criterion: 'salesValue' | 'ticketAverage' | 'pa' | 'points'; // O que será medido
-  target: number; // O valor a ser atingido
-  isActive: boolean; // --- CAMPO ADICIONADO ---
-};
-
-export type CycleSnapshot = {
-  id: string;
-  endDate: string;
-  sellers: Seller[];
-  goals: Goals;
 }
 
-export type Offer = {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  originalPrice?: number;
-  promotionalPrice: number;
-  startDate: Date;
-  expirationDate: Date;
-  isActive: boolean;
-  category: string;
-  productCode?: string;
-  reference?: string;
-  isFlashOffer?: boolean;
-  isBestSeller?: boolean;
-  createdAt?: any;
-  updatedAt?: any;
-};
+export interface SalesValueGoals {
+    metinha: GoalLevel;
+    meta: GoalLevel;
+    metona: GoalLevel;
+    lendaria: GoalLevel;
+    performanceBonus?: {
+        per: number;
+        prize: number;
+    }
+}
 
-// --- Esquemas de Fluxo de IA ---
+export interface GamificationSettings {
+    missions: boolean;
+    academia: boolean;
+    quiz: boolean;
+    ofertas: boolean;
+    loja: boolean;
+    ranking: boolean;
+}
 
-// Esquema para Gerar Quiz
-export const QuizQuestionSchema = z.object({
-  questionText: z.string().describe('The text of the quiz question.'),
-  options: z.array(z.string()).min(4).max(4).describe('A list of four possible answers for the question.'),
-  correctAnswerIndex: z.number().describe('The index of the correct answer in the options array.'),
-  explanation: z.string().describe('A brief explanation of why the correct answer is right.'),
-});
+export interface Goals {
+    salesValue: SalesValueGoals;
+    ticketAverage: SalesValueGoals;
+    pa: SalesValueGoals;
+    points: SalesValueGoals;
+    gamification: GamificationSettings;
+}
 
-export const GenerateQuizInputSchema = z.object({
-  topic: z.string().describe('The topic for the quiz.'),
-  numberOfQuestions: z.number().min(1).max(10).describe('The number of questions to generate.'),
-  difficulty: z.enum(['Fácil', 'Médio', 'Difícil']).describe('The difficulty level for the quiz.'),
-  seed: z.string().optional().describe('An optional seed for controlling randomness and uniqueness.'),
-});
-export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
+export interface CycleSnapshot {
+    id: string;
+    endDate: any; // Timestamp do Firebase
+    sellers: Seller[];
+    goals: Goals;
+}
 
-export const GenerateQuizOutputSchema = z.object({
-  title: z.string().describe('The title of the quiz.'),
-  questions: z.array(QuizQuestionSchema),
-});
-export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
+// ====================================================================
+// TIPOS E ESQUEMAS PARA MÓDULOS (ACADEMIA, QUIZ, OFERTAS, ETC.)
+// ====================================================================
 
+export interface QuizQuestion {
+    question: string;
+    options: string[];
+    correctAnswerIndex: number;
+    explanation: string;
+}
 
-// Esquema para Gerar Curso
-export const CourseQuizQuestionSchema = z.object({
-  question: z.string(),
-  options: z.array(z.string()),
-  correctAnswerIndex: z.number(),
-  explanation: z.string(),
-});
+export interface Course {
+    id?: string;
+    title: string;
+    content: string;
+    quiz: QuizQuestion[];
+    points: number;
+    dificuldade: 'Fácil' | 'Médio' | 'Difícil';
+}
 
-export const GenerateCourseOutputSchema = z.object({
-  title: z.string(),
-  content: z.string(),
-  quiz: z.array(CourseQuizQuestionSchema),
-});
-export type GenerateCourseOutput = z.infer<typeof GenerateCourseOutputSchema>;
+export interface Offer {
+    id: string;
+    name: string;
+    description?: string;
+    imageUrl: string;
+    originalPrice?: number;
+    promotionalPrice: number;
+    startDate: Date;
+    expirationDate: Date;
+    isActive: boolean;
+    category: string;
+    productCode?: string;
+    reference?: string;
+    isFlashOffer?: boolean;
+    isBestSeller?: boolean;
+    createdAt?: any;
+    updatedAt?: any;
+}
 
-export const GenerateCourseInputSchema = z.object({
-  topic: z.string(),
-  seed: z.string().optional().describe('An optional seed for controlling randomness and uniqueness.'),
-  dificuldade: z.enum(['Fácil', 'Médio', 'Difícil']).optional(),
-});
-export type GenerateCourseInput = z.infer<typeof GenerateCourseInputSchema>;
+export interface PrizeItem {
+    id: string;
+    name: string;
+    description: string;
+    points: number;
+    stock: number | null; // null para ilimitado
+    imageUrl: string;
+    createdAt?: any;
+    updatedAt?: any;
+}
 
-// --- Tipos Específicos de Componentes ---
-export type Course = {
-  id: string;
-  title: string;
-  content: string;
-  quiz: QuizQuestion[];
-  points: number;
-  dificuldade?: 'Fácil' | 'Médio' | 'Difícil';
-};
+export interface Mission {
+    id: string;
+    title: string;
+    description: string;
+    points: number;
+    // ... outros campos que você possa precisar
+}
 
-export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
+// ====================================================================
+// TIPOS E ESQUEMAS PARA A CORRIDINHA DIÁRIA
+// ====================================================================
 
-export type QuizResult = {
-  score: number;
-  total: number;
-  date: string;
-};
+export interface SprintTier {
+    goal: number;
+    prizePoints: number;
+}
 
-// ... (restante do código do ficheiro)
-
-// --- Tipos para Loja de Prémios ---
-export type PrizeItem = {
-  id: string;
-  name: string;
-  description: string;
-  points: number;
-  imageUrl?: string;
-  stock?: number;
-  createdAt?: any;
-  updatedAt?: any;
-};
-
-// ... (código anterior do ficheiro)
-
-
-
-//// --- Tipos para Loja de Prémios ---
-export type PrizeItem = {
-  id: string;
-  name: string;
-  description: string;
-  points: number;
-  imageUrl?: string;
-  stock?: number;
-  // --- CAMPOS ADICIONADOS ---
-  createdAt?: any;
-  updatedAt?: any;
-};
-
-////--- Tipos para Análise de Vendas com IA ---
-export const AnalyzeSalesTrendsInputSchema = z.object({
-  salesData: z.string().describe('JSON string of sales entries.'),
-  timeFrame: z.enum(['weekly', 'monthly']),
-});
-export type AnalyzeSalesTrendsInput = z.infer<typeof AnalyzeSalesTrendsInputSchema>;
-
-export const AnalyzeSalesTrendsOutputSchema = z.object({
-  summary: z.string().describe('A brief summary of the sales trends.'),
-  topProducts: z
-    .string()
-    .describe('Identification of top-performing products.'),
-  insights: z
-    .string()
-    .describe('Key insights on what is driving sales performance.'),
-});
-export type AnalyzeSalesTrendsOutput = z.infer<
-  typeof AnalyzeSalesTrendsOutputSchema
->;
+export interface DailySprint {
+    id: string;
+    title: string;
+    sprintTiers: SprintTier[];
+    createdAt: { seconds: number, nanoseconds: number };
+    participantIds: string[];
+    isActive: boolean;
+}
