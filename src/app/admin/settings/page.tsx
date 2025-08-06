@@ -59,34 +59,37 @@ type FormData = z.infer<typeof formSchema>;
 type GoalLevels = keyof FormData['goals']['salesValue'];
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
-// --- Componente de Input de Moeda (NOVO) ---
-const CurrencyInput = ({ field }: { field: any }) => {
-    const formatCurrency = (value: number | string) => {
-        if (typeof value === 'number') {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-        }
-        return '';
-    };
-    const parseCurrency = (value: string) => Number(value.replace(/[^0-9,-]+/g, "").replace(",", ".")) || 0;
-    const [displayValue, setDisplayValue] = useState(formatCurrency(field.value));
-    useEffect(() => { setDisplayValue(formatCurrency(field.value)); }, [field.value]);
+// --- Componente de Input de Moeda (Melhorado) ---
+const CurrencyInput = React.forwardRef<HTMLInputElement, any>(({ field, ...props }, ref) => {
+    const [stringValue, setStringValue] = useState<string>(
+      field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
+    );
+
+    useEffect(() => {
+        setStringValue(field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
+    }, [field.value]);
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const rawValue = e.target.value;
-        setDisplayValue(rawValue);
-        field.onChange(parseCurrency(rawValue));
+        const value = e.target.value;
+        setStringValue(value);
     };
-    const handleBlur = () => setDisplayValue(formatCurrency(field.value));
-    return <Input type="text" {...field} value={displayValue} onChange={handleChange} onBlur={handleBlur} />;
-};
+
+    const handleBlur = () => {
+        const sanitizedValue = stringValue.replace(/[^0-9,]/g, '').replace(',', '.');
+        const numericValue = parseFloat(sanitizedValue) || 0;
+        field.onChange(numericValue);
+        setStringValue(numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+    };
+
+    return <Input type="text" {...field} {...props} ref={ref} value={stringValue} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" />;
+});
+CurrencyInput.displayName = 'CurrencyInput';
 
 
 // --- Sub-componente: Tabela de Lançamentos de Performance ---
 const TabelaDePerformance = ({ control, fields }: { control: any, fields: any[] }) => (
     <Card>
-        <CardHeader>
-            <CardTitle>Lançamento de Performance</CardTitle>
-            <CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
             <Table>
                 <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos Extras</TableHead></TableRow></TableHeader>
@@ -121,7 +124,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: any, getValues: an
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
-                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric.includes('Value') || metric.includes('Average') ? <CurrencyInput field={field} /> : <Input type="number" {...field} />}</FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput field={field} /> : <Input type="number" {...field} />}</FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput field={field} /></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
@@ -136,9 +139,12 @@ const FormularioDeMetas = ({ control, getValues }: { control: any, getValues: an
 // --- Sub-componente: Gestão de Módulos ---
 const GestaoDeModulos = ({ control }: { control: any }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
-        { name: 'missions', label: 'Missões', icon: Target }, { name: 'academia', label: 'Academia', icon: GraduationCap },
-        { name: 'quiz', label: 'Quiz', icon: Puzzle }, { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
-        { name: 'loja', label: 'Loja de Prémios', icon: Trophy }, { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
+        { name: 'missions', label: 'Missões', icon: Target },
+        { name: 'academia', label: 'Academia', icon: GraduationCap },
+        { name: 'quiz', label: 'Quiz', icon: Puzzle },
+        { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
+        { name: 'loja', label: 'Loja de Prémios', icon: Trophy },
+        { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
     ];
     return (
         <Card>
@@ -173,11 +179,11 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
                     <AlertDialog>
                         <AlertDialogTrigger asChild><Button variant="destructive" className="mt-4" disabled={isDirty}><RefreshCw className="mr-2" />Finalizar Ciclo</Button></AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>Tem a certeza que deseja finalizar o ciclo?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onEndCycle}>Sim, finalizar</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    {isDirty && <p className="text-xs text-destructive/80 mt-2">Salve as alterações para poder finalizar o ciclo.</p>}
+                    {isDirty && <p className="text-xs text-destructive/80 mt-2">Salve as alterações pendentes para poder finalizar o ciclo.</p>}
                 </div>
             </div></div>
         </CardContent>
@@ -192,7 +198,16 @@ export default function SettingsPage() {
 
     const form = useForm<FormData>({
         resolver: zodResolver(formSchema),
-        defaultValues: { sellers: [], goals: contextGoals || { gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true } } },
+        defaultValues: {
+            sellers: [],
+            goals: contextGoals || {
+                salesValue: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
+                ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
+                pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
+                points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
+                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true }
+            }
+        },
     });
 
     const { fields } = useFieldArray({ control: form.control, name: "sellers" });
@@ -200,8 +215,18 @@ export default function SettingsPage() {
     useEffect(() => {
         if (contextSellers.length > 0 && contextGoals) {
             form.reset({
-                sellers: contextSellers.map(s => ({ id: s.id, name: s.name, salesValue: s.salesValue || 0, ticketAverage: s.ticketAverage || 0, pa: s.pa || 0, extraPoints: s.extraPoints || 0 })),
-                goals: { ...contextGoals, gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true } }
+                sellers: contextSellers.map(s => ({
+                    id: s.id,
+                    name: s.name,
+                    salesValue: s.salesValue || 0,
+                    ticketAverage: s.ticketAverage || 0,
+                    pa: s.pa || 0,
+                    extraPoints: s.extraPoints || 0,
+                })),
+                goals: {
+                    ...contextGoals,
+                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true }
+                }
             });
         }
     }, [contextSellers, contextGoals, form]);
@@ -214,7 +239,12 @@ export default function SettingsPage() {
             const batch = writeBatch(db);
             data.sellers.forEach(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
-                batch.update(sellerRef, { salesValue: seller.salesValue, ticketAverage: seller.ticketAverage, pa: seller.pa, extraPoints: seller.extraPoints });
+                batch.update(sellerRef, {
+                    salesValue: seller.salesValue,
+                    ticketAverage: seller.ticketAverage,
+                    pa: seller.pa,
+                    extraPoints: seller.extraPoints,
+                });
             });
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
             batch.set(goalsRef, data.goals);
@@ -225,7 +255,7 @@ export default function SettingsPage() {
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
         } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao Salvar" });
+            toast({ variant: "destructive", title: "Erro ao Salvar", description: "Ocorreu um erro ao tentar salvar as alterações." });
         } finally {
             setIsSaving(false);
         }
@@ -261,7 +291,7 @@ export default function SettingsPage() {
                 {form.formState.isDirty && (
                     <div className="flex items-center gap-2">
                         <span className="text-yellow-400 font-semibold hidden sm:inline">Alterações não salvas</span>
-                        <Button onClick={form.handleSubmit(onSubmit)} disabled={isSaving || !form.formState.isValid}>
+                        <Button onClick={form.handleSubmit(onSubmit)} disabled={isSaving}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar Tudo
                         </Button>
                     </div>
