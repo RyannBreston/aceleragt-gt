@@ -139,7 +139,7 @@ export default function LoginPage() {
               className="inline-flex items-center gap-1.5 hover:text-primary transition-colors"
             >
               <Github className="size-3" />
-              Criado por Rian
+              developed by RyannBreston and luciano medrado
             </a>
           </div>
         </CardFooter>
