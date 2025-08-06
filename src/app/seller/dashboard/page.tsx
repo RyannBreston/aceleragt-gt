@@ -2,65 +2,50 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Star, Ticket, Box, TrendingUp } from "lucide-react";
+import { Star, Ticket, Box, TrendingUp } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Goals, Seller } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
-type Metric = 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+type Metric = 'ticketAverage' | 'pa'; // Métrica de Vendas removida
 
-// Função segura que calcula o progresso para uma meta individual.
+// Função segura que calcula o progresso para uma meta individual (sem alterações).
 const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) => {
-    const sellerValue = metric === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : seller[metric] || 0;
-
+    const sellerValue = seller[metric] || 0;
     const goalData = goals?.[metric];
     if (!goalData || !goalData.metinha?.threshold) {
-        return { percent: 0, label: "Metas não definidas", details: "N/A" };
+        return { percent: 0, label: "Meta não definida", details: "N/A" };
     }
-
     let nextGoal, currentGoalBase, nextGoalLabel;
-
-    if (sellerValue >= goalData.lendaria.threshold) {
-        return { percent: 100, label: `Nível Lendário Atingido!`, details: `${sellerValue.toLocaleString('pt-BR')}` };
-    }
-    if (sellerValue >= goalData.metona.threshold) {
-        nextGoal = goalData.lendaria.threshold;
-        currentGoalBase = goalData.metona.threshold;
-        nextGoalLabel = 'Lendária';
-    } else if (sellerValue >= goalData.meta.threshold) {
-        nextGoal = goalData.metona.threshold;
-        currentGoalBase = goalData.meta.threshold;
-        nextGoalLabel = 'Metona';
-    } else if (sellerValue >= goalData.metinha.threshold) {
-        nextGoal = goalData.meta.threshold;
-        currentGoalBase = goalData.metinha.threshold;
-        nextGoalLabel = 'Meta';
-    } else {
-        nextGoal = goalData.metinha.threshold;
-        currentGoalBase = 0;
-        nextGoalLabel = 'Metinha';
-    }
-
+    if (sellerValue >= goalData.lendaria.threshold) { return { percent: 100, label: `Nível Lendário Atingido!`, details: `${sellerValue.toLocaleString('pt-BR')}` }; }
+    if (sellerValue >= goalData.metona.threshold) { nextGoal = goalData.lendaria.threshold; currentGoalBase = goalData.metona.threshold; nextGoalLabel = 'Lendária'; }
+    else if (sellerValue >= goalData.meta.threshold) { nextGoal = goalData.metona.threshold; currentGoalBase = goalData.meta.threshold; nextGoalLabel = 'Metona'; }
+    else if (sellerValue >= goalData.metinha.threshold) { nextGoal = goalData.meta.threshold; currentGoalBase = goalData.metinha.threshold; nextGoalLabel = 'Meta'; }
+    else { nextGoal = goalData.metinha.threshold; currentGoalBase = 0; nextGoalLabel = 'Metinha'; }
     const range = nextGoal - currentGoalBase;
     const progress = range > 0 ? ((sellerValue - currentGoalBase) / range) * 100 : 0;
     
+    const valueFormatter = (val: number) => {
+        if (metric === 'pa') return val.toFixed(2);
+        return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+
     return {
         percent: Math.min(100, progress),
         label: `Próximo Nível: ${nextGoalLabel}`,
-        details: `${sellerValue.toLocaleString('pt-BR')} / ${nextGoal.toLocaleString('pt-BR')}`
+        details: `${valueFormatter(sellerValue)} / ${valueFormatter(nextGoal)}`
     };
 };
 
 // Sub-componente para os cartões de progresso de meta.
 const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: string; Icon: React.ElementType; seller: Seller; goals: Goals; metric: Metric }) => {
     const progress = getGoalProgressDetails(seller, goals, metric);
-    const sellerValue = metric === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : seller[metric] || 0;
+    const sellerValue = seller[metric] || 0;
     
     const valueFormatter = (val: number) => {
         if (metric === 'pa') return val.toFixed(2);
-        if (metric === 'points') return val.toLocaleString('pt-BR');
         return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
@@ -80,9 +65,7 @@ const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: strin
                                 <Progress value={progress.percent} className="h-2 mt-1" />
                             </div>
                         </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{progress.details}</p>
-                        </TooltipContent>
+                        <TooltipContent><p>{progress.details}</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             </CardContent>
@@ -98,9 +81,8 @@ export default function SellerDashboardPage() {
         return <DashboardSkeleton />;
     }
 
-    // ✅ CORREÇÃO: A lógica foi movida para ANTES do return.
+    // ✅ LISTA DE MÉTRICAS ATUALIZADA: Apenas Ticket Médio e PA
     const metrics: { title: string; Icon: React.ElementType; metric: Metric }[] = [
-        { title: 'Meta de Vendas (Mês)', Icon: DollarSign, metric: 'salesValue' },
         { title: 'Meta de Ticket Médio', Icon: Ticket, metric: 'ticketAverage' },
         { title: 'Meta de PA', Icon: Box, metric: 'pa' },
     ];
@@ -115,7 +97,9 @@ export default function SellerDashboardPage() {
                 </div>
             </div>
             
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* ✅ LAYOUT ATUALIZADO para 3 colunas em ecrãs grandes */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Renderiza os cards de progresso de meta */}
                 {metrics.map(m => (
                     <GoalProgressCard 
                         key={m.metric}
@@ -127,6 +111,7 @@ export default function SellerDashboardPage() {
                     />
                 ))}
                 
+                {/* O card de Pontos é renderizado separadamente */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Meus Pontos</CardTitle>
@@ -140,6 +125,9 @@ export default function SellerDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* O card da "Corridinha Diária" pode continuar aqui, se existir */}
+            {/* {activeSprint && <DailySprintCard sprint={activeSprint} seller={currentSeller} />} */}
         </div>
     );
 }

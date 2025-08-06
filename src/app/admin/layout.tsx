@@ -28,7 +28,7 @@ const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
         }
     }, [isAuthReady, isAdmin, router]); // Dependências do useEffect
 
-    // 1. Enquanto o Firebase verifica o utilizador, mostre um ecrã de carregamento.
+    // 1. Enquanto o Firebase verifica o utilizador, ou se não for admin, mostre um ecrã de carregamento.
     // Esta verificação agora é segura.
     if (!isAuthReady || !isAdmin) {
         return <DashboardSkeleton />;

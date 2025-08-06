@@ -3,13 +3,13 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import type { Seller, Goals, Mission, CycleSnapshot } from '@/lib/types';
+import type { Seller, Goals, Mission, CycleSnapshot, DailySprint } from '@/lib/types';
 
-// Interface (sem alterações)
+// 1. Definição da Interface do Contexto (com a Corridinha)
 interface SellerContextType {
   sellers: Seller[];
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
@@ -17,66 +17,76 @@ interface SellerContextType {
   missions: Mission[];
   currentSeller: Seller | null;
   cycleHistory: CycleSnapshot[];
+  activeSprint: DailySprint | null;
   isAuthReady: boolean;
   userId: string | null;
+  isSeller: boolean; // Adicionado para a proteção de rotas
 }
 
+// 2. Criação do Contexto
 const SellerContext = createContext<SellerContextType | null>(null);
 
+// 3. Criação do Provider com toda a lógica
 export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const state = useStore(s => s);
-  const [authStatus, setAuthStatus] = useState<{ isLoading: boolean; user: FirebaseUser | null; isSeller: boolean }>({ isLoading: true, user: null, isSeller: false });
+  const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isSeller: boolean }>({ isAuthReady: false, user: null, isSeller: false });
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
+  const [activeSprint, setActiveSprint] = useState<DailySprint | null>(null);
 
-  // Efeito de autenticação (sem alterações)
+  const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/dailySprints`;
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let sprintUnsubscribe: () => void = () => {};
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      sprintUnsubscribe();
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists() && userDoc.data().role === 'seller') {
-          setAuthStatus({ isLoading: false, user, isSeller: true });
+          setAuthStatus({ isAuthReady: true, user, isSeller: true });
+          const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', user.uid), orderBy('createdAt', 'desc'), limit(1));
+          sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
+            if (!snapshot.empty) {
+              setActiveSprint({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
+            } else {
+              setActiveSprint(null);
+            }
+          });
         } else {
-          await auth.signOut();
-          setAuthStatus({ isLoading: false, user: null, isSeller: false });
-          router.push('/login');
+          setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
         }
       } else {
-        setAuthStatus({ isLoading: false, user: null, isSeller: false });
-        router.push('/login');
+        setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
       }
     });
-    return () => unsubscribe();
-  }, [router]);
 
-  // ✅ NOVO EFEITO: Carrega as configurações de metas e módulos
+    return () => {
+        authUnsubscribe();
+        sprintUnsubscribe();
+    };
+  }, [router, sprintsCollectionPath]);
+
   useEffect(() => {
     const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
     const unsubscribe = onSnapshot(goalsRef, (doc) => {
-        if (doc.exists()) {
-            dataStore.setGoals(() => doc.data() as Goals);
-        }
+        if (doc.exists()) dataStore.setGoals(() => doc.data() as Goals);
     });
     return () => unsubscribe();
   }, []);
 
-  // Efeito para carregar vendedores (sem alterações)
   useEffect(() => {
     const unsubSellers = onSnapshot(collection(db, 'sellers'), (snapshot) => {
-      const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
-      dataStore.setSellers(() => sellersFromDb);
+      dataStore.setSellers(() => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
     });
     return () => unsubSellers();
   }, []);
 
-  // Efeito para definir o vendedor atual (sem alterações)
   useEffect(() => {
     if (authStatus.isSeller && authStatus.user) {
       const sellerData = state.sellers.find(s => s.id === authStatus.user!.uid);
-      if (sellerData) {
-        setCurrentSeller(sellerData);
-      }
+      if (sellerData) setCurrentSeller(sellerData);
     } else {
       setCurrentSeller(null);
     }
@@ -86,17 +96,16 @@ export const SellerProvider = ({ children }: { children: React.ReactNode }) => {
     ...state,
     setSellers: dataStore.setSellers,
     currentSeller,
+    activeSprint,
     userId: authStatus.user?.uid || null,
-    isAuthReady: !authStatus.isLoading && !!currentSeller,
-  }), [state, currentSeller, authStatus]);
-
-  if (authStatus.isLoading || !currentSeller) {
-    return <div className="flex min-h-screen"><DashboardSkeleton /></div>;
-  }
+    isAuthReady: authStatus.isAuthReady,
+    isSeller: authStatus.isSeller,
+  }), [state, currentSeller, authStatus, activeSprint]);
 
   return <SellerContext.Provider value={contextValue as any}>{children}</SellerContext.Provider>;
 };
 
+// 4. Hook para usar o contexto
 export const useSellerContext = () => {
   const context = useContext(SellerContext);
   if (!context) {

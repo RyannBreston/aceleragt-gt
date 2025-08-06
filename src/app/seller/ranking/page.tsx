@@ -15,10 +15,12 @@ import {
   Ticket,
   Box,
   Star,
-  Loader2
+  Loader2,
+  Medal,
+  Award
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { useSellerContext } from '@/contexts/SellerContext';
+import { useSellerContext } from '@/contexts/SellerContext'; // ✅ IMPORTAÇÃO CORRIGIDA
 import type { Goals, Seller } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -61,13 +63,12 @@ const formatValue = (value: number, criterion: RankingCriterion | 'salesValue') 
 };
 
 // ####################################################################
-// ### 2. CUSTOM HOOK PARA A LÓGICA DE DADOS ###
+// ### 2. CUSTOM HOOK PARA TODA A LÓGICA DE DADOS ###
 // ####################################################################
 
 const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
-    // Calcula os prémios para todos para determinar o ranking
     const sortedSellers = useMemo(() => {
         const sellersWithPrizes = sellers.map(s => calculateSellerPrizes(s, sellers, goals));
         return [...sellersWithPrizes].sort((a, b) => {
@@ -77,21 +78,18 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
         });
     }, [sellers, goals, criterion]);
 
-    // Encontra os dados específicos do vendedor logado
     const sellerData = useMemo(() => {
         if (!currentSeller) return null;
         return sortedSellers.find(s => s.id === currentSeller.id);
     }, [currentSeller, sortedSellers]);
     
-    // Encontra a posição do vendedor logado no ranking
     const currentUserRank = useMemo(() => {
         if (!sellerData) return -1;
         return sortedSellers.indexOf(sellerData);
     }, [sortedSellers, sellerData]);
 
-    // Calcula o progresso das metas apenas para o vendedor logado
     const goalProgress = useMemo(() => {
-        if (!sellerData || !goals || criterion === 'totalPrize') return { percent: 0, label: 'N/A', details: '', achievedGoals: [] };
+        if (!sellerData || !goals || criterion === 'totalPrize') return { percent: 0, label: 'N/A', details: '', allGoals: [] };
         
         const metric = criterion as keyof Goals;
         const goalData = goals[metric];
@@ -99,19 +97,17 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
             ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
             : sellerData[metric as keyof Seller] || 0;
 
-        if (!goalData?.metinha?.threshold) return { percent: 0, label: "Metas não definidas", details: "N/A", achievedGoals: [] };
+        if (!goalData?.metinha?.threshold) return { percent: 0, label: "Metas não definidas", details: "N/A", allGoals: [] };
         
-        const allGoalTiers = [
-            { name: 'Lendária', ...goalData.lendaria },
-            { name: 'Metona', ...goalData.metona },
-            { name: 'Meta', ...goalData.meta },
+        const allGoals = [
             { name: 'Metinha', ...goalData.metinha },
+            { name: 'Meta', ...goalData.meta },
+            { name: 'Metona', ...goalData.metona },
+            { name: 'Lendária', ...goalData.lendaria },
         ];
 
-        const achievedGoals = allGoalTiers.filter(g => (sellerValue as number) >= g.threshold && g.threshold > 0);
-
         let nextGoal, currentGoalBase, nextGoalLabel;
-        if (sellerValue >= goalData.lendaria.threshold) return { percent: 100, label: `Nível Lendário Atingido!`, details: formatValue(sellerValue as number, metric), achievedGoals };
+        if (sellerValue >= goalData.lendaria.threshold) return { percent: 100, label: `Nível Lendário Atingido!`, details: formatValue(sellerValue as number, metric), allGoals };
         if (sellerValue >= goalData.metona.threshold) { nextGoal = goalData.lendaria.threshold; currentGoalBase = goalData.metona.threshold; nextGoalLabel = 'Lendária'; }
         else if (sellerValue >= goalData.meta.threshold) { nextGoal = goalData.metona.threshold; currentGoalBase = goalData.meta.threshold; nextGoalLabel = 'Metona'; }
         else if (sellerValue >= goalData.metinha.threshold) { nextGoal = goalData.meta.threshold; currentGoalBase = goalData.metinha.threshold; nextGoalLabel = 'Meta'; }
@@ -124,7 +120,7 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
             percent: Math.min(100, progress),
             label: `Próximo Nível: ${nextGoalLabel}`,
             details: `${formatValue(sellerValue as number, metric)} / ${formatValue(nextGoal, metric)}`,
-            achievedGoals,
+            allGoals,
         };
     }, [sellerData, goals, criterion]);
 
@@ -134,11 +130,10 @@ const useSellerPerformance = (criterion: RankingCriterion | 'salesValue') => {
 // ####################################################################
 // ### 3. COMPONENTE PRINCIPAL DA PÁGINA ###
 // ####################################################################
-
 export default function SellerPerformancePage() {
     const [criterion, setCriterion] = useState<RankingCriterion | 'salesValue'>('salesValue');
     const { sellerData, currentUserRank, totalSellers, goalProgress } = useSellerPerformance(criterion);
-
+    
     if (!sellerData) {
         return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin size-8" /></div>;
     }
@@ -156,60 +151,68 @@ export default function SellerPerformancePage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Análise por Critério</CardTitle>
-                    <CardDescription>Selecione um critério para visualizar os seus resultados individuais.</CardDescription>
+                    <CardTitle>Sua Posição no Ranking Geral</CardTitle>
+                    <CardDescription>
+                        A sua classificação atual com base no critério: <span className="font-bold text-primary">{TABS_CONFIG.find(t => t.value === criterion)?.label}</span>.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs value={criterion} onValueChange={(value) => setCriterion(value as any)}>
-                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-input p-1 h-auto">
-                            {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
-                                <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
-                            ))}
-                        </TabsList>
-                    </Tabs>
+                    <p className="text-4xl font-bold">
+                        {currentUserRank !== -1 ? `${currentUserRank + 1}º` : '...'}
+                        <span className="text-muted-foreground text-2xl"> / {totalSellers}</span>
+                    </p>
                 </CardContent>
             </Card>
 
-            {/* ✅ NOVO LAYOUT DE CARDS FOCADO NO INDIVÍDUO */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {/* Card da Posição */}
-                <div className="md:col-span-1">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sua Posição</CardTitle>
-                            <CardDescription>Com base em <span className="font-bold">{TABS_CONFIG.find(t => t.value === criterion)?.label}</span>.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-6xl font-bold">
-                                {currentUserRank !== -1 ? `${currentUserRank + 1}º` : '...'}
-                            </p>
-                            <p className="text-muted-foreground">de {totalSellers} vendedores</p>
-                        </CardContent>
-                    </Card>
-                </div>
+            <div className="space-y-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Análise por Critério</CardTitle>
+                        <CardDescription>Selecione um critério para visualizar os seus resultados em detalhe.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Tabs value={criterion} onValueChange={(value) => setCriterion(value as any)}>
+                            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-input p-1 h-auto">
+                                {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
+                                    <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    </CardContent>
+                </Card>
 
-                {/* Card de Detalhes da Performance */}
-                <div className="md:col-span-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Seus Detalhes</CardTitle>
-                            <CardDescription>O seu resultado detalhado para o critério selecionado.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="flex flex-col space-y-1 rounded-lg border p-4">
-                                    <p className="text-sm text-muted-foreground">Seu Resultado</p>
-                                    <p className="text-3xl font-bold">{formatValue(sellerValue as number, criterion)}</p>
-                                </div>
-                                <div className="flex flex-col space-y-1 rounded-lg border p-4">
-                                    <p className="text-sm text-muted-foreground">Prémio Acumulado (neste critério)</p>
-                                    <p className="text-3xl font-bold text-green-400">{formatCurrency(criterion === 'totalPrize' ? sellerData.totalPrize : (sellerData.prizes[criterion as keyof typeof sellerData.prizes] || 0))}</p>
-                                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Detalhes de Desempenho: {TABS_CONFIG.find(t => t.value === criterion)?.label}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="flex flex-col space-y-1 rounded-lg border p-4">
+                                <p className="text-sm text-muted-foreground">Seu Resultado no Critério</p>
+                                <p className="text-3xl font-bold">{formatValue(sellerValue as number, criterion)}</p>
                             </div>
+                            <div className="flex flex-col space-y-1 rounded-lg border p-4">
+                                <p className="text-sm text-muted-foreground">Prémio Acumulado (neste critério)</p>
+                                <p className="text-3xl font-bold text-green-400">{formatCurrency(criterion === 'totalPrize' ? sellerData.totalPrize : (sellerData.prizes[criterion as keyof typeof sellerData.prizes] || 0))}</p>
+                            </div>
+                        </div>
 
-                            {criterion !== 'totalPrize' && (
+                        {criterion !== 'totalPrize' && (
+                            <div className="space-y-4">
                                 <div>
-                                    <h4 className="font-semibold mb-2 text-sm text-muted-foreground">Progresso para a Próxima Meta</h4>
+                                    <h4 className="font-semibold mb-2">Níveis de Meta Atingidos</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {goalProgress.allGoals.length > 0 ? 
+                                            goalProgress.allGoals.map((goal: any) => {
+                                                const isAchieved = (sellerValue as number) >= goal.threshold && goal.threshold > 0;
+                                                const config = goalLevelConfig[goal.name as GoalLevelName];
+                                                return <Badge key={goal.name} className={cn(isAchieved ? config.className : 'bg-muted border-transparent text-muted-foreground opacity-60')}>{config.label}</Badge>;
+                                            }) : <p className="text-sm text-muted-foreground">Nenhuma meta definida para este critério.</p>
+                                        }
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold mb-2">Progresso para a Próxima Meta</h4>
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger className="w-full text-left">
@@ -224,16 +227,11 @@ export default function SellerPerformancePage() {
                                             <TooltipContent><p>{goalProgress.details}</p></TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {goalProgress.achievedGoals.map((goal: any) => (
-                                            <Badge key={goal.name} className={goalLevelConfig[goal.name as GoalLevelName]?.className}>{goal.name}</Badge>
-                                        ))}
-                                    </div>
                                 </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );

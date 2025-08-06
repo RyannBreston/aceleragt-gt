@@ -8,20 +8,28 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserCog, PlusCircle, Loader2, Trash2, KeyRound, Edit, Save, Star, UserCircle } from "lucide-react";
+import { UserCog, PlusCircle, Loader2, Trash2, KeyRound, Edit, Save, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
-import { functions, auth } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import type { Seller } from '@/lib/types';
-import { onAuthStateChanged, User } from 'firebase/auth';
 
 // --- Sub-componente: Modal de Gestão de Vendedor (Criar/Editar) ---
 const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; seller: Partial<Seller> | null; onSave: (data: Partial<Seller>) => Promise<void> }) => {
     const [formData, setFormData] = useState<Partial<Seller>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    useEffect(() => { setFormData(seller || { name: '', email: '', password: '' }); }, [seller]);
-    const handleSave = async () => { setIsSubmitting(true); await onSave(formData); setIsSubmitting(false); };
+    
+    useEffect(() => {
+        setFormData(seller || { name: '', email: '', password: '' });
+    }, [seller]);
+
+    const handleSave = async () => {
+        setIsSubmitting(true);
+        await onSave(formData);
+        setIsSubmitting(false);
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
@@ -37,19 +45,54 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
     );
 };
 
-// --- Sub-componente: Modal para Alterar a Senha de um Vendedor ---
-const ChangePasswordModal = ({ seller, isOpen, setIsOpen }: { seller: (Seller | User | null); isOpen: boolean; setIsOpen: (open: boolean) => void; }) => {
+// --- Sub-componente: Modal para Alterar a Senha ---
+const ChangePasswordModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null; isOpen: boolean; setIsOpen: (open: boolean) => void; }) => {
     const { toast } = useToast();
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
-    const handleUpdate = async () => { if (!seller?.uid) return; if (newPassword.length < 6) { toast({ variant: "destructive", title: "Senha muito curta" }); return; } if (newPassword !== confirmPassword) { toast({ variant: "destructive", title: "As senhas não coincidem" }); return; } setIsUpdating(true); try { const func = httpsCallable(functions, 'changeSellerPassword'); await func({ uid: seller.uid, newPassword }); toast({ title: 'Senha atualizada com sucesso!' }); setIsOpen(false); } catch (e: any) { toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: e.message }); } finally { setIsUpdating(false); setNewPassword(''); setConfirmPassword(''); } };
+
+    const handleUpdate = async () => {
+        if (!seller) return;
+        if (newPassword.length < 6) {
+            toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
+            return;
+        }
+        if (newPassword !== confirmPassword) {
+            toast({ variant: "destructive", title: "As senhas não coincidem" });
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
+            await changePasswordFunction({ uid: seller.id, newPassword });
+            toast({ title: 'Senha atualizada com sucesso!', description: `A senha de ${seller.name} foi alterada.` });
+            setIsOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao alterar senha', description: error.message });
+        } finally {
+            setIsUpdating(false);
+            setNewPassword('');
+            setConfirmPassword('');
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Alterar Senha de {seller?.displayName}</DialogTitle><DialogDescription>O utilizador será desconectado e precisará usar a nova senha.</DialogDescription></DialogHeader>
-                <div className="space-y-4 py-4"><div className="space-y-2"><Label htmlFor="newPassword">Nova Senha</Label><Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/></div><div className="space-y-2"><Label htmlFor="confirmPassword">Confirmar Nova Senha</Label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div></div>
-                <DialogFooter><Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button><Button onClick={handleUpdate} disabled={isUpdating}>{isUpdating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar Nova Senha</Button></DialogFooter>
+                <DialogHeader>
+                    <DialogTitle>Alterar Senha de {seller?.name}</DialogTitle>
+                    <DialogDescription>O vendedor será desconectado e precisará de usar a nova senha.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div className="space-y-2"><Label htmlFor="newPassword">Nova Senha</Label><Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres"/></div>
+                    <div className="space-y-2"><Label htmlFor="confirmPassword">Confirmar Nova Senha</Label><Input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
+                    <Button onClick={handleUpdate} disabled={isUpdating}>{isUpdating ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar Nova Senha</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );
@@ -63,68 +106,23 @@ const EditPointsModal = ({ seller, isOpen, setIsOpen }: { seller: Seller | null;
     useEffect(() => { if (seller) setPoints(seller.points || 0); }, [seller]);
     const handleSavePoints = async (newPoints: number) => { if (!seller) return; setIsSubmitting(true); try { const func = httpsCallable(functions, 'updateSellerPoints'); await func({ uid: seller.id, points: newPoints }); toast({ title: 'Pontos Atualizados!' }); setIsOpen(false); } catch (e: any) { toast({ variant: 'destructive', title: 'Erro', description: e.message }); } finally { setIsSubmitting(false); } };
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent><DialogHeader><DialogTitle>Editar Pontos de {seller?.name}</DialogTitle></DialogHeader><div className="py-4 space-y-4"><div className="space-y-2"><Label>Pontuação Base</Label><Input type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))} /></div><Button variant="destructive" className="w-full" onClick={() => handleSavePoints(0)}>Zerar Pontuação</Button></div><DialogFooter><Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button><Button onClick={() => handleSavePoints(points)} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button></DialogFooter></DialogContent></Dialog>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Editar Pontos de {seller?.name}</DialogTitle><DialogDescription>Altere os pontos base do vendedor. Pontos extras são geridos em Configurações.</DialogDescription></DialogHeader>
+                <div className="py-4 space-y-4">
+                    <div className="space-y-2"><Label>Pontuação Base</Label><Input type="number" value={points} onChange={(e) => setPoints(Number(e.target.value))} /></div>
+                    <Button variant="destructive" className="w-full" onClick={() => handleSavePoints(0)}>Zerar Pontuação</Button>
+                </div>
+                <DialogFooter><Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button><Button onClick={() => handleSavePoints(points)} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
-// --- Card de Perfil do Administrador ---
-const AdminProfileCard = () => {
-    const { toast } = useToast();
-    const [adminUser, setAdminUser] = useState<User | null>(null);
-    const [isEditing, setIsEditing] = useState(false);
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) { setAdminUser(user); setName(user.displayName || ''); setEmail(user.email || ''); }
-        });
-        return () => unsubscribe();
-    }, []);
-
-    const handleSaveChanges = async () => {
-        if (!adminUser) return;
-        setIsSaving(true);
-        try {
-            const updateAdminFunction = httpsCallable(functions, 'updateSeller');
-            await updateAdminFunction({ uid: adminUser.uid, name, email });
-            toast({ title: 'Perfil atualizado!' });
-            setIsEditing(false);
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Erro ao atualizar', description: error.message });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    if (!adminUser) return <Card><CardHeader><CardTitle>A carregar perfil...</CardTitle></CardHeader><CardContent><Loader2 className="animate-spin" /></CardContent></Card>;
-
-    return (
-        <>
-            <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><UserCircle className="size-6" /> Meu Perfil de Administrador</CardTitle><CardDescription>Edite as suas informações de login e segurança.</CardDescription></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2"><Label>Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isEditing} /></div>
-                    <div className="space-y-2"><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isEditing} /></div>
-                    <div className="flex justify-between items-center">
-                        <div>
-                            {!isEditing ? (<Button onClick={() => setIsEditing(true)}><Edit className="mr-2 size-4" /> Editar Perfil</Button>) : 
-                            (<div className="flex gap-2"><Button onClick={handleSaveChanges} disabled={isSaving}>{isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button><Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button></div>)}
-                        </div>
-                        <Button variant="secondary" onClick={() => setIsPasswordModalOpen(true)}><KeyRound className="mr-2 size-4"/> Alterar Senha</Button>
-                    </div>
-                </CardContent>
-            </Card>
-            {/* O modal de alterar senha é renderizado aqui, controlado pelo seu próprio estado */}
-            <ChangePasswordModal seller={adminUser} isOpen={isPasswordModalOpen} setIsOpen={setIsPasswordModalOpen} />
-        </>
-    );
-};
 
 // --- Página Principal de Perfil ---
 export default function PerfilPage() {
+    const { toast } = useToast();
     const { sellers } = useAdminContext();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -134,26 +132,60 @@ export default function PerfilPage() {
     const openModal = (type: 'edit' | 'password' | 'points', seller?: Seller) => {
         setSelectedSeller(seller || null);
         if (type === 'edit') setIsEditModalOpen(true);
-        if (type === 'password' && seller) { setSelectedSeller(seller); setIsPasswordModalOpen(true); }
-        if (type === 'points' && seller) { setSelectedSeller(seller); setIsPointsModalOpen(true); }
+        if (type === 'password' && seller) setIsPasswordModalOpen(true);
+        if (type === 'points' && seller) setIsPointsModalOpen(true);
     };
 
-    const handleSaveSeller = async (data: Partial<Seller>) => { /* ... (código anterior) */ };
-    const handleDeleteSeller = async (seller: Seller) => { /* ... (código anterior) */ };
+    const handleSaveSeller = async (data: Partial<Seller>) => {
+        try {
+            if (data.id) { // Modo de Edição
+                const updateSellerFunction = httpsCallable(functions, 'updateSeller');
+                await updateSellerFunction({ uid: data.id, name: data.name, email: data.email });
+                toast({ title: 'Vendedor atualizado!' });
+            } else { // Modo de Criação
+                const createSellerFunction = httpsCallable(functions, 'createSeller');
+                await createSellerFunction(data);
+                toast({ title: 'Vendedor adicionado!' });
+            }
+            setIsEditModalOpen(false);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao salvar', description: error.message });
+        }
+    };
+    
+    const handleDeleteSeller = async (seller: Seller) => {
+        try {
+            const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
+            await deleteSellerFunction({ uid: seller.id });
+            toast({ title: 'Vendedor apagado!', description: `${seller.name} foi removido.` });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Erro ao apagar', description: error.message });
+        }
+    };
 
     return (
         <div className="space-y-8">
-            <AdminProfileCard />
-            <div className="flex justify-between items-center pt-8">
+            <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4"><UserCog className="size-8 text-primary" /><h1 className="text-3xl font-bold">Gerir Vendedores</h1></div>
                 <Button onClick={() => openModal('edit')}><PlusCircle className="mr-2 size-4" /> Adicionar Vendedor</Button>
             </div>
+
             <Card>
-                <CardHeader><CardTitle>Vendedores Registados</CardTitle><CardDescription>Adicione, edite e gira as permissões dos seus vendedores.</CardDescription></CardHeader>
+                <CardHeader>
+                    <CardTitle>Vendedores Registados</CardTitle>
+                    <CardDescription>Adicione, edite, altere senhas e gira os seus vendedores.</CardDescription>
+                </CardHeader>
                 <CardContent>
                     <div className="rounded-md border">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Email</TableHead><TableHead className="text-center">Pontos Totais</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead className="text-center">Pontos Totais</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {sellers.map(seller => (
                                     <TableRow key={seller.id}>
@@ -179,6 +211,7 @@ export default function PerfilPage() {
                     </div>
                 </CardContent>
             </Card>
+
             <SellerFormModal isOpen={isEditModalOpen} setIsOpen={setIsEditModalOpen} seller={selectedSeller} onSave={handleSaveSeller} />
             <ChangePasswordModal seller={selectedSeller} isOpen={isPasswordModalOpen} setIsOpen={setIsPasswordModalOpen} />
             <EditPointsModal seller={selectedSeller} isOpen={isPointsModalOpen} setIsOpen={setIsPointsModalOpen} />
