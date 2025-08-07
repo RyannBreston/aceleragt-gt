@@ -1,10 +1,10 @@
 'use client';
 
 import {ai} from '@/ai/genkit';
+// ✅ CORREÇÃO APLICADA AQUI: O 'type GenerateQuizInput' foi removido da importação
 import {
   GenerateQuizInputSchema,
   GenerateQuizOutputSchema,
-  type GenerateQuizInput,
   type GenerateQuizOutput,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
@@ -30,7 +30,6 @@ export const generateQuizFlow = ai.defineFlow(
         title: 'Quiz sobre Vendas de Calçados',
         questions: [
           {
-            // ✅ CORREÇÃO APLICADA AQUI: de 'questionText' para 'question'
             question: 'Qual a melhor forma de abordar um cliente?',
             options: [
               'Esperar que ele fale primeiro',
