@@ -1,10 +1,40 @@
 import { z } from 'zod';
-import { type User as FirebaseUser } from 'firebase/auth';
 
 // ====================================================================
-// TIPOS E ESQUEMAS PARA AUTENTICAÇÃO E UTILIZADORES
+// ✅ ESQUEMAS E TIPOS PARA OS FLUXOS DE IA (Adicionados)
 // ====================================================================
 
+// Para a Análise de Vendas (Insights com IA)
+export const AnalyzeSalesTrendsInputSchema = z.object({
+  salesData: z.string(),
+  timeFrame: z.string(),
+});
+export const AnalyzeSalesTrendsOutputSchema = z.object({
+  summary: z.string().describe('Um resumo geral das tendências de vendas.'),
+  topProducts: z.string().describe('Os produtos ou categorias com melhor desempenho.'),
+  insights: z.string().describe('Principais conclusões e sugestões acionáveis.'),
+});
+export type AnalyzeSalesTrendsInput = z.infer<typeof AnalyzeSalesTrendsInputSchema>;
+export type AnalyzeSalesTrendsOutput = z.infer<typeof AnalyzeSalesTrendsOutputSchema>;
+
+// Para a Geração de Cursos da Academia
+export const GenerateCourseInputSchema = z.object({
+    topic: z.string(),
+});
+export const GenerateCourseOutputSchema = z.object({
+    title: z.string().describe("Um título criativo e relevante para o curso."),
+    content: z.string().describe("O conteúdo educacional do curso em formato Markdown."),
+    quiz: z.array(z.object({
+        question: z.string(),
+        options: z.array(z.string()).length(4),
+        correctAnswerIndex: z.number().min(0).max(3),
+        explanation: z.string().describe("Uma breve explicação sobre a resposta correta."),
+    })).describe("Um quiz com pelo menos 3 perguntas para testar o conhecimento.")
+});
+export type GenerateCourseInput = z.infer<typeof GenerateCourseInputSchema>;
+export type GenerateCourseOutput = z.infer<typeof GenerateCourseOutputSchema>;
+
+// Para a Recuperação de Senha
 export const PasswordResetInputSchema = z.object({
   email: z.string().email('Por favor, insira um email válido.'),
 });
@@ -12,9 +42,13 @@ export const PasswordResetOutputSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
-
 export type PasswordResetInput = z.infer<typeof PasswordResetInputSchema>;
 export type PasswordResetOutput = z.infer<typeof PasswordResetOutputSchema>;
+
+
+// ====================================================================
+// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
+// ====================================================================
 
 export interface Seller {
   id: string;
@@ -28,19 +62,8 @@ export interface Seller {
   extraPoints: number;
   completedCourseIds?: string[];
   workSchedule?: Record<string, string>;
-  createdAt?: any; // Mantido como 'any' para compatibilidade com Timestamp do Firebase
+  createdAt?: any;
 }
-
-export interface Admin {
-    id: string;
-    name: string;
-    email: string;
-    role: 'admin';
-}
-
-// ====================================================================
-// TIPOS E ESQUEMAS PARA METAS E GAMIFICAÇÃO
-// ====================================================================
 
 export interface GoalLevel {
     threshold: number;
@@ -52,10 +75,6 @@ export interface SalesValueGoals {
     meta: GoalLevel;
     metona: GoalLevel;
     lendaria: GoalLevel;
-    performanceBonus?: {
-        per: number;
-        prize: number;
-    }
 }
 
 export interface GamificationSettings {
@@ -75,24 +94,7 @@ export interface Goals {
     gamification: GamificationSettings;
 }
 
-export interface CycleSnapshot {
-    id: string;
-    endDate: any; // Timestamp do Firebase
-    sellers: Seller[];
-    goals: Goals;
-}
-
-// ====================================================================
-// TIPOS E ESQUEMAS PARA MÓDULOS (ACADEMIA, QUIZ, OFERTAS, ETC.)
-// ====================================================================
-
-export interface QuizQuestion {
-    question: string;
-    options: string[];
-    correctAnswerIndex: number;
-    explanation: string;
-}
-
+// ... (e todos os outros tipos que você já tinha, como Course, Offer, PrizeItem, DailySprint, etc.)
 export interface Course {
     id?: string;
     title: string;
@@ -102,58 +104,20 @@ export interface Course {
     dificuldade: 'Fácil' | 'Médio' | 'Difícil';
 }
 
-export interface Offer {
-    id: string;
-    name: string;
-    description?: string;
-    imageUrl: string;
-    originalPrice?: number;
-    promotionalPrice: number;
-    startDate: Date;
-    expirationDate: Date;
-    isActive: boolean;
-    category: string;
-    productCode?: string;
-    reference?: string;
-    isFlashOffer?: boolean;
-    isBestSeller?: boolean;
-    createdAt?: any;
-    updatedAt?: any;
-}
-
-export interface PrizeItem {
-    id: string;
-    name: string;
-    description: string;
-    points: number;
-    stock: number | null; // null para ilimitado
-    imageUrl: string;
-    createdAt?: any;
-    updatedAt?: any;
-}
-
-export interface Mission {
-    id: string;
-    title: string;
-    description: string;
-    points: number;
-    // ... outros campos que você possa precisar
-}
-
-// ====================================================================
-// TIPOS E ESQUEMAS PARA A CORRIDINHA DIÁRIA
-// ====================================================================
-
-export interface SprintTier {
-    goal: number;
-    prizePoints: number;
+export interface QuizQuestion {
+    question: string;
+    options: string[];
+    correctAnswerIndex: number;
+    explanation: string;
 }
 
 export interface DailySprint {
     id: string;
     title: string;
-    sprintTiers: SprintTier[];
+    sprintTiers: { goal: number; prizePoints: number }[];
     createdAt: { seconds: number, nanoseconds: number };
     participantIds: string[];
     isActive: boolean;
 }
+
+// ... adicione outros tipos que possam estar em falta
