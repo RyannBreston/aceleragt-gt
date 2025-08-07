@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // ====================================================================
-// ✅ ESQUEMAS E TIPOS PARA OS FLUXOS DE IA (Adicionados)
+// TIPOS E ESQUEMAS PARA OS FLUXOS DE IA
 // ====================================================================
 
 // Para a Análise de Vendas (Insights com IA)
@@ -33,6 +33,27 @@ export const GenerateCourseOutputSchema = z.object({
 });
 export type GenerateCourseInput = z.infer<typeof GenerateCourseInputSchema>;
 export type GenerateCourseOutput = z.infer<typeof GenerateCourseOutputSchema>;
+
+// ✅ NOVOS ESQUEMAS E TIPOS ADICIONADOS AQUI
+// Para a Geração de Quizzes
+export const GenerateQuizInputSchema = z.object({
+  topic: z.string(),
+  numQuestions: z.number().min(1).max(10),
+});
+export const GenerateQuizOutputSchema = z.object({
+  title: z.string(),
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      options: z.array(z.string()).length(4),
+      correctAnswerIndex: z.number().min(0).max(3),
+      explanation: z.string(),
+    })
+  ),
+});
+export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
+export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
+
 
 // Para a Recuperação de Senha
 export const PasswordResetInputSchema = z.object({
@@ -94,7 +115,7 @@ export interface Goals {
     gamification: GamificationSettings;
 }
 
-// ... (e todos os outros tipos que você já tinha, como Course, Offer, PrizeItem, DailySprint, etc.)
+// ... (e todos os outros tipos que você já tinha)
 export interface Course {
     id?: string;
     title: string;
@@ -111,6 +132,23 @@ export interface QuizQuestion {
     explanation: string;
 }
 
+export interface Quiz {
+    id: string;
+    title: string;
+    questions: QuizQuestion[];
+}
+
+export interface QuizResult {
+    quizId: string;
+    quizTitle: string;
+    sellerId: string;
+    sellerName: string;
+    score: number;
+    correctAnswers: number;
+    totalQuestions: number;
+    timestamp: Date;
+}
+
 export interface DailySprint {
     id: string;
     title: string;
@@ -119,5 +157,3 @@ export interface DailySprint {
     participantIds: string[];
     isActive: boolean;
 }
-
-// ... adicione outros tipos que possam estar em falta
