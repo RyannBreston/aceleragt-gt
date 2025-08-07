@@ -1,13 +1,13 @@
 'use client';
 
 import {ai} from '@/ai/genkit';
-// ✅ CORREÇÃO APLICADA AQUI: O 'type GenerateQuizOutput' foi removido da importação
 import {
   GenerateQuizInputSchema,
   GenerateQuizOutputSchema,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
-import {geminiPro} from 'genkitx-googleai';
+// ✅ CORREÇÃO APLICADA AQUI: O nome do pacote foi corrigido.
+import {geminiPro} from '@genkit-ai/googleai';
 
 export const generateQuizFlow = ai.defineFlow(
   {
