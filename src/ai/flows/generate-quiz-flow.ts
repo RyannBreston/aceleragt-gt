@@ -1,11 +1,10 @@
 'use client';
 
 import {ai} from '@/ai/genkit';
-// ✅ CORREÇÃO APLICADA AQUI: O 'type GenerateQuizInput' foi removido da importação
+// ✅ CORREÇÃO APLICADA AQUI: O 'type GenerateQuizOutput' foi removido da importação
 import {
   GenerateQuizInputSchema,
   GenerateQuizOutputSchema,
-  type GenerateQuizOutput,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
 import {geminiPro} from 'genkitx-googleai';
