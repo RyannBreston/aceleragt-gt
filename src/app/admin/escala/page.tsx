@@ -97,10 +97,10 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
                     </div>
                     {definitions.map((def) => (
                         <div key={def.id} className="grid grid-cols-7 items-center gap-2">
-                            <Input className="col-span-2" defaultValue={def.name} onBlur={(e) => handleUpdateShift(def.id, 'name', e.target.value)} />
-                            <Input type="time" defaultValue={def.entryTime} onBlur={(e) => handleUpdateShift(def.id, 'entryTime', e.target.value)} />
-                            <Input defaultValue={def.lunchTime} onBlur={(e) => handleUpdateShift(def.id, 'lunchTime', e.target.value)} placeholder="ex: 12:00-13:00"/>
-                            <Input type="time" defaultValue={def.exitTime} onBlur={(e) => handleUpdateShift(def.id, 'exitTime', e.target.value)} />
+                            <Input className="col-span-2" defaultValue={def.name} onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'name', e.target.value)} />
+                            <Input type="time" defaultValue={def.entryTime} onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'entryTime', e.target.value)} />
+                            <Input defaultValue={def.lunchTime} onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'lunchTime', e.target.value)} placeholder="ex: 12:00-13:00"/>
+                            <Input type="time" defaultValue={def.exitTime} onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'exitTime', e.target.value)} />
                             <Select value={def.color} onValueChange={(color) => handleUpdateShift(def.id, 'color', color)}>
                                 <SelectTrigger className={cn("w-full", shiftColors[def.color])}><SelectValue /></SelectTrigger>
                                 <SelectContent>{Object.keys(shiftColors).map(color => (<SelectItem key={color} value={color}><div className="flex items-center gap-2"><div className={cn("w-3 h-3 rounded-full", shiftColors[color])} />{color}</div></SelectItem>))}</SelectContent>
