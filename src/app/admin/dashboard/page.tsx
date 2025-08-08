@@ -57,7 +57,6 @@ const useDashboardStats = (sellers: Seller[]) => {
 
 // --- Componente GoalDistribution ---
 const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals | null }) => {
-  const goalTiers = ['lendaria', 'metona', 'meta', 'metinha'] as const;
   const goalLabels = { lendaria: 'Lendária', metona: 'Metona', meta: 'Meta', metinha: 'Metinha', nenhuma: 'Nenhuma' };
 
   const distribution = useMemo(() => {
@@ -71,6 +70,7 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
 
     if (!goals) return result;
 
+    const goalTiers = ['lendaria', 'metona', 'meta', 'metinha'] as const;
     sellers.forEach(seller => {
       criteria.forEach(criterion => {
         const sellerValue = criterion === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : (seller[criterion] || 0);
@@ -87,7 +87,7 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
     });
 
     return result;
-  }, [sellers, goals, goalTiers]); // CORREÇÃO: Adicionado 'goalTiers' às dependências
+  }, [sellers, goals]);
 
   return (
     <Card>

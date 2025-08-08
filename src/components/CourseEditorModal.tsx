@@ -39,19 +39,22 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
   }, [course, isOpen]);
 
   const handleQuizChange = (qIndex: number, field: keyof QuizQuestionType | 'options', value: string | number | { index: number; value: string }) => {
-    const updatedQuiz = [...editingQuiz];
-    const question = { ...updatedQuiz[qIndex] };
+    setEditingQuiz(prevQuiz => {
+        const updatedQuiz = [...prevQuiz];
+        const question = { ...updatedQuiz[qIndex] };
 
-    if (field === 'options' && typeof value === 'object' && 'index' in value) {
-        question.options[value.index] = value.value;
-    } else if (field !== 'options') {
-        (question as any)[field] = field === 'correctAnswerIndex' ? Number(value) : value;
-    }
-    
-    updatedQuiz[qIndex] = question;
-    setEditingQuiz(updatedQuiz);
-};
-
+        if (field === 'options' && typeof value === 'object' && 'index' in value) {
+            question.options[value.index] = value.value;
+        } else if (field === 'correctAnswerIndex') {
+            question.correctAnswerIndex = Number(value);
+        } else if (field !== 'options') {
+            (question as any)[field] = value;
+        }
+        
+        updatedQuiz[qIndex] = question;
+        return updatedQuiz;
+    });
+  };
 
   const addQuizQuestion = () => setEditingQuiz([...editingQuiz, { question: '', options: ['', '', '', ''], correctAnswerIndex: 0, explanation: '' }]);
   const removeQuizQuestion = (qIndex: number) => setEditingQuiz(editingQuiz.filter((_, i) => i !== qIndex));
@@ -63,11 +66,8 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
     }
     setIsSubmitting(true);
     const finalCourseData = {
-        title: currentCourse.title,
-        content: currentCourse.content || '',
+        ...currentCourse,
         quiz: editingQuiz,
-        points: currentCourse.points || 100,
-        dificuldade: currentCourse.dificuldade || 'Médio',
     };
     try {
         if (currentCourse.id) {
