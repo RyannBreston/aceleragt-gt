@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag, Icon } from "lucide-react";
+import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag, LucideIcon } from "lucide-react";
 import { useAdminContext } from '@/contexts/AdminContext';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
@@ -13,14 +13,11 @@ import AiInsights from '@/components/ai-insights';
 // ####################################################################
 // ### 1. COMPONENTE REUTILIZÁVEL: StatCard ###
 // ####################################################################
-// Este componente encapsula a lógica visual de um card de estatística.
-// Agora, em vez de repetir o JSX, apenas chamamos este componente.
-
 interface StatCardProps {
   title: string;
   value: string;
   description: string;
-  Icon: Icon; // Usamos o tipo 'Icon' do Lucide para flexibilidade
+  Icon: LucideIcon;
   iconClassName?: string;
 }
 
@@ -40,28 +37,14 @@ const StatCard = ({ title, value, description, Icon, iconClassName }: StatCardPr
 // ####################################################################
 // ### 2. CUSTOM HOOK: useDashboardStats ###
 // ####################################################################
-// Toda a lógica de cálculo foi movida para este hook.
-// O componente principal fica mais limpo e a lógica é reutilizável.
-
 const useDashboardStats = (sellers: Seller[]) => {
   return useMemo(() => {
     const totalSellers = sellers.length;
-
-    if (totalSellers === 0) {
-      return {
-        totalSellers: 0,
-        currentSales: 0,
-        totalPoints: 0,
-        averageTicket: 0,
-        averagePA: 0,
-      };
-    }
-
-    const currentSales = sellers.reduce((acc, seller) => acc + seller.salesValue, 0);
-    const totalPoints = sellers.reduce((acc, seller) => acc + seller.points + seller.extraPoints, 0);
-    const totalTicket = sellers.reduce((acc, seller) => acc + seller.ticketAverage, 0);
-    const totalPA = sellers.reduce((acc, seller) => acc + seller.pa, 0);
-
+    if (totalSellers === 0) return { totalSellers: 0, currentSales: 0, totalPoints: 0, averageTicket: 0, averagePA: 0 };
+    const currentSales = sellers.reduce((acc, seller) => acc + (seller.salesValue || 0), 0);
+    const totalPoints = sellers.reduce((acc, seller) => acc + (seller.points || 0) + (seller.extraPoints || 0), 0);
+    const totalTicket = sellers.reduce((acc, seller) => acc + (seller.ticketAverage || 0), 0);
+    const totalPA = sellers.reduce((acc, seller) => acc + (seller.pa || 0), 0);
     return {
       totalSellers,
       currentSales,
@@ -72,10 +55,8 @@ const useDashboardStats = (sellers: Seller[]) => {
   }, [sellers]);
 };
 
-// --- Componente GoalDistribution (Sem alterações, mas com uma nota) ---
-// NOTA: Para uma organização ideal, este componente poderia ser movido
-// para o seu próprio arquivo, como `src/components/GoalDistribution.tsx`.
-const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals }) => {
+// --- Componente GoalDistribution ---
+const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals | null }) => {
   const goalTiers = ['lendaria', 'metona', 'meta', 'metinha'] as const;
   const goalLabels = { lendaria: 'Lendária', metona: 'Metona', meta: 'Meta', metinha: 'Metinha', nenhuma: 'Nenhuma' };
 
@@ -88,13 +69,15 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
       points: { nenhuma: 0, metinha: 0, meta: 0, metona: 0, lendaria: 0 },
     };
 
+    if (!goals) return result;
+
     sellers.forEach(seller => {
       criteria.forEach(criterion => {
-        const sellerValue = criterion === 'points' ? seller.points + seller.extraPoints : seller[criterion];
+        const sellerValue = criterion === 'points' ? (seller.points || 0) + (seller.extraPoints || 0) : (seller[criterion] || 0);
         let tierAchieved: keyof typeof goalLabels = 'nenhuma';
         
         for (const tier of goalTiers) {
-          if (goals[criterion] && sellerValue >= goals[criterion][tier].threshold && goals[criterion][tier].threshold > 0) {
+          if (goals[criterion]?.[tier]?.threshold && sellerValue >= goals[criterion][tier].threshold && goals[criterion][tier].threshold > 0) {
             tierAchieved = tier;
             break; 
           }
@@ -104,7 +87,7 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
     });
 
     return result;
-  }, [sellers, goals]);
+  }, [sellers, goals, goalTiers]); // CORREÇÃO: Adicionado 'goalTiers' às dependências
 
   return (
     <Card>
@@ -142,19 +125,9 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
 // ####################################################################
 // ### 3. DASHBOARD PAGE REATORIZADA ###
 // ####################################################################
-// O componente principal agora é muito mais limpo.
-// Ele apenas consome os dados e os hooks, e passa os resultados para os componentes de apresentação.
 export default function DashboardPage() {
   const { sellers, goals } = useAdminContext();
-
-  // Usa o custom hook para obter as estatísticas calculadas
-  const { 
-    totalSellers,
-    currentSales,
-    totalPoints,
-    averageTicket,
-    averagePA,
-  } = useDashboardStats(sellers);
+  const { totalSellers, currentSales, totalPoints, averageTicket, averagePA } = useDashboardStats(sellers);
 
   return (
     <div className="space-y-8">
@@ -163,39 +136,12 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold">Dashboard</h1>
       </div>
 
-      {/* Usa o componente StatCard para renderizar os cards de forma limpa e reutilizável */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatCard 
-          title="Vendas Totais (Mês)" 
-          value={currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          description="Total de vendas da equipa"
-          Icon={DollarSign}
-        />
-        <StatCard 
-          title="Ticket Médio (Equipe)"
-          value={averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-          description="Média de ticket por venda"
-          Icon={Ticket}
-        />
-        <StatCard 
-          title="PA Médio (Equipe)"
-          value={averagePA.toFixed(2)}
-          description="Média de produtos por atendimento"
-          Icon={Box}
-        />
-        <StatCard 
-          title="Pontos Totais da Equipe"
-          value={totalPoints.toLocaleString('pt-BR')}
-          description="Soma de todos os pontos ganhos"
-          Icon={Star}
-          iconClassName="text-yellow-400"
-        />
-        <StatCard 
-          title="Vendedores Ativos"
-          value={String(totalSellers)}
-          description="Total de vendedores na equipe"
-          Icon={Users}
-        />
+        <StatCard title="Vendas Totais (Mês)" value={currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Total de vendas da equipa" Icon={DollarSign} />
+        <StatCard title="Ticket Médio (Equipe)" value={averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Média de ticket por venda" Icon={Ticket} />
+        <StatCard title="PA Médio (Equipe)" value={averagePA.toFixed(2)} description="Média de produtos por atendimento" Icon={Box} />
+        <StatCard title="Pontos Totais da Equipe" value={totalPoints.toLocaleString('pt-BR')} description="Soma de todos os pontos ganhos" Icon={Star} iconClassName="text-yellow-400" />
+        <StatCard title="Vendedores Ativos" value={String(totalSellers)} description="Total de vendedores na equipe" Icon={Users} />
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

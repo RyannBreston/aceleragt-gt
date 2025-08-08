@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -60,7 +60,6 @@ const CourseCreator = ({ onCourseGenerated }: { onCourseGenerated: (course: Part
         }
         setIsGenerating(true);
         try {
-            // ✅ USA 'FETCH' PARA CHAMAR A ROTA DE API
             const response = await fetch('/api/generateCourse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -75,7 +74,7 @@ const CourseCreator = ({ onCourseGenerated }: { onCourseGenerated: (course: Part
             
             onCourseGenerated(result as Course);
             toast({ title: "Curso gerado pela IA!", description: "Revise e salve o conteúdo gerado." });
-        } catch (error) {
+        } catch {
             toast({ variant: 'destructive', title: 'Falha ao Gerar Curso', description: 'Ocorreu um erro ao comunicar com a IA.' });
         } finally {
             setIsGenerating(false);
@@ -130,12 +129,12 @@ export default function AcademiaPage() {
             filteredCourses: filtered,
             totalPages: Math.ceil(filtered.length / coursesPerPage)
         };
-    }, [courses, searchTerm, coursesPerPage]);
+    }, [courses, searchTerm]);
 
     const paginatedCourses = useMemo(() => {
         const startIndex = (currentPage - 1) * coursesPerPage;
         return filteredCourses.slice(startIndex, startIndex + coursesPerPage);
-    }, [filteredCourses, currentPage, coursesPerPage]);
+    }, [filteredCourses, currentPage]);
     
     const courseCompletions = useMemo(() => {
         const completions = new Map<string, number>();
@@ -155,7 +154,7 @@ export default function AcademiaPage() {
             try {
                 await deleteDoc(doc(db, coursesCollectionPath, courseId));
                 toast({ title: 'Curso excluído.' });
-            } catch (error) {
+            } catch {
                 toast({ variant: 'destructive', title: 'Erro ao Excluir' });
             }
         }

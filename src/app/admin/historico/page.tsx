@@ -23,11 +23,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { History, Medal, Trophy, Award } from 'lucide-react';
-import { useAdminContext } from '@/contexts/AdminContext'; // Caminho de importação corrigido
+import { useAdminContext } from '@/contexts/AdminContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calculateSellerPrizes } from '@/lib/utils';
-import type { Seller } from '@/lib/types';
+import type { CycleSnapshot } from '@/lib/types';
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -43,7 +43,7 @@ const getRankIndicator = (index: number) => {
 
 export default function HistoricoPage() {
   const { cycleHistory } = useAdminContext();
-  const reversedHistory = [...cycleHistory].reverse();
+  const reversedHistory = [...(cycleHistory || [])].reverse();
 
   return (
     <div className="space-y-8">
@@ -61,7 +61,8 @@ export default function HistoricoPage() {
         <CardContent>
           {reversedHistory.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {reversedHistory.map((snapshot) => {
+              {reversedHistory.map((snapshot: CycleSnapshot) => {
+                if (!snapshot.sellers || !snapshot.goals) return null;
                 const rankedSellers = snapshot.sellers
                     .map(s => calculateSellerPrizes(s, snapshot.sellers, snapshot.goals))
                     .sort((a, b) => b.totalPrize - a.totalPrize);
@@ -69,7 +70,7 @@ export default function HistoricoPage() {
                 return (
                   <AccordionItem value={snapshot.id} key={snapshot.id}>
                     <AccordionTrigger className='text-lg'>
-                      Ciclo Finalizado em: {format(new Date(snapshot.endDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                      Ciclo Finalizado em: {snapshot.endDate ? format(snapshot.endDate.toDate(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data inválida'}
                     </AccordionTrigger>
                     <AccordionContent>
                       <p className='text-muted-foreground mb-4'>Ranking final do ciclo, com base no prémio total acumulado por cada vendedor.</p>

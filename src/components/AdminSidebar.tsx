@@ -2,30 +2,28 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-// ✅ Ícone 'Zap' importado para o novo menu
-import { GraduationCap, LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, BarChart, Zap } from 'lucide-react';
+import { GraduationCap, LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { auth } from '@/lib/firebase';
 import { useAdminContext } from '@/contexts/AdminContext';
+import { GamificationSettings } from '@/lib/types';
 
-// ✅ Lista de menus ATUALIZADA com a nova página
 const allMenuItems = [
-    {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid},
+    {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
     {href: '/admin/ranking', label: 'Ranking', icon: Trophy, key: 'ranking'},
-    {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays},
-    // ✅ NOVA LINHA ADICIONADA AQUI
-    {href: '/admin/sprints', label: 'Corridinhas Diárias', icon: Zap}, 
+    {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays, key: 'escala'},
+    {href: '/admin/sprints', label: 'Corridinhas Diárias', icon: Zap, key: 'sprints'}, 
     {href: '/admin/missions', label: 'Missões', icon: Target, key: 'missions'},
     {href: '/admin/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
     {href: '/admin/quiz', label: 'Quiz', icon: Puzzle, key: 'quiz'},
     {href: '/admin/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
     {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag, key: 'ofertas'},
-    {href: '/admin/historico', label: 'Histórico', icon: History},
-    {href: '/admin/perfil', label: 'Perfil', icon: User},
-    {href: '/admin/settings', label: 'Configurações', icon: Shield},
+    {href: '/admin/historico', label: 'Histórico', icon: History, key: 'historico'},
+    {href: '/admin/perfil', label: 'Perfil', icon: User, key: 'perfil'},
+    {href: '/admin/settings', label: 'Configurações', icon: Shield, key: 'settings'},
 ];
 
 export const AdminSidebar = () => {
@@ -35,16 +33,13 @@ export const AdminSidebar = () => {
   const { isDirty, setIsDirty, goals } = useAdminContext(); 
   const [pendingPath, setPendingPath] = React.useState<string | null>(null);
 
-  // A lógica de filtrar os menus continua a funcionar, mas agora com a lista atualizada
   const visibleMenuItems = React.useMemo(() => {
-      const gamificationSettings = goals?.gamification;
-      if (!gamificationSettings) return allMenuItems;
+      const settings = goals?.gamification as GamificationSettings | undefined;
+      if (!settings) return allMenuItems;
 
       return allMenuItems.filter(item => {
-          if (!item.key || !gamificationSettings.hasOwnProperty(item.key)) {
-              return true;
-          }
-          return gamificationSettings[item.key as keyof typeof gamificationSettings];
+          const itemKey = item.key as keyof GamificationSettings;
+          return settings[itemKey];
       });
   }, [goals]);
 

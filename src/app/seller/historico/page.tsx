@@ -15,11 +15,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { History, Trophy, DollarSign, Star } from 'lucide-react';
-import { useSellerContext } from '@/contexts/SellerContext'; // Caminho de importação corrigido
+import { useSellerContext } from '@/contexts/SellerContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { calculateSellerPrizes } from '@/lib/utils';
-import type { Seller } from '@/lib/types';
+import type { CycleSnapshot } from '@/lib/types';
 
 const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -27,7 +27,7 @@ const formatCurrency = (value: number) => {
 
 export default function HistoricoPage() {
   const { cycleHistory, currentSeller } = useSellerContext();
-  const reversedHistory = [...cycleHistory].reverse();
+  const reversedHistory = [...(cycleHistory || [])].reverse();
 
   return (
     <div className="space-y-8">
@@ -41,9 +41,10 @@ export default function HistoricoPage() {
             <CardDescription>Compare a sua evolução ao longo dos ciclos de premiação.</CardDescription>
         </CardHeader>
         <CardContent>
-             {reversedHistory.length > 0 ? (
+             {reversedHistory.length > 0 && currentSeller ? (
                 <Accordion type="single" collapsible className="w-full">
-                {reversedHistory.map((snapshot) => {
+                {reversedHistory.map((snapshot: CycleSnapshot) => {
+                    if (!snapshot.sellers || !snapshot.goals) return null;
                     const allSellersRanked = snapshot.sellers
                         .map(s => calculateSellerPrizes(s, snapshot.sellers, snapshot.goals))
                         .sort((a, b) => b.totalPrize - a.totalPrize);
@@ -56,7 +57,7 @@ export default function HistoricoPage() {
                     return (
                     <AccordionItem value={snapshot.id} key={snapshot.id}>
                         <AccordionTrigger className='text-lg'>
-                           Ciclo Finalizado em: {format(new Date(snapshot.endDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                           Ciclo Finalizado em: {snapshot.endDate ? format(snapshot.endDate.toDate(), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }) : 'Data inválida'}
                         </AccordionTrigger>
                         <AccordionContent>
                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

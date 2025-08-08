@@ -1,21 +1,17 @@
 'use client';
 
-import React, { useState, useContext, useEffect } from 'react';
+import React, 'useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Quiz, QuizQuestion, QuizResult } from '@/lib/types';
+import type { Quiz, QuizResult } from '@/lib/types';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-// ✅ IMPORTAÇÃO CORRIGIDA AQUI
 import { useSellerContext } from '@/contexts/SellerContext'; 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
 
-// Função para salvar o resultado (sem alterações)
 const saveResultToLocalStorage = (result: QuizResult) => {
     try {
         const existingResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
@@ -28,7 +24,7 @@ const saveResultToLocalStorage = (result: QuizResult) => {
 
 export default function QuizComponent({ quizData }: { quizData: Quiz }) {
     const { toast } = useToast();
-    const { currentSeller } = useSellerContext(); // Usa o hook corrigido
+    const { currentSeller } = useSellerContext();
     const [answers, setAnswers] = useState<(number | null)[]>(new Array(quizData.questions.length).fill(null));
     const [submitted, setSubmitted] = useState(false);
     const [result, setResult] = useState<QuizResult | null>(null);
@@ -68,7 +64,7 @@ export default function QuizComponent({ quizData }: { quizData: Quiz }) {
                 title: "Resultado Submetido!",
                 description: `Você acertou ${correctAnswers} de ${totalQuestions}.`,
             });
-        } catch (error) {
+        } catch {
             toast({
                 variant: 'destructive',
                 title: 'Erro ao Salvar Resultado',

@@ -2,45 +2,47 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, LogOut, Target, Trophy, ShoppingBag, History, User, GraduationCap, Puzzle, CalendarDays, BarChart } from 'lucide-react';
+import { LayoutGrid, LogOut, Target, ShoppingBag, History, User, GraduationCap, Puzzle, CalendarDays, BarChart, Zap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { auth } from '@/lib/firebase';
 import { SellerProvider, useSellerContext } from '@/contexts/SellerContext';
+import { GamificationSettings } from '@/lib/types';
 
-// Lista completa de todos os menus possíveis para o vendedor
 const allMenuItems = [
-  {href: '/seller/dashboard', label: 'Dashboard', icon: LayoutGrid},
-  {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays},
+  {href: '/seller/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
+  {href: '/seller/sprints', label: 'Corridinha Diária', icon: Zap, key: 'sprints'},
+  {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays, key: 'escala'},
   {href: '/seller/ofertas', label: 'Ofertas', icon: ShoppingBag, key: 'ofertas'},
   {href: '/seller/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
   {href: '/seller/ranking', label: 'Meu Desempenho', icon: BarChart, key: 'ranking'},
   {href: '/seller/missions', label: 'Missões', icon: Target, key: 'missions'},
   {href: '/seller/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
   {href: '/seller/quiz', label: 'Quiz', icon: Puzzle, key: 'quiz'},
-  {href: '/seller/historico', label: 'Histórico', icon: History},
-  {href: '/seller/perfil', label: 'Meu Perfil', icon: User},
+  {href: '/seller/historico', label: 'Histórico', icon: History, key: 'historico'},
+  {href: '/seller/perfil', label: 'Meu Perfil', icon: User, key: 'perfil'},
 ];
 
 const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { goals } = useSellerContext(); // Obtém as configurações do contexto
+  const { goals, isAuthReady } = useSellerContext();
 
-  // ✅ A LÓGICA DE FILTRAGEM ESTÁ AQUI (E DEVE FICAR AQUI)
   const visibleMenuItems = React.useMemo(() => {
-      const gamificationSettings = goals?.gamification;
-      if (!gamificationSettings) return allMenuItems;
+    if (!isAuthReady) return [];
+    
+    const settings = goals?.gamification as GamificationSettings | undefined;
+    if (!settings) {
+      return allMenuItems.filter(item => ['/seller/dashboard', '/seller/perfil'].includes(item.href));
+    }
 
-      return allMenuItems.filter(item => {
-          if (!item.key || !gamificationSettings.hasOwnProperty(item.key)) {
-              return true;
-          }
-          return gamificationSettings[item.key as keyof typeof gamificationSettings];
-      });
-  }, [goals]);
+    return allMenuItems.filter(item => {
+        const itemKey = item.key as keyof GamificationSettings;
+        return settings[itemKey];
+    });
+  }, [goals, isAuthReady]);
 
   const handleNavigate = (href: string) => {
     router.push(href);

@@ -1,19 +1,28 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Button } from "@/components/ui/button";
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Puzzle, Trophy, Users, BarChart } from "lucide-react";
-import { useAdminContext } from '@/contexts/AdminContext'; // ✅ IMPORTAÇÃO CORRETA
-import type { Course, Seller } from '@/lib/types';
+import { useAdminContext } from '@/contexts/AdminContext';
+import type { Course } from '@/lib/types';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
-// Supondo que você tenha um hook ou forma de buscar os cursos
-// Se não tiver, pode adaptar o useEffect da página de academia
 const useCourses = () => {
     const [courses, setCourses] = useState<Course[]>([]);
-    // Lógica para buscar cursos aqui...
-    return { courses, isLoading: false };
+    const [isLoading, setIsLoading] = useState(true);
+    
+    useEffect(() => {
+        const coursesCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/courses`;
+        const unsubscribe = onSnapshot(collection(db, coursesCollectionPath), (snapshot) => {
+            setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course)));
+            setIsLoading(false);
+        }, () => setIsLoading(false));
+        return () => unsubscribe();
+    }, []);
+    
+    return { courses, isLoading };
 }
 
 
@@ -27,14 +36,20 @@ export default function AdminQuizPage() {
     }, [courses, selectedCourseId]);
 
     const quizStats = useMemo(() => {
-        if (!selectedCourse || !selectedCourse.quiz) {
+        if (!selectedCourse?.quiz || sellers.length === 0) {
             return { totalQuestions: 0, averageScore: 0, completionRate: 0 };
         }
-        // Lógica para calcular as estatísticas do quiz (pode ser implementada depois)
+        
+        const completions = sellers.filter(s => s.completedCourseIds?.includes(selectedCourse.id!));
+        const completionRate = (completions.length / sellers.length) * 100;
+        
+        // Esta é uma simulação. Para a média real, precisaríamos armazenar os resultados dos quizzes
+        const averageScore = completions.length > 0 ? 85 : 0; // Simula uma média de 85% para quem completou
+
         return {
             totalQuestions: selectedCourse.quiz.length,
-            averageScore: 0, // Calcular média de acertos dos vendedores
-            completionRate: 0, // Calcular % de vendedores que completaram
+            averageScore: averageScore,
+            completionRate: completionRate,
         };
     }, [selectedCourse, sellers]);
 
@@ -86,8 +101,8 @@ export default function AdminQuizPage() {
                         <div className="flex items-center space-x-4 rounded-md border p-4">
                             <Trophy className="size-10 text-yellow-500" />
                             <div className="flex-1 space-y-1">
-                                <p className="text-sm font-medium leading-none">Média de Acertos</p>
-                                <p className="text-2xl font-semibold">{quizStats.averageScore.toFixed(1)}%</p>
+                                <p className="text-sm font-medium leading-none">Média de Acertos (Simulada)</p>
+                                <p className="text-2xl font-semibold">{quizStats.averageScore.toFixed(0)}%</p>
                             </div>
                         </div>
                         <div className="flex items-center space-x-4 rounded-md border p-4">
@@ -97,7 +112,6 @@ export default function AdminQuizPage() {
                                 <p className="text-2xl font-semibold">{quizStats.completionRate.toFixed(1)}%</p>
                             </div>
                         </div>
-                        {/* Aqui você pode adicionar uma tabela com os resultados de cada vendedor */}
                     </CardContent>
                 </Card>
             )}

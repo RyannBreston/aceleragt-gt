@@ -183,7 +183,7 @@ export default function AdminWorkSchedulePage() {
             ));
             setSellers(() => localSchedules);
             toast({ title: "Escala Salva com sucesso!" });
-        } catch (error) {
+        } catch {
             toast({ variant: "destructive", title: "Erro ao Salvar" });
         } finally {
             setIsSaving(false);

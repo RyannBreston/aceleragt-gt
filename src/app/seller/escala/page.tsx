@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, ChevronLeft, ChevronRight, Loader2, Clock, Coffee, Building, Moon, Sun } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Coffee, Moon, Sun } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { addDays, startOfWeek, endOfWeek, format, eachDayOfInterval, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -12,7 +12,7 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
-// --- Tipos e Constantes (Reutilizados) ---
+// --- Tipos e Constantes ---
 interface ShiftDefinition {
     id: string;
     name: string;
@@ -20,6 +20,7 @@ interface ShiftDefinition {
     lunchTime: string;
     exitTime: string;
     color: string;
+    time?: string; // Adicionado para flexibilidade
 }
 
 const weekDayKeys = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
@@ -33,7 +34,7 @@ const shiftColors: { [key: string]: string } = {
     gray: 'bg-gray-500/10 text-gray-400',
 };
 
-// --- Sub-componente: Card do Dia Atual (NOVO E MELHORADO) ---
+// --- Sub-componente: Card do Dia Atual ---
 const TodayScheduleCard = ({ date, shiftDef }: { date: Date; shiftDef?: ShiftDefinition }) => (
     <Card className="col-span-1 md:col-span-2 lg:col-span-3 shadow-lg border-2 border-primary animate-fade-in">
         <CardHeader>
@@ -63,7 +64,7 @@ const TodayScheduleCard = ({ date, shiftDef }: { date: Date; shiftDef?: ShiftDef
     </Card>
 );
 
-// --- Sub-componente: Item de Lista para os Próximos Dias (NOVO E MELHORADO) ---
+// --- Sub-componente: Item de Lista para os Próximos Dias ---
 const UpcomingDayItem = ({ date, shiftDef }: { date: Date; shiftDef?: ShiftDefinition }) => (
     <div className="flex items-center justify-between p-4 border-b last:border-b-0">
         <div>
@@ -89,7 +90,7 @@ export default function SellerWorkSchedulePage() {
     const [currentDate, setCurrentDate] = React.useState(new Date());
     const [isLoadingDefinitions, setIsLoadingDefinitions] = React.useState(true);
 
-    const shiftsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/shiftDefinitions`;
+    const shiftsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/shiftDefinitions`;
 
     React.useEffect(() => {
         const shiftsRef = collection(db, shiftsCollectionPath);
@@ -129,7 +130,6 @@ export default function SellerWorkSchedulePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Coluna da Esquerda: Foco no Dia de Hoje */}
                 <div className="lg:col-span-2">
                     {todayIndex !== -1 ? (
                         <TodayScheduleCard 
@@ -145,7 +145,6 @@ export default function SellerWorkSchedulePage() {
                     )}
                 </div>
 
-                {/* Coluna da Direita: Resto da Semana */}
                 <div className="lg:col-span-1">
                     <Card>
                         <CardHeader>
@@ -153,7 +152,6 @@ export default function SellerWorkSchedulePage() {
                         </CardHeader>
                         <CardContent className="p-0">
                             {weekDates.map((date, index) => {
-                                // Não mostra o dia de hoje novamente nesta lista
                                 if (isToday(date)) return null;
                                 
                                 const dayKey = weekDayKeys[index];

@@ -30,12 +30,11 @@ export default function MissionsPage() {
   const { toast } = useToast();
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newMission, setNewMission] = useState<Partial<Mission>>({
-      name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: [], isActive: true
+  const [newMission, setNewMission] = useState<Partial<Omit<Mission, 'id' | 'createdAt'>>>({
+      title: '', description: '', points: 100, metric: 'salesValue', goal: 1000, isActive: true
   });
 
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-  const missionsCollectionPath = `artifacts/${appId}/public/data/missions`;
+  const missionsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/missions`;
 
   useEffect(() => {
     const q = query(collection(db, missionsCollectionPath), orderBy('createdAt', 'desc'));
@@ -43,8 +42,7 @@ export default function MissionsPage() {
         const missionsData = snapshot.docs.map(d => ({
             id: d.id,
             ...d.data(),
-            startDate: d.data().startDate?.toDate(),
-            endDate: d.data().endDate?.toDate(),
+            deadline: d.data().deadline?.toDate(),
         } as Mission));
         setMissions(missionsData);
         setLoading(false);
@@ -52,21 +50,21 @@ export default function MissionsPage() {
     return () => unsubscribe();
   }, [missionsCollectionPath]);
   
-  const handleInputChange = (field: keyof Omit<Mission, 'id' | 'startDate' | 'endDate' | 'completedBy' | 'createdAt'>, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof Omit<Mission, 'id' | 'createdAt' | 'deadline'>, value: string | number | boolean) => {
       setNewMission(prev => ({ ...prev, [field]: value }));
   };
 
   const handleAddMission = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMission.name || !newMission.rewardValue || !newMission.startDate || !newMission.endDate || !newMission.criterion || !newMission.target) {
+    if (!newMission.title || !newMission.points || !newMission.deadline || !newMission.metric || !newMission.goal) {
         toast({ variant: 'destructive', title: 'Campos Obrigatórios' });
         return;
     }
     try {
         await addDoc(collection(db, missionsCollectionPath), { ...newMission, createdAt: serverTimestamp() });
         toast({ title: 'Missão Adicionada!' });
-        setNewMission({ name: '', description: '', rewardValue: 100, rewardType: 'points', criterion: 'salesValue', target: 1000, completedBy: [], isActive: true });
-    } catch (error) {
+        setNewMission({ title: '', description: '', points: 100, metric: 'salesValue', goal: 1000, isActive: true });
+    } catch {
         toast({ variant: 'destructive', title: 'Erro ao criar missão.' });
     }
   };
@@ -83,14 +81,10 @@ export default function MissionsPage() {
       try {
           await updateDoc(missionRef, { isActive: !currentStatus });
           toast({ title: `Missão ${!currentStatus ? 'ativada' : 'desativada'} com sucesso!` });
-      } catch (error) {
+      } catch {
           toast({ variant: 'destructive', title: 'Erro ao alterar o status da missão.' });
       }
   };
-
-  const formatReward = (mission: Mission) => {
-    return mission.rewardType === 'cash' ? mission.rewardValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : `${mission.rewardValue} pts`;
-  }
 
   return (
     <div className="space-y-8">
@@ -109,7 +103,7 @@ export default function MissionsPage() {
             <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label htmlFor="missionName">Nome da Missão</Label>
-                    <Input id="missionName" placeholder="Ex: Vender 5 Pares do Modelo X" value={newMission.name || ''} onChange={(e) => handleInputChange('name', e.target.value)} required />
+                    <Input id="missionName" placeholder="Ex: Vender 5 Pares do Modelo X" value={newMission.title || ''} onChange={(e) => handleInputChange('title', e.target.value)} required />
                 </div>
                 <div className="space-y-2">
                     <Label htmlFor="missionDescription">Descrição da Missão</Label>
@@ -119,35 +113,24 @@ export default function MissionsPage() {
              <div className="grid md:grid-cols-3 gap-4">
                <div className="space-y-2">
                  <Label htmlFor="missionCriterion">Critério</Label>
-                 <Select value={newMission.criterion} onValueChange={(v) => handleInputChange('criterion', v as string)}>
+                 <Select value={newMission.metric} onValueChange={(v) => handleInputChange('metric', v as string)}>
                     <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>{missionCriteria.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
                  </Select>
                </div>
                 <div className="space-y-2">
                     <Label htmlFor="missionTarget">Objetivo</Label>
-                    <Input id="missionTarget" type="number" value={newMission.target || ''} onChange={(e) => handleInputChange('target', Number(e.target.value))} required />
+                    <Input id="missionTarget" type="number" value={newMission.goal || ''} onChange={(e) => handleInputChange('goal', Number(e.target.value))} required />
                 </div>
-                <div className="space-y-2">
-                    <Label htmlFor="missionRewardType">Tipo de Recompensa</Label>
-                    <Select value={newMission.rewardType} onValueChange={(v) => handleInputChange('rewardType', v as 'points' | 'cash')}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="points">Pontos</SelectItem><SelectItem value="cash">Dinheiro (R$)</SelectItem></SelectContent>
-                    </Select>
+                 <div className="space-y-2">
+                    <Label htmlFor="missionRewardValue">Recompensa (Pontos)</Label>
+                    <Input id="missionRewardValue" type="number" value={newMission.points || ''} onChange={(e) => handleInputChange('points', Number(e.target.value))} required />
                 </div>
             </div>
              <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor="missionRewardValue">Valor da Recompensa</Label>
-                    <Input id="missionRewardValue" type="number" value={newMission.rewardValue || ''} onChange={(e) => handleInputChange('rewardValue', Number(e.target.value))} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="missionStartDate">Data de Início</Label>
-                    <Popover><PopoverTrigger asChild><Button id="missionStartDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.startDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.startDate ? format(newMission.startDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.startDate} onSelect={(date) => setNewMission(p => ({...p, startDate: date || undefined}))} initialFocus /></PopoverContent></Popover>
-                </div>
-                <div className="space-y-2">
                     <Label htmlFor="missionEndDate">Data de Fim</Label>
-                    <Popover><PopoverTrigger asChild><Button id="missionEndDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.endDate && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.endDate ? format(newMission.endDate, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.endDate} onSelect={(date) => setNewMission(p => ({...p, endDate: date || undefined}))} initialFocus disabled={{ before: newMission.startDate }} /></PopoverContent></Popover>
+                    <Popover><PopoverTrigger asChild><Button id="missionEndDate" variant={'outline'} className={cn('w-full justify-start text-left font-normal', !newMission.deadline && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{newMission.deadline ? format(newMission.deadline, 'PPP', {locale: ptBR}) : <span>Escolha uma data</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><CalendarComponent mode="single" selected={newMission.deadline} onSelect={(date) => setNewMission(p => ({...p, deadline: date || undefined}))} initialFocus /></PopoverContent></Popover>
                 </div>
              </div>
             <Button type="submit"><PlusCircle className="mr-2" />Criar Nova Missão</Button>
@@ -172,9 +155,9 @@ export default function MissionsPage() {
                             aria-label="Ativar/desativar missão"
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{mission.name}</TableCell>
-                      <TableCell>{missionCriteria.find(c => c.value === mission.criterion)?.label}: {mission.target}</TableCell>
-                      <TableCell className="font-semibold">{formatReward(mission)}</TableCell>
+                      <TableCell className="font-medium">{mission.title}</TableCell>
+                      <TableCell>{missionCriteria.find(c => c.value === mission.metric)?.label}: {mission.goal}</TableCell>
+                      <TableCell className="font-semibold">{mission.points} pts</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteMission(mission.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </TableCell>

@@ -6,12 +6,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star, Info } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useAdminContext } from '@/contexts/AdminContext';
-import type { Goals, GoalLevel as GoalLevelType, Seller, SalesValueGoals } from '@/lib/types';
-import { Progress } from '@/components/ui/progress';
+import type { Goals, Seller } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn, calculateSellerPrizes } from '@/lib/utils';
+import { calculateSellerPrizes } from '@/lib/utils';
 
 // Tipos e Constantes
 type RankingCriterion = 'totalPrize' | 'salesValue' | 'ticketAverage' | 'pa' | 'points';
@@ -54,21 +52,24 @@ PrizeTooltip.displayName = 'PrizeTooltip';
 // ### 2. CUSTOM HOOK PARA A LÓGICA DE DADOS ###
 // ####################################################################
 
-const useRankingData = (sellers: Seller[], goals: Goals, criterion: RankingCriterion) => {
+const useRankingData = (sellers: Seller[], goals: Goals | null, criterion: RankingCriterion) => {
   return useMemo(() => {
+    if (!goals) return [];
     const sellersWithPrizes = sellers.map(seller => calculateSellerPrizes(seller, sellers, goals));
     
     return [...sellersWithPrizes].sort((a, b) => {
       if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
       if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
-      return b[criterion as keyof Seller] - a[criterion as keyof Seller];
+      const valueA = a[criterion as keyof Seller] || 0;
+      const valueB = b[criterion as keyof Seller] || 0;
+      return (valueB as number) - (valueA as number);
     });
   }, [sellers, goals, criterion]);
 };
 
-// Funções de formatação (podem ser movidas para utils se usadas em outros locais)
+// Funções de formatação
 const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-const formatValue = (value: number, criterion: RankingCriterion | 'salesValue') => {
+const formatValue = (value: number, criterion: RankingCriterion) => {
   if (criterion === 'pa') return value.toFixed(1);
   if (criterion === 'points') return value.toLocaleString('pt-BR');
   return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -79,7 +80,7 @@ const formatValue = (value: number, criterion: RankingCriterion | 'salesValue') 
 // ### 3. COMPONENTE DA LINHA DA TABELA (ROW) ###
 // ####################################################################
 
-const RankingRow = memo(({ seller, rank, criterion, goalsData }: { seller: SellerWithPrize, rank: number, criterion: RankingCriterion, goalsData: Goals }) => {
+const RankingRow = memo(({ seller, rank, criterion }: { seller: SellerWithPrize, rank: number, criterion: RankingCriterion }) => {
   const sellerValue = criterion === 'totalPrize' ? seller.totalPrize : (criterion === 'points' ? seller.points + seller.extraPoints : seller[criterion as keyof Seller]);
   const prizeToDisplay = criterion === 'totalPrize' ? seller.totalPrize : seller.prizes[criterion as keyof typeof seller.prizes] || 0;
 
@@ -101,7 +102,7 @@ RankingRow.displayName = 'RankingRow';
 
 
 // ####################################################################
-// ### 4. COMPONENTE PRINCIPAL DA PÁGINA (MAIS LIMPO) ###
+// ### 4. COMPONENTE PRINCIPAL DA PÁGINA ###
 // ####################################################################
 
 export default function RankingPage() {
@@ -165,7 +166,7 @@ export default function RankingPage() {
               </TableHeader>
               <TableBody>
                 {sortedSellers.map((seller, index) => (
-                  <RankingRow key={seller.id} seller={seller} rank={index} criterion={criterion} goalsData={goals} />
+                  <RankingRow key={seller.id} seller={seller} rank={index} criterion={criterion} />
                 ))}
               </TableBody>
             </Table>

@@ -10,10 +10,9 @@ import {
 } from '@/components/ui/card';
 import {
   ChartTooltipContent,
-  ChartTooltip,
   ChartContainer
 } from '@/components/ui/chart';
-import { SalesEntry } from '@/lib/types';
+import type { SalesEntry } from '@/lib/types';
 import { format } from 'date-fns';
 
 type SalesChartProps = {
@@ -63,7 +62,7 @@ export default function SalesChartComponent({ salesData }: SalesChartProps) {
                     strokeDasharray: '3 3',
                   }}
                   content={<ChartTooltipContent
-                    formatter={(value) => `$${value.toLocaleString()}`}
+                    formatter={(value) => `$${(value as number).toLocaleString()}`}
                     indicator="dot" 
                    />}
                 />

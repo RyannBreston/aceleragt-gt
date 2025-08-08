@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image'; // Importando o componente Image
+import Image from 'next/image';
 import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save } from 'lucide-react';
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -142,7 +142,7 @@ export default function AdminLojaPage() {
         try {
             await deleteDoc(doc(db, prizesCollectionPath, prizeId));
             toast({ title: 'Prémio Excluído!' });
-        } catch (error) {
+        } catch {
             toast({ variant: 'destructive', title: 'Erro ao Excluir' });
         }
     };
