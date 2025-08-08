@@ -4,10 +4,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, BookCopy, Trash2, GraduationCap, Search, Users, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Loader2, BookCopy, Trash2, GraduationCap, PlusCircle, Edit, FileText, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Course } from '@/lib/types';
 import { useAdminContext } from '@/contexts/AdminContext';
@@ -82,21 +83,21 @@ export default function AcademiaPage() {
     }, [courses, sellers]);
 
     const handleDeleteCourse = async (courseId: string) => {
-        if (window.confirm('Tem certeza que deseja excluir este curso?')) {
-            try {
-                await deleteDoc(doc(db, coursesCollectionPath, courseId));
-                toast({ title: 'Curso excluído.' });
-            } catch {
-                toast({ variant: 'destructive', title: 'Erro ao Excluir' });
-            }
+        try {
+            await deleteDoc(doc(db, coursesCollectionPath, courseId));
+            toast({ title: 'Curso excluído.' });
+        } catch {
+            toast({ variant: 'destructive', title: 'Erro ao Excluir' });
         }
     };
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <GraduationCap className="size-8 text-primary" />
-                <h1 className="text-3xl font-bold">Academia de Vendas</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                  <GraduationCap className="size-8 text-primary" />
+                  <h1 className="text-3xl font-bold">Academia de Vendas</h1>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -121,7 +122,19 @@ export default function AcademiaPage() {
                                     <CardContent className="flex-grow"><p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p></CardContent>
                                     <CardFooter className="flex gap-2">
                                         <Dialog><DialogTrigger asChild><Button variant="outline" size="sm" className="flex-1"><FileText className="mr-2 size-4" /> Certificado</Button></DialogTrigger><CertificatePreview course={course} /></Dialog>
-                                        <Button onClick={() => handleDeleteCourse(course.id!)} variant="destructive" size="icon"><Trash2 className="size-4" /></Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="size-4" /></Button></AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
+                                                    <AlertDialogDescription>Esta ação não pode ser desfeita e irá remover o curso permanentemente.</AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={() => handleDeleteCourse(course.id!)}>Excluir</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </CardFooter>
                                 </Card>
                             ))}
