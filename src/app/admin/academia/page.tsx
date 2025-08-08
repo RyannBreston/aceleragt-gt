@@ -4,16 +4,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, BookCopy, Trash2, GraduationCap, PlusCircle, Edit, FileText, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, BookCopy, Trash2, GraduationCap, Search, Users, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Course } from '@/lib/types';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { db } from '@/lib/firebase';
 import { collection, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Certificate } from '@/components/Certificate';
-import { CourseEditorModal } from '@/components/CourseEditorModal';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 
 // --- Sub-componente: Pré-visualização do Certificado ---
 const CertificatePreview = ({ course }: { course: Course }) => {
@@ -39,7 +39,6 @@ const CertificatePreview = ({ course }: { course: Course }) => {
     );
 };
 
-
 // --- Componente Principal da Página ---
 export default function AcademiaPage() {
     const { sellers } = useAdminContext();
@@ -47,8 +46,6 @@ export default function AcademiaPage() {
     
     const [courses, setCourses] = useState<Course[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
-    const [currentCourse, setCurrentCourse] = useState<Partial<Course> | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const coursesPerPage = 6;
@@ -83,11 +80,6 @@ export default function AcademiaPage() {
         });
         return completions;
     }, [courses, sellers]);
-    
-    const openCourseModal = (course?: Partial<Course>) => {
-        setCurrentCourse(course || { title: '', content: '', quiz: [], points: 100, dificuldade: 'Médio' });
-        setIsModalOpen(true);
-    };
 
     const handleDeleteCourse = async (courseId: string) => {
         if (window.confirm('Tem certeza que deseja excluir este curso?')) {
@@ -102,12 +94,9 @@ export default function AcademiaPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                  <GraduationCap className="size-8 text-primary" />
-                  <h1 className="text-3xl font-bold">Academia de Vendas</h1>
-              </div>
-              <Button onClick={() => openCourseModal()}><PlusCircle className="mr-2 h-4 w-4" /> Criar Curso</Button>
+            <div className="flex items-center gap-4">
+                <GraduationCap className="size-8 text-primary" />
+                <h1 className="text-3xl font-bold">Academia de Vendas</h1>
             </div>
 
             <div className="space-y-4">
@@ -131,8 +120,7 @@ export default function AcademiaPage() {
                                     </CardHeader>
                                     <CardContent className="flex-grow"><p className="text-sm text-muted-foreground line-clamp-3">{course.content}</p></CardContent>
                                     <CardFooter className="flex gap-2">
-                                        <Button onClick={() => openCourseModal(course)} size="sm" className="flex-1"><Edit className="mr-2 size-4" /> Editar</Button>
-                                        <Dialog><DialogTrigger asChild><Button variant="outline" size="sm"><FileText className="mr-2 size-4" /> Certificado</Button></DialogTrigger><CertificatePreview course={course} /></Dialog>
+                                        <Dialog><DialogTrigger asChild><Button variant="outline" size="sm" className="flex-1"><FileText className="mr-2 size-4" /> Certificado</Button></DialogTrigger><CertificatePreview course={course} /></Dialog>
                                         <Button onClick={() => handleDeleteCourse(course.id!)} variant="destructive" size="icon"><Trash2 className="size-4" /></Button>
                                     </CardFooter>
                                 </Card>
@@ -153,8 +141,6 @@ export default function AcademiaPage() {
                     </div>
                 )}
             </div>
-
-            {currentCourse && <CourseEditorModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} course={currentCourse} collectionPath={coursesCollectionPath} />}
         </div>
     );
 }
