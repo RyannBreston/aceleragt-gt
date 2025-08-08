@@ -5,9 +5,7 @@ import {
   GenerateCourseInputSchema,
   GenerateCourseOutputSchema,
 } from '@/lib/types';
-import {gemini10Pro} from '@genkit-ai/googleai';
 
-// Definição do Prompt de forma explícita
 const coursePrompt = ai.definePrompt(
   {
     name: 'coursePrompt',
@@ -24,7 +22,6 @@ export const generateCourse = ai.defineFlow(
     outputSchema: GenerateCourseOutputSchema,
   },
   async ({topic}) => {
-    // Chamada usando o prompt definido
     const {output} = await coursePrompt({topic});
     
     if (!output) {

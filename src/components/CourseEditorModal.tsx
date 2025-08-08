@@ -73,10 +73,10 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
     };
     try {
         if (currentCourse.id) {
-            await updateDoc(doc(db, collectionPath, currentCourse.id), finalCourseData);
+            await updateDoc(doc(db, collectionPath, currentCourse.id), finalCourseData as any);
             toast({ title: 'Curso atualizado!' });
         } else {
-            await addDoc(collection(db, collectionPath), finalCourseData);
+            await addDoc(collection(db, collectionPath), finalCourseData as any);
             toast({ title: 'Curso criado!' });
         }
         setIsOpen(false);
