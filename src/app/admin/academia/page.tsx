@@ -42,7 +42,7 @@ const CertificatePreview = ({ course }: { course: Course }) => {
 
 // --- Componente Principal da Página ---
 export default function AcademiaPage() {
-    const { sellers } = useAdminContext();
+    const { sellers, isAuthReady } = useAdminContext(); // Acessa o isAuthReady
     const { toast } = useToast();
     
     const [courses, setCourses] = useState<Course[]>([]);
@@ -54,12 +54,15 @@ export default function AcademiaPage() {
     const coursesCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/courses`;
 
     useEffect(() => {
+        // CORREÇÃO DEFINITIVA: Só executa o onSnapshot DEPOIS que a autenticação estiver pronta.
+        if (!isAuthReady) return;
+
         const unsubscribe = onSnapshot(collection(db, coursesCollectionPath), (snapshot) => {
             setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course)));
             setLoadingCourses(false);
         }, () => setLoadingCourses(false));
         return () => unsubscribe();
-    }, [coursesCollectionPath]);
+    }, [isAuthReady, coursesCollectionPath]); // Adiciona isAuthReady às dependências
     
     const { filteredCourses, totalPages } = useMemo(() => {
         const filtered = courses.filter(course => course.title.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -90,6 +93,11 @@ export default function AcademiaPage() {
             toast({ variant: 'destructive', title: 'Erro ao Excluir' });
         }
     };
+    
+    // Mostra um loader geral enquanto a autenticação é verificada
+    if (!isAuthReady) {
+        return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
 
     return (
         <div className="space-y-8">
