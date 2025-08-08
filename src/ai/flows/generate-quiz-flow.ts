@@ -6,7 +6,7 @@ import {
   GenerateQuizOutputSchema,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
-import {geminiPro} from '@genkit-ai/googleai';
+import {gemini10Pro} from '@genkit-ai/googleai';
 
 export const generateQuizFlow = ai.defineFlow(
   {
@@ -18,7 +18,7 @@ export const generateQuizFlow = ai.defineFlow(
     const prompt = `Gere um quiz sobre "${topic}" com ${numQuestions} perguntas. Cada pergunta deve ter 4 opções, uma explicação para a resposta correta e o índice da resposta correta (de 0 a 3). O quiz deve ter um título geral.`;
 
     const {output} = await generate({
-      model: geminiPro,
+      model: gemini10Pro,
       prompt: prompt,
       output: {
         schema: GenerateQuizOutputSchema,
