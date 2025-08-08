@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { GraduationCap, LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap } from 'lucide-react';
+import { LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,6 @@ const allMenuItems = [
     {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays, key: 'escala'},
     {href: '/admin/sprints', label: 'Corridinhas Diárias', icon: Zap, key: 'sprints'}, 
     {href: '/admin/missions', label: 'Missões', icon: Target, key: 'missions'},
-    {href: '/admin/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
     {href: '/admin/quiz', label: 'Quiz', icon: Puzzle, key: 'quiz'},
     {href: '/admin/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
     {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag, key: 'ofertas'},
