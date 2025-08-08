@@ -54,7 +54,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!authStatus.isAdmin) return;
+    if (!authStatus.isAuthReady || !authStatus.isAdmin) return; // CORREÇÃO: Espera a autenticação estar pronta
 
     const unsubSellers = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
       const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
@@ -72,7 +72,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => { unsubSellers(); unsubHistory(); unsubGoals(); };
-  }, [authStatus.isAdmin]);
+  }, [authStatus.isAuthReady, authStatus.isAdmin]);
 
   const contextValue = useMemo(() => ({
     ...state,

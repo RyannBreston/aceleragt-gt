@@ -41,23 +41,12 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
   useEffect(() => {
-    let sprintUnsubscribe: () => void = () => {};
-
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      sprintUnsubscribe();
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists() && userDoc.data().role === 'seller') {
           setAuthStatus({ isAuthReady: true, user, isSeller: true });
-          const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', user.uid), orderBy('createdAt', 'desc'), limit(1));
-          sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
-            if (!snapshot.empty) {
-              setActiveSprint({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
-            } else {
-              setActiveSprint(null);
-            }
-          });
         } else {
           setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
         }
@@ -65,27 +54,36 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
       }
     });
+    return () => authUnsubscribe();
+  }, []);
 
-    return () => {
-        authUnsubscribe();
-        sprintUnsubscribe();
-    };
-  }, [router, sprintsCollectionPath]);
-  
   useEffect(() => {
+    if (!authStatus.isAuthReady || !authStatus.isSeller || !authStatus.user) return;
+
+    const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', authStatus.user.uid), orderBy('createdAt', 'desc'), limit(1));
+    const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
+      if (!snapshot.empty) {
+        setActiveSprint({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
+      } else {
+        setActiveSprint(null);
+      }
+    });
+
     const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
-    const unsubscribe = onSnapshot(goalsRef, (doc) => {
+    const goalsUnsubscribe = onSnapshot(goalsRef, (doc) => {
         dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
     });
-    return () => unsubscribe();
-  }, []);
 
-  useEffect(() => {
-    const unsubSellers = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
+    const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
       dataStore.setSellers(() => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
     });
-    return () => unsubSellers();
-  }, []);
+
+    return () => {
+      sprintUnsubscribe();
+      goalsUnsubscribe();
+      sellersUnsubscribe();
+    };
+  }, [authStatus.isAuthReady, authStatus.isSeller, authStatus.user, sprintsCollectionPath]);
 
   useEffect(() => {
     if (authStatus.isSeller && authStatus.user) {
