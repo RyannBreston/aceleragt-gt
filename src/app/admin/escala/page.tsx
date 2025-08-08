@@ -45,26 +45,26 @@ export default function EscalaPage() {
                 </div>
                 {definitions.map((def) => (
                     <div key={def.id} className="grid grid-cols-7 items-center gap-2">
-                        {/* --- CÓDIGO CORRIGIDO USANDO e.currentTarget --- */}
+                        {/* --- CÓDIGO CORRIGIDO COM TIPAGEM EXPLÍCITA DO EVENTO --- */}
                         <Input
                             className="col-span-2"
                             defaultValue={def.name}
-                            onBlur={(e) => handleUpdateShift(def.id, 'name', e.currentTarget.value)}
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'name', e.target.value)}
                         />
                         <Input
                             type="time"
                             defaultValue={def.entryTime}
-                            onBlur={(e) => handleUpdateShift(def.id, 'entryTime', e.currentTarget.value)}
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'entryTime', e.target.value)}
                         />
                         <Input
                             defaultValue={def.lunchTime}
-                            onBlur={(e) => handleUpdateShift(def.id, 'lunchTime', e.currentTarget.value)}
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'lunchTime', e.target.value)}
                             placeholder="ex: 12:00-13:00"
                         />
                         <Input
                             type="time"
                             defaultValue={def.exitTime}
-                            onBlur={(e) => handleUpdateShift(def.id, 'exitTime', e.currentTarget.value)}
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => handleUpdateShift(def.id, 'exitTime', e.target.value)}
                         />
                     </div>
                 ))}
