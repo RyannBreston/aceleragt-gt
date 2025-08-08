@@ -1,10 +1,10 @@
 import { z } from 'zod';
+import { Timestamp } from 'firebase/firestore';
 
 // ====================================================================
 // TIPOS E ESQUEMAS PARA OS FLUXOS DE IA
 // ====================================================================
 
-// Para a Análise de Vendas (Insights com IA)
 export const AnalyzeSalesTrendsInputSchema = z.object({
   salesData: z.string(),
   timeFrame: z.string(),
@@ -17,7 +17,6 @@ export const AnalyzeSalesTrendsOutputSchema = z.object({
 export type AnalyzeSalesTrendsInput = z.infer<typeof AnalyzeSalesTrendsInputSchema>;
 export type AnalyzeSalesTrendsOutput = z.infer<typeof AnalyzeSalesTrendsOutputSchema>;
 
-// Para a Geração de Cursos da Academia
 export const GenerateCourseInputSchema = z.object({
     topic: z.string(),
 });
@@ -34,8 +33,6 @@ export const GenerateCourseOutputSchema = z.object({
 export type GenerateCourseInput = z.infer<typeof GenerateCourseInputSchema>;
 export type GenerateCourseOutput = z.infer<typeof GenerateCourseOutputSchema>;
 
-// ✅ NOVOS ESQUEMAS E TIPOS ADICIONADOS AQUI
-// Para a Geração de Quizzes
 export const GenerateQuizInputSchema = z.object({
   topic: z.string(),
   numQuestions: z.number().min(1).max(10),
@@ -54,8 +51,6 @@ export const GenerateQuizOutputSchema = z.object({
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
-
-// Para a Recuperação de Senha
 export const PasswordResetInputSchema = z.object({
   email: z.string().email('Por favor, insira um email válido.'),
 });
@@ -66,10 +61,17 @@ export const PasswordResetOutputSchema = z.object({
 export type PasswordResetInput = z.infer<typeof PasswordResetInputSchema>;
 export type PasswordResetOutput = z.infer<typeof PasswordResetOutputSchema>;
 
-
 // ====================================================================
 // TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
 // ====================================================================
+
+export interface Admin {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin';
+  createdAt?: Timestamp;
+}
 
 export interface Seller {
   id: string;
@@ -83,7 +85,7 @@ export interface Seller {
   extraPoints: number;
   completedCourseIds?: string[];
   workSchedule?: Record<string, string>;
-  createdAt?: any;
+  createdAt?: Timestamp;
 }
 
 export interface GoalLevel {
@@ -105,6 +107,7 @@ export interface GamificationSettings {
     ofertas: boolean;
     loja: boolean;
     ranking: boolean;
+    sprints: boolean;
 }
 
 export interface Goals {
@@ -115,14 +118,15 @@ export interface Goals {
     gamification: GamificationSettings;
 }
 
-// ... (e todos os outros tipos que você já tinha)
+export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';
+
 export interface Course {
     id?: string;
     title: string;
     content: string;
     quiz: QuizQuestion[];
     points: number;
-    dificuldade: 'Fácil' | 'Médio' | 'Difícil';
+    dificuldade: CourseDifficulty;
 }
 
 export interface QuizQuestion {
@@ -139,21 +143,65 @@ export interface Quiz {
 }
 
 export interface QuizResult {
-    quizId: string;
-    quizTitle: string;
-    sellerId: string;
-    sellerName: string;
+    date: string;
     score: number;
-    correctAnswers: number;
-    totalQuestions: number;
-    timestamp: Date;
+    total: number;
 }
 
 export interface DailySprint {
     id: string;
     title: string;
-    sprintTiers: { goal: number; prizePoints: number }[];
+    sprintTiers: { goal: number; points: number }[];
     createdAt: { seconds: number, nanoseconds: number };
     participantIds: string[];
     isActive: boolean;
+}
+
+export interface PrizeItem {
+    id: string;
+    name: string;
+    description: string;
+    points: number;
+    stock?: number | null;
+    imageUrl: string;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+export interface Offer {
+    id: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    originalPrice?: number;
+    promotionalPrice: number;
+    startDate: Date;
+    expirationDate: Date;
+    isActive: boolean;
+    category: string;
+    productCode?: string;
+    reference?: string;
+    isFlashOffer?: boolean;
+    isBestSeller?: boolean;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
+export interface Mission {
+    id: string;
+    title: string;
+    description: string;
+    points: number;
+    type: 'individual' | 'team';
+    goal: number;
+    metric: 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+    isActive: boolean;
+    deadline: Date;
+}
+
+export interface CycleSnapshot {
+    id: string;
+    endDate: Timestamp;
+    sellers: Seller[];
+    goals: Goals;
 }

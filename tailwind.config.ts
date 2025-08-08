@@ -52,12 +52,6 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // --- SUAS CORES PERSONALIZADAS DEFINIDAS AQUI ---
-        supermoda: {
-          pink: '#ef476f',
-          blue: '#4b5aa6',
-          gray: '#999999',
-        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, AuthError } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { Loader2, Github } from 'lucide-react';
 
@@ -22,51 +22,51 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // 1. Autenticar o utilizador com o Firebase Auth
+      // 1. Autenticar o utilizador
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Obter o documento do utilizador no Firestore para verificar a sua função (role)
+      // 2. Obter o documento do utilizador no Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       // 3. Validar se o perfil do utilizador existe
       if (!userDoc.exists()) {
-        // Se não existir, forçamos o logout para segurança e lançamos um erro.
         await auth.signOut();
         throw new Error('Perfil de utilizador não encontrado.');
       }
 
-      // 4. Determinar o 'role' e redirecionar para o painel correto
+      // 4. Determinar a função e redirecionar
       const userData = userDoc.data();
       const role = userData?.role;
 
       if (role === 'admin') {
-        router.push('/admin/dashboard'); // Redireciona para o dashboard do admin
+        router.push('/admin/dashboard');
       } else if (role === 'seller') {
-        // O localStorage não é mais necessário. A autenticação é gerida pelo onAuthStateChanged.
-        router.push('/seller/dashboard'); // Redireciona para o dashboard do vendedor
+        router.push('/seller/dashboard');
       } else {
-        // Se o 'role' for inválido ou não existir, forçamos o logout e lançamos um erro.
         await auth.signOut();
         throw new Error('Perfil de utilizador inválido ou não autorizado.');
       }
 
-    } catch (error: any) {
-      // 5. Tratamento de erros centralizado
+    } catch (error: unknown) {
+      // 5. Tratamento de erros aprimorado
       let errorMessage = 'Ocorreu um erro ao tentar entrar.';
-
-      // Mapeia códigos de erro do Firebase para mensagens amigáveis
-      if (error.code?.includes('auth/')) {
-        errorMessage = 'Email ou senha inválidos. Por favor, tente novamente.';
-      } else if (error.message) {
-        // Usa a mensagem de erro personalizada (ex: "Perfil não encontrado")
-        errorMessage = error.message;
+      
+      if (error instanceof Error) {
+        // Verifica se é um erro de autenticação do Firebase
+        const firebaseError = error as AuthError;
+        if (firebaseError.code && firebaseError.code.startsWith('auth/')) {
+          errorMessage = 'Email ou senha inválidos. Por favor, tente novamente.';
+        } else {
+          // Usa a mensagem de erro personalizada (ex: "Perfil não encontrado")
+          errorMessage = error.message;
+        }
       }
 
       toast({
@@ -122,7 +122,6 @@ export default function LoginPage() {
               Entrar
             </Button>
           </form>
-          {/* O link para signup pode ser removido se você já apagou a página de signup */}
           <div className="mt-4 text-center text-sm">
             Não tem uma conta?{' '}
             <Link href="/signup" className="underline">

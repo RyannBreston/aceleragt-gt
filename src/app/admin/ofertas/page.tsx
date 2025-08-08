@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save, Image as ImageIcon, Calendar as CalendarIcon } from 'lucide-react';
+import Image from 'next/image';
+import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save, Calendar as CalendarIcon } from 'lucide-react';
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from '@/hooks/use-toast';
@@ -21,9 +22,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-// ✅ IMPORTAÇÃO CORRIGIDA AQUI: Adicionado DialogFooter
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { cn } from '@/lib/utils';
+import { Badge } from "@/components/ui/badge"; // CORREÇÃO: Importando o Badge
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -95,7 +95,7 @@ const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean;
                     <div className="space-y-2"><Label>Descrição</Label><Textarea name="description" value={formData.description || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Upload de Imagem (Max 5MB)</Label><Input type="file" accept="image/*" onChange={handleFileChange} /></div>
                     <div className="space-y-2"><Label>Ou cole a URL da Imagem</Label><Input name="imageUrl" value={formData.imageUrl || ''} onChange={handleChange} disabled={!!imageFile} /></div>
-                    {formData.imageUrl && <div className="flex justify-center"><img src={formData.imageUrl} alt="Pré-visualização" className="w-32 h-32 object-cover rounded-md border"/></div>}
+                    {formData.imageUrl && <div className="flex justify-center"><Image src={formData.imageUrl} alt="Pré-visualização" width={128} height={128} className="w-32 h-32 object-cover rounded-md border"/></div>}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Valor Original (R$)</Label><Input name="originalPrice" type="text" value={formData.originalPrice || ''} onChange={handlePriceChange} /></div>
                         <div className="space-y-2"><Label>Preço Promocional (R$)</Label><Input name="promotionalPrice" type="text" value={formData.promotionalPrice || ''} onChange={handlePriceChange} required /></div>
@@ -167,8 +167,9 @@ export default function AdminOffersPage() {
                 toast({ title: 'Oferta Adicionada!' });
             }
             setIsModalOpen(false);
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Falha ao Salvar', description: err.message });
+        } catch (err: unknown) { // CORREÇÃO: Usando 'unknown' em vez de 'any'
+            const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
+            toast({ variant: 'destructive', title: 'Falha ao Salvar', description: errorMessage });
         }
     };
 
@@ -176,8 +177,9 @@ export default function AdminOffersPage() {
         try {
             await deleteDoc(doc(db, offersCollectionPath, offerId));
             toast({ title: 'Oferta Excluída!' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro ao Excluir' });
+        } catch (error: unknown) { // CORREÇÃO: Usando 'unknown' e tratando a mensagem
+            const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+            toast({ variant: 'destructive', title: 'Erro ao Excluir', description: errorMessage });
         }
     };
 
@@ -213,7 +215,7 @@ export default function AdminOffersPage() {
                                 ) : offers.length > 0 ? offers.map(offer => (
                                     <TableRow key={offer.id}>
                                         <TableCell className="font-medium flex items-center gap-4">
-                                            <img src={offer.imageUrl || 'https://placehold.co/60x60/27272a/FFF?text=Oferta'} alt={offer.name} className="w-12 h-12 object-cover rounded-md bg-muted" />
+                                            <Image src={offer.imageUrl || 'https://placehold.co/60x60/27272a/FFF?text=Oferta'} alt={offer.name} width={48} height={48} className="w-12 h-12 object-cover rounded-md bg-muted" />
                                             <div>
                                                 <p>{offer.name}</p>
                                                 <p className="text-xs text-muted-foreground">{offer.category}</p>
@@ -221,7 +223,7 @@ export default function AdminOffersPage() {
                                         </TableCell>
                                         <TableCell className="font-semibold text-primary">{`R$ ${offer.promotionalPrice.toFixed(2)}`}</TableCell>
                                         <TableCell>
-                                            <Badge variant={offer.isActive ? "default" : "outline"}>
+                                            <Badge variant={offer.isActive ? "secondary" : "outline"}>
                                                 {offer.isActive ? "Ativa" : "Inativa"}
                                             </Badge>
                                         </TableCell>
@@ -230,7 +232,7 @@ export default function AdminOffersPage() {
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
                                                 <AlertDialogContent>
-                                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação irá remover a oferta "{offer.name}" permanentemente.</AlertDialogDescription></AlertDialogHeader>
+                                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação irá remover a oferta &quot;{offer.name}&quot; permanentemente.</AlertDialogDescription></AlertDialogHeader>
                                                     <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteOffer(offer.id)} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
                                                 </AlertDialogContent>
                                             </AlertDialog>
@@ -240,7 +242,7 @@ export default function AdminOffersPage() {
                                     <TableRow>
                                         <TableCell colSpan={4} className="h-24 text-center">
                                             <p className="font-semibold">Nenhuma oferta criada.</p>
-                                            <p className="text-sm text-muted-foreground">Clique em "Adicionar Oferta" para começar.</p>
+                                            <p className="text-sm text-muted-foreground">Clique em &quot;Adicionar Oferta&quot; para começar.</p>
                                         </TableCell>
                                     </TableRow>
                                 )}

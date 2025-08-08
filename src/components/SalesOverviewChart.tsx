@@ -3,13 +3,13 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AreaChart } from 'lucide-react'; // Ícone para o estado vazio
+import { AreaChart } from 'lucide-react';
 import type { Seller } from '@/lib/types';
+import type { TooltipProps } from 'recharts';
 
 // ####################################################################
 // ### 1. FUNÇÃO AUXILIAR PARA FORMATAÇÃO ###
 // ####################################################################
-// Formata os números para o eixo Y e para o tooltip, tornando-os mais legíveis.
 const formatCurrency = (value: number) => {
   if (value >= 1000) {
     return `R$ ${(value / 1000).toFixed(1).replace('.', ',')}k`;
@@ -20,8 +20,7 @@ const formatCurrency = (value: number) => {
 // ####################################################################
 // ### 2. COMPONENTE TOOLTIP PERSONALIZADO ###
 // ####################################################################
-// Cria uma caixa de informações personalizada que segue o tema visual da aplicação.
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border bg-background p-2 shadow-sm">
@@ -32,15 +31,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </span>
             <span className="font-bold text-foreground">{label}</span>
           </div>
-          {payload.map((pld: any) => (
+          {payload.map((pld) => (
             <div key={pld.dataKey} className="flex flex-col space-y-1">
               <span className="text-[0.70rem] uppercase text-muted-foreground">
                 {pld.dataKey}
               </span>
-              <span className="font-bold" style={{ color: pld.fill }}>
-                {pld.dataKey.includes('R$') 
-                  ? pld.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                  : pld.value.toLocaleString('pt-BR')}
+              <span className="font-bold" style={{ color: pld.fill || undefined }}>
+                {pld.dataKey?.includes('R$') 
+                  ? pld.value?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                  : pld.value?.toLocaleString('pt-BR')}
               </span>
             </div>
           ))}
@@ -54,7 +53,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 // ####################################################################
 // ### 3. COMPONENTE PARA ESTADO VAZIO ###
 // ####################################################################
-// Um componente visualmente mais agradável para quando não há dados.
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
     <AreaChart className="size-10 mb-2" />
@@ -64,18 +62,16 @@ const EmptyState = () => (
 );
 
 export default function SalesOverviewChart({ sellers }: { sellers: Seller[] }) {
-  // O uso de useMemo aqui já é uma excelente prática de otimização.
   const chartData = useMemo(() => {
     if (!sellers || sellers.length === 0) {
       return [];
     }
-    // Ordena os vendedores por valor de vendas para uma melhor visualização
     return [...sellers]
-      .sort((a, b) => b.salesValue - a.salesValue)
+      .sort((a, b) => (b.salesValue || 0) - (a.salesValue || 0))
       .map(seller => ({
-        name: seller.name.split(' ')[0], // Usar apenas o primeiro nome
-        'Vendas (R$)': seller.salesValue,
-        'Pontos': seller.points + seller.extraPoints,
+        name: seller.name.split(' ')[0],
+        'Vendas (R$)': seller.salesValue || 0,
+        'Pontos': (seller.points || 0) + (seller.extraPoints || 0),
       }));
   }, [sellers]);
 
@@ -85,7 +81,6 @@ export default function SalesOverviewChart({ sellers }: { sellers: Seller[] }) {
         <CardTitle>Visão Geral de Vendas e Pontos</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* A div pai com altura definida é crucial para o ResponsiveContainer funcionar corretamente */}
         <div style={{ width: '100%', height: 350 }}>
           <ResponsiveContainer width="100%" height="100%">
             {chartData.length > 0 ? (

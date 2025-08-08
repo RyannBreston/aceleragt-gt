@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Loader2, GraduationCap, CheckCircle, Award, ArrowLeft, BookCopy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from 'react-markdown';
-import type { Course, QuizQuestion as QuizQuestionType } from '@/lib/types';
+import type { Course } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useSellerContext } from '@/contexts/SellerContext';
 import { db } from '@/lib/firebase';
@@ -70,7 +70,6 @@ const CourseView = ({ course, onBack, onComplete }: { course: Course; onBack: ()
     const { currentSeller } = useSellerContext();
     const isCompleted = currentSeller?.completedCourseIds?.includes(course.id!);
     
-    // Simulação de dados de performance para o certificado
     const score = 9;
     const totalQuestions = 10;
     const performance = score / totalQuestions;
@@ -98,7 +97,7 @@ const CourseView = ({ course, onBack, onComplete }: { course: Course; onBack: ()
                                     <DialogHeader className="sr-only">
                                         <DialogTitle>Certificado de Conclusão: {course.title}</DialogTitle>
                                         <DialogDescription>
-                                            Este é o seu certificado de conclusão para o curso "{course.title}".
+                                            Este é o seu certificado de conclusão para o curso &quot;{course.title}&quot;.
                                         </DialogDescription>
                                     </DialogHeader>
                                     <Certificate 
@@ -138,7 +137,7 @@ export default function SellerAcademiaPage() {
             try {
                 const snapshot = await getDocs(collection(db, coursesCollectionPath));
                 setCourses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course)));
-            } catch (err) {
+            } catch {
                 toast({ variant: 'destructive', title: 'Erro ao Carregar Cursos' });
             } finally {
                 setLoading(false);
@@ -178,7 +177,7 @@ export default function SellerAcademiaPage() {
             } : s));
             
             toast({ title: 'Parabéns!', description: `Você passou no teste e ganhou ${pointsEarned} pontos!` });
-        } catch (error) {
+        } catch {
             toast({ variant: 'destructive', title: 'Erro ao Salvar Progresso' });
         }
     };

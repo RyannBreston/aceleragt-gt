@@ -2,12 +2,12 @@
 
 // ⚠️ ATENÇÃO: Esta página só deve estar disponível temporariamente para criar o primeiro admin.
 // Em produção, remova essa funcionalidade ou proteja-a fortemente.
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, AuthError } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,7 @@ export default function SignupPage() {
   const [adminCode, setAdminCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
 
     if (adminCode.trim() !== ADMIN_CREATION_CODE) {
@@ -67,13 +67,16 @@ export default function SignupPage() {
       });
 
       router.push('/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       let message = 'Erro ao criar a conta.';
 
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'Este e-mail já está em uso.';
-      } else if (error.code === 'auth/invalid-email') {
-        message = 'E-mail inválido.';
+      if (error instanceof Error) {
+        const firebaseError = error as AuthError;
+        if (firebaseError.code === 'auth/email-already-in-use') {
+          message = 'Este e-mail já está em uso.';
+        } else if (firebaseError.code === 'auth/invalid-email') {
+          message = 'E-mail inválido.';
+        }
       }
 
       toast({

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, 'useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Loader2, User, KeyRound, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSellerContext } from '@/contexts/SellerContext';
-// ✅ 1. Importações necessárias do Firebase
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
+import { auth } from '@/lib/firebase';
 
 export default function SellerProfilePage() {
   const { currentSeller } = useSellerContext();
@@ -23,7 +23,6 @@ export default function SellerProfilePage() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const handleUpdatePassword = async () => {
-    // Validação no frontend
     if (newPassword.length < 6) {
       toast({ variant: "destructive", title: "Senha muito curta", description: "A nova senha deve ter no mínimo 6 caracteres." });
       return;
@@ -39,7 +38,6 @@ export default function SellerProfilePage() {
 
     setIsUpdatingPassword(true);
     try {
-      // ✅ 2. Lógica para chamar a Cloud Function
       const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
       await changePasswordFunction({
         uid: currentSeller.id,
@@ -48,19 +46,18 @@ export default function SellerProfilePage() {
 
       toast({ title: 'Senha atualizada com sucesso!', description: 'Você será desconectado e precisará de fazer login com a nova senha.' });
       
-      // Limpa os campos e fecha o modal
       setNewPassword('');
       setConfirmPassword('');
       setIsModalOpen(false);
       
-      // Opcional: Deslogar o utilizador imediatamente
-      // auth.signOut();
+      await auth.signOut();
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
       toast({
         variant: 'destructive',
         title: 'Erro ao alterar senha',
-        description: error.message,
+        description: errorMessage,
       });
     } finally {
       setIsUpdatingPassword(false);

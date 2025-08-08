@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { ShoppingBag, Loader2, Tag, Calendar, Sparkles, Star as StarIcon } from 'lucide-react';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -26,8 +27,9 @@ export default function SellerOffersPage() {
       setLoading(true);
       try {
         const now = Timestamp.now();
+        const offersCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/offers`;
         const offersQuery = query(
-          collection(db, 'offers'), 
+          collection(db, offersCollectionPath), 
           where('isActive', '==', true),
           where('startDate', '<=', now)
         );
@@ -40,12 +42,12 @@ export default function SellerOffersPage() {
           expirationDate: d.data().expirationDate?.toDate(),
         } as Offer));
 
-        // Filtra ofertas expiradas no lado do cliente
-        offersList = offersList.filter(offer => offer.expirationDate >= new Date());
+        offersList = offersList.filter(offer => offer.expirationDate && offer.expirationDate >= new Date());
         
         setOffers(offersList.sort((a, b) => (a.promotionalPrice || 0) - (b.promotionalPrice || 0)));
-      } catch (err: any) {
-        toast({ variant: 'destructive', title: 'Erro ao Carregar Ofertas', description: err.message });
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
+        toast({ variant: 'destructive', title: 'Erro ao Carregar Ofertas', description: errorMessage });
       } finally {
         setLoading(false);
       }
@@ -80,7 +82,7 @@ export default function SellerOffersPage() {
           {offers.map(offer => (
             <Card key={offer.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
               <CardHeader className="p-0 relative">
-                <img src={offer.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Produto'} alt={offer.name} className="w-full h-48 object-cover" />
+                <Image src={offer.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Produto'} alt={offer.name} width={600} height={400} className="w-full h-48 object-cover" />
                 <div className="absolute top-2 right-2 flex gap-2">
                     {offer.isFlashOffer && <Badge variant="destructive" className="animate-pulse"><Sparkles className="size-3 mr-1" />Relâmpago</Badge>}
                     {offer.isBestSeller && <Badge className="bg-yellow-400 text-black hover:bg-yellow-500"><StarIcon className="size-3 mr-1" />Mais Vendido</Badge>}
@@ -96,12 +98,14 @@ export default function SellerOffersPage() {
                     <p className="text-2xl font-bold text-primary">{formatCurrency(offer.promotionalPrice)}</p>
                 </div>
               </CardContent>
-              <CardFooter className="p-4 bg-muted/50">
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Calendar className="size-4 mr-2" />
-                    <span>Válido até: {format(offer.expirationDate, 'dd/MM/yyyy', { locale: ptBR })}</span>
-                  </div>
-              </CardFooter>
+              {offer.expirationDate && (
+                <CardFooter className="p-4 bg-muted/50">
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Calendar className="size-4 mr-2" />
+                      <span>Válido até: {format(offer.expirationDate, 'dd/MM/yyyy', { locale: ptBR })}</span>
+                    </div>
+                </CardFooter>
+              )}
             </Card>
           ))}
         </div>

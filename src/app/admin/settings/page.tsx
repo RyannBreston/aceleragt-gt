@@ -1,26 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import React, { useState, useEffect, ChangeEvent, ForwardedRef } from "react";
+import { useForm, useFieldArray, Control, UseFormGetValues, FieldValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Puzzle, Target, GraduationCap, ShoppingBag, Trophy, BarChart } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Puzzle, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext } from '@/contexts/AdminContext';
-import type { Goals, Seller } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, addDoc, collection, writeBatch } from "firebase/firestore";
+import { doc, addDoc, collection, writeBatch } from "firebase/firestore";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 
-// --- Esquema de Validação com Zod (em português e com o novo módulo) ---
+// --- Esquema de Validação com Zod ---
 const goalLevelSchema = z.object({
   threshold: z.coerce.number().min(0, "O valor deve ser >= 0."),
   prize: z.coerce.number().min(0, "O prémio deve ser >= 0."),
@@ -42,6 +40,7 @@ const gamificationSchema = z.object({
     ofertas: z.boolean().default(true),
     loja: z.boolean().default(true),
     ranking: z.boolean().default(true),
+    sprints: z.boolean().default(true),
 });
 
 const formSchema = z.object({
@@ -59,38 +58,35 @@ type FormData = z.infer<typeof formSchema>;
 type GoalLevels = keyof FormData['goals']['salesValue'];
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
-// --- Componente de Input de Moeda (Melhorado) ---
-const CurrencyInput = React.forwardRef<HTMLInputElement, any>(({ field, ...props }, ref) => {
+// --- Componente de Input de Moeda ---
+const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } & React.InputHTMLAttributes<HTMLInputElement>>(({ field, ...props }, ref: ForwardedRef<HTMLInputElement>) => {
     const [stringValue, setStringValue] = useState<string>(
       field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
     );
 
     useEffect(() => {
-        // Atualiza o valor exibido se o valor do formulário mudar externamente
         setStringValue(field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
     }, [field.value]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        setStringValue(value); // Permite que o utilizador digite livremente
+        setStringValue(value);
     };
 
     const handleBlur = () => {
-        // Ao sair, limpa, converte para número e atualiza o formulário
         const sanitizedValue = stringValue.replace(/[^0-9,]/g, '').replace(',', '.');
         const numericValue = parseFloat(sanitizedValue) || 0;
         field.onChange(numericValue);
-        // E formata o valor exibido
         setStringValue(numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
     };
 
-    return <Input type="text" {...field} {...props} ref={ref} value={stringValue} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" />;
+    return <Input type="text" {...props} ref={ref} value={stringValue} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" />;
 });
 CurrencyInput.displayName = 'CurrencyInput';
 
 
 // --- Sub-componente: Tabela de Lançamentos de Performance ---
-const TabelaDePerformance = ({ control, fields }: { control: any, fields: any[] }) => (
+const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: (Record<"id", string> & { name: string })[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
@@ -102,8 +98,8 @@ const TabelaDePerformance = ({ control, fields }: { control: any, fields: any[] 
                             <TableCell className="font-medium">{field.name}</TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field }) => <CurrencyInput field={field} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field }) => <CurrencyInput field={field} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" step="0.1" {...field} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" step="0.1" {...field} value={field.value || ''} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} />} /></TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -113,10 +109,11 @@ const TabelaDePerformance = ({ control, fields }: { control: any, fields: any[] 
 );
 
 // --- Sub-componente: Formulário de Metas ---
-const FormularioDeMetas = ({ control, getValues }: { control: any, getValues: any }) => {
+const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
     const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification') as GoalMetric[];
     const goalLevels = Object.keys(getValues('goals.salesValue')) as GoalLevels[];
     const getMetricLabel = (metric: string) => ({ salesValue: 'Vendas', ticketAverage: 'Ticket Médio', pa: 'PA (Peças por Atendimento)', points: 'Pontos' }[metric] || metric);
+    
     return (
         <Card>
             <CardHeader><CardTitle>Metas de Performance e Prémios</CardTitle><CardDescription>Defina os objetivos para cada indicador e o prémio correspondente.</CardDescription></CardHeader>
@@ -127,7 +124,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: any, getValues: an
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
-                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput field={field} /> : <Input type="number" {...field} />}</FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput field={field} /> : <Input type="number" {...field} value={field.value || ''} />}</FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput field={field} /></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
@@ -140,9 +137,10 @@ const FormularioDeMetas = ({ control, getValues }: { control: any, getValues: an
 };
 
 // --- Sub-componente: Gestão de Módulos ---
-const GestaoDeModulos = ({ control }: { control: any }) => {
+const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
         { name: 'missions', label: 'Missões', icon: Target },
+        { name: 'sprints', label: 'Corridinha Diária', icon: Zap },
         { name: 'academia', label: 'Academia', icon: GraduationCap },
         { name: 'quiz', label: 'Quiz', icon: Puzzle },
         { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
@@ -160,7 +158,7 @@ const GestaoDeModulos = ({ control }: { control: any }) => {
                                 <FormLabel className="text-base flex items-center gap-2"><Icon className="size-5" />{label}</FormLabel>
                                 <FormDescription>{field.value ? 'Visível' : 'Oculto'} para os vendedores.</FormDescription>
                             </div>
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <FormControl><Switch checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
                         </FormItem>
                     )} />
                 ))}
@@ -208,7 +206,7 @@ export default function SettingsPage() {
                 ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true }
+                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
             }
         },
     });
@@ -228,7 +226,7 @@ export default function SettingsPage() {
                 })),
                 goals: {
                     ...contextGoals,
-                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true }
+                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
                 }
             });
         }
@@ -253,12 +251,13 @@ export default function SettingsPage() {
             batch.set(goalsRef, data.goals);
             await batch.commit();
             const updatedSellers = contextSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }));
-            setSellers(() => updatedSellers);
-            setGoals(() => data.goals);
+            setSellers(updatedSellers);
+            setGoals(data.goals);
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao Salvar", description: "Ocorreu um erro ao tentar salvar as alterações." });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+            toast({ variant: "destructive", title: "Erro ao Salvar", description: errorMessage });
         } finally {
             setIsSaving(false);
         }
@@ -280,8 +279,9 @@ export default function SettingsPage() {
             });
             await batch.commit();
             toast({ title: "Ciclo Finalizado com Sucesso!", description: "Os dados de performance foram zerados e o histórico foi salvo." });
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao Finalizar o Ciclo" });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+            toast({ variant: "destructive", title: "Erro ao Finalizar o Ciclo", description: errorMessage });
         } finally {
             setIsSaving(false);
         }

@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { ShoppingBag, Loader2, Star } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, increment, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import type { PrizeItem } from '@/lib/types';
@@ -24,7 +25,7 @@ export default function SellerLojaPage() {
   const [loading, setLoading] = React.useState(true);
   const [redeemingId, setRedeemingId] = React.useState<string | null>(null);
   
-  const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id';
   const prizesCollectionPath = `artifacts/${appId}/public/data/prizes`;
 
   React.useEffect(() => {
@@ -64,10 +65,8 @@ export default function SellerLojaPage() {
             const currentPoints = (sellerDoc.data().points || 0);
             if (currentPoints < prize.points) throw new Error("Pontos insuficientes.");
 
-            // Atualiza os pontos do vendedor
             transaction.update(sellerRef, { points: increment(-prize.points) });
 
-            // Atualiza o stock do prémio, se existir
             if (typeof prize.stock === 'number') {
                 const prizeDoc = await transaction.get(prizeRef);
                 if (!prizeDoc.exists() || (prizeDoc.data().stock ?? 0) < 1) {
@@ -77,17 +76,17 @@ export default function SellerLojaPage() {
             }
         });
         
-        // Atualiza o estado local para refletir a mudança de pontos
-        setSellers(prev => prev.map(s => s.id === currentSeller.id ? { ...s, points: s.points - prize.points } : s));
+        setSellers(prev => prev.map(s => s.id === currentSeller.id ? { ...s, points: (s.points || 0) - prize.points } : s));
 
         toast({
             title: 'Resgate bem-sucedido!',
             description: `Você resgatou "${prize.name}" por ${formatPoints(prize.points)}.`,
         });
 
-      } catch (error: any) {
+      } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
           console.error("Erro ao resgatar o prémio:", error);
-          toast({ variant: "destructive", title: "Erro no Resgate", description: error.message });
+          toast({ variant: "destructive", title: "Erro no Resgate", description: errorMessage });
       } finally {
           setRedeemingId(null);
       }
@@ -130,7 +129,7 @@ export default function SellerLojaPage() {
             return (
               <Card key={prize.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
                 <CardHeader className="p-0 relative">
-                  <img src={prize.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Prêmio'} alt={prize.name} className="w-full h-48 object-cover" />
+                  <Image src={prize.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Prêmio'} alt={prize.name} width={600} height={400} className="w-full h-48 object-cover" />
                   {isOutOfStock && <Badge variant="destructive" className="absolute top-2 right-2">Esgotado</Badge>}
                 </CardHeader>
                 <CardContent className="p-4 flex flex-col flex-grow">

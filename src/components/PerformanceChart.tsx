@@ -16,10 +16,22 @@ import {
   ChartLegendContent
 } from '@/components/ui/chart';
 import type { QuizResult } from '@/lib/types';
+import type { ChartConfig } from '@/components/ui/chart';
 
 interface PerformanceChartProps {
   data: QuizResult[];
 }
+
+const chartConfig: ChartConfig = {
+  Pontuação: {
+    label: 'Sua Pontuação',
+    color: 'hsl(var(--primary))',
+  },
+  Total: {
+    label: 'Total de Perguntas',
+    color: 'hsl(var(--muted-foreground))',
+  },
+};
 
 export default function PerformanceChart({ data }: PerformanceChartProps) {
   const chartData = data.map((res) => ({
@@ -27,17 +39,6 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
     Pontuação: res.score,
     Total: res.total,
   }));
-
-  const chartConfig = {
-    Pontuação: {
-      label: 'Sua Pontuação',
-      color: 'hsl(var(--primary))',
-    },
-    Total: {
-      label: 'Total de Perguntas',
-      color: 'hsl(var(--muted-foreground))',
-    },
-  };
 
   return (
     <Card className="w-full mt-8 bg-card border-border">
@@ -47,7 +48,7 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
       </CardHeader>
       <CardContent>
         <div className="h-[250px]">
-          <ChartContainer config={chartConfig as any} className="h-full w-full">
+          <ChartContainer config={chartConfig} className="h-full w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}

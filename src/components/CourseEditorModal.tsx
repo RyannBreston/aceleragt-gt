@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, PlusCircle, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Course, QuizQuestion as QuizQuestionType } from '@/lib/types';
+import type { Course, QuizQuestion as QuizQuestionType, CourseDifficulty } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { collection, doc, addDoc, updateDoc } from 'firebase/firestore';
 
@@ -25,27 +25,33 @@ interface CourseEditorModalProps {
 export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }: CourseEditorModalProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentCourse, setCurrentCourse] = useState<Partial<Course> | null>(null);
+  const [currentCourse, setCurrentCourse] = useState<Partial<Course>>({ title: '', content: '', points: 100, dificuldade: 'Médio', quiz: [] });
   const [editingQuiz, setEditingQuiz] = useState<QuizQuestionType[]>([]);
 
   useEffect(() => {
-    if (course) {
+    if (isOpen && course) {
       setCurrentCourse(course);
       setEditingQuiz(course.quiz || []);
+    } else if (isOpen) {
+      setCurrentCourse({ title: '', content: '', points: 100, dificuldade: 'Médio', quiz: [] });
+      setEditingQuiz([]);
     }
-  }, [course]);
+  }, [course, isOpen]);
 
-  const handleQuizChange = (qIndex: number, field: keyof QuizQuestionType, value: any) => {
+  const handleQuizChange = (qIndex: number, field: keyof QuizQuestionType | 'options', value: string | number | { index: number; value: string }) => {
     const updatedQuiz = [...editingQuiz];
     const question = { ...updatedQuiz[qIndex] };
-    if (field === 'options') {
-      question.options[value.index] = value.value;
-    } else {
-      (question as any)[field] = field === 'correctAnswerIndex' ? parseInt(value, 10) : value;
+
+    if (field === 'options' && typeof value === 'object' && 'index' in value) {
+        question.options[value.index] = value.value;
+    } else if (field !== 'options') {
+        (question as any)[field] = field === 'correctAnswerIndex' ? Number(value) : value;
     }
+    
     updatedQuiz[qIndex] = question;
     setEditingQuiz(updatedQuiz);
-  };
+};
+
 
   const addQuizQuestion = () => setEditingQuiz([...editingQuiz, { question: '', options: ['', '', '', ''], correctAnswerIndex: 0, explanation: '' }]);
   const removeQuizQuestion = (qIndex: number) => setEditingQuiz(editingQuiz.filter((_, i) => i !== qIndex));
@@ -72,8 +78,9 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
             toast({ title: 'Curso criado!' });
         }
         setIsOpen(false);
-    } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro ao Salvar' });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+        toast({ variant: 'destructive', title: 'Erro ao Salvar', description: errorMessage });
     } finally {
         setIsSubmitting(false);
     }
@@ -91,12 +98,12 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
         <Tabs defaultValue="content" className="flex-grow flex flex-col min-h-0">
           <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="content">Conteúdo</TabsTrigger><TabsTrigger value="quiz">Quiz</TabsTrigger></TabsList>
           <TabsContent value="content" className="flex-grow overflow-y-auto mt-4 pr-4 space-y-4">
-            <div className="space-y-2"><Label>Título</Label><Input value={currentCourse?.title || ''} onChange={(e) => setCurrentCourse(p => ({...p, title: e.target.value}))} /></div>
+            <div className="space-y-2"><Label>Título</Label><Input value={currentCourse?.title || ''} onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentCourse(p => ({...p, title: e.target.value}))} /></div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Pontos</Label><Input type="number" value={currentCourse?.points || 100} onChange={(e) => setCurrentCourse(p => ({...p, points: Number(e.target.value)}))} /></div>
-              <div className="space-y-2"><Label>Dificuldade</Label><Select value={currentCourse?.dificuldade || 'Médio'} onValueChange={(v) => setCurrentCourse(p => ({...p, dificuldade: v as any}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Fácil">Fácil</SelectItem><SelectItem value="Médio">Médio</SelectItem><SelectItem value="Difícil">Difícil</SelectItem></SelectContent></Select></div>
+              <div className="space-y-2"><Label>Pontos</Label><Input type="number" value={currentCourse?.points || 100} onChange={(e: ChangeEvent<HTMLInputElement>) => setCurrentCourse(p => ({...p, points: Number(e.target.value)}))} /></div>
+              <div className="space-y-2"><Label>Dificuldade</Label><Select value={currentCourse?.dificuldade || 'Médio'} onValueChange={(v: CourseDifficulty) => setCurrentCourse(p => ({...p, dificuldade: v}))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Fácil">Fácil</SelectItem><SelectItem value="Médio">Médio</SelectItem><SelectItem value="Difícil">Difícil</SelectItem></SelectContent></Select></div>
             </div>
-            <div className="space-y-2"><Label>Conteúdo (Markdown)</Label><Textarea value={currentCourse?.content || ''} onChange={(e) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/></div>
+            <div className="space-y-2"><Label>Conteúdo (Markdown)</Label><Textarea value={currentCourse?.content || ''} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setCurrentCourse(p => ({...p, content: e.target.value}))} className="min-h-[300px] font-mono"/></div>
           </TabsContent>
           <TabsContent value="quiz" className="flex-grow overflow-y-auto mt-4 pr-4">
             <div className="space-y-4">

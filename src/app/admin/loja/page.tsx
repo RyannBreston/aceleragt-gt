@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Image from 'next/image'; // Importando o componente Image
+import { ShoppingBag, Loader2, Edit, Trash2, PlusCircle, Save } from 'lucide-react';
 import { collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -14,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const formatPoints = (value: number) => `${value.toLocaleString('pt-BR')} pts`;
@@ -28,7 +29,6 @@ const PrizeFormModal = ({ isOpen, setIsOpen, prize, onSave }: { isOpen: boolean;
     const { toast } = useToast();
 
     useEffect(() => {
-        // Inicializa o formulário quando o prémio a ser editado muda
         setFormData(prize || { name: '', description: '', points: 1000, stock: 1, imageUrl: '' });
     }, [prize]);
 
@@ -75,11 +75,10 @@ const PrizeFormModal = ({ isOpen, setIsOpen, prize, onSave }: { isOpen: boolean;
                         <Label htmlFor="imageUrl">URL da Imagem</Label>
                         <Input id="imageUrl" value={formData.imageUrl || ''} onChange={(e) => handleChange('imageUrl', e.target.value)} />
                     </div>
-                    {/* ✅ MELHORIA: Pré-visualização da Imagem */}
                     {formData.imageUrl && (
                         <div className="flex flex-col items-center space-y-2">
                             <Label className="text-sm text-muted-foreground">Pré-visualização</Label>
-                            <img src={formData.imageUrl} alt="Pré-visualização" className="w-24 h-24 object-cover rounded-md border" onError={(e) => e.currentTarget.src = 'https://placehold.co/100x100/27272a/FFF?text=Inválida'}/>
+                            <Image src={formData.imageUrl} alt="Pré-visualização" width={96} height={96} className="object-cover rounded-md border" onError={(e) => e.currentTarget.src = 'https://placehold.co/100x100/27272a/FFF?text=Inválida'}/>
                         </div>
                     )}
                 </div>
@@ -133,8 +132,9 @@ export default function AdminLojaPage() {
                 toast({ title: 'Prémio Adicionado!' });
             }
             setIsModalOpen(false);
-        } catch (err: any) {
-            toast({ variant: 'destructive', title: 'Falha ao Salvar', description: err.message });
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
+            toast({ variant: 'destructive', title: 'Falha ao Salvar', description: errorMessage });
         }
     };
 
@@ -179,7 +179,7 @@ export default function AdminLojaPage() {
                                 ) : prizes.length > 0 ? prizes.map(prize => (
                                     <TableRow key={prize.id}>
                                         <TableCell className="font-medium flex items-center gap-4">
-                                            <img src={prize.imageUrl || 'https://placehold.co/60x60/27272a/FFF?text=Prêmio'} alt={prize.name} className="w-12 h-12 object-cover rounded-md bg-muted" />
+                                            <Image src={prize.imageUrl || 'https://placehold.co/60x60/27272a/FFF?text=Prêmio'} alt={prize.name} width={48} height={48} className="object-cover rounded-md bg-muted" />
                                             <div>
                                                 <p>{prize.name}</p>
                                                 <p className="text-xs text-muted-foreground">{prize.description}</p>
@@ -189,7 +189,6 @@ export default function AdminLojaPage() {
                                         <TableCell>{prize.stock ?? 'Ilimitado'}</TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="icon" onClick={() => openModal(prize)}><Edit className="h-4 w-4" /></Button>
-                                            {/* ✅ MELHORIA: AlertDialog para exclusão */}
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -197,7 +196,7 @@ export default function AdminLojaPage() {
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
                                                         <AlertDialogTitle>Tem a certeza?</AlertDialogTitle>
-                                                        <AlertDialogDescription>Esta ação não pode ser desfeita e irá remover o prémio "{prize.name}" permanentemente.</AlertDialogDescription>
+                                                        <AlertDialogDescription>Esta ação não pode ser desfeita e irá remover o prémio &quot;{prize.name}&quot; permanentemente.</AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -211,7 +210,7 @@ export default function AdminLojaPage() {
                                     <TableRow>
                                         <TableCell colSpan={4} className="h-24 text-center">
                                             <p className="font-semibold">Nenhum prémio adicionado.</p>
-                                            <p className="text-sm text-muted-foreground">Clique em "Adicionar Prémio" para começar.</p>
+                                            <p className="text-sm text-muted-foreground">Clique em &quot;Adicionar Prémio&quot; para começar.</p>
                                         </TableCell>
                                     </TableRow>
                                 )}
