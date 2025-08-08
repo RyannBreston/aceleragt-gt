@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -103,7 +103,7 @@ export default function AcademiaPage() {
                     <h3 className="text-xl font-semibold">Cursos Criados ({filteredCourses.length})</h3>
                     <div className="relative w-full max-w-xs">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                        <Input placeholder="Buscar curso..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-9" />
+                        <Input placeholder="Buscar curso..." value={searchTerm} onChange={(e: ChangeEvent<HTMLInputElement>) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-9" />
                     </div>
                 </div>
                 {loadingCourses ? (
