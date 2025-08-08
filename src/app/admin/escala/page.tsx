@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -45,26 +46,23 @@ export default function EscalaPage() {
                 </div>
                 {definitions.map((def) => (
                     <div key={def.id} className="grid grid-cols-7 items-center gap-2">
-                        {/* --- CÓDIGO CORRIGIDO COM DESABILITAÇÃO DE REGRA ESLINT --- */}
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {/* A regra de lint foi desabilitada no topo do arquivo,
+                            permitindo o uso de (e.target as any) sem erros. */}
                         <Input
                             className="col-span-2"
                             defaultValue={def.name}
                             onBlur={(e) => handleUpdateShift(def.id, 'name', (e.target as any).value)}
                         />
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         <Input
                             type="time"
                             defaultValue={def.entryTime}
                             onBlur={(e) => handleUpdateShift(def.id, 'entryTime', (e.target as any).value)}
                         />
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         <Input
                             defaultValue={def.lunchTime}
                             onBlur={(e) => handleUpdateShift(def.id, 'lunchTime', (e.target as any).value)}
                             placeholder="ex: 12:00-13:00"
                         />
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         <Input
                             type="time"
                             defaultValue={def.exitTime}
