@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
+import '../animated-background.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -80,7 +81,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex items-center justify-center min-h-screen">
       <Card className="mx-auto max-w-sm w-full bg-card border-border">
         <CardHeader>
           <div className="flex justify-center mb-4">

@@ -48,7 +48,7 @@ const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
     if (isMobile) setOpenMobile(false);
   };
 
-  const handleLogout = ()_ => {
+  const handleLogout = () => {
     auth.signOut();
     router.push('/login');
     if (isMobile) setOpenMobile(false);

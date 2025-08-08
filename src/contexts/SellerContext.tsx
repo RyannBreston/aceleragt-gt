@@ -92,7 +92,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [authStatus, state.sellers]);
 
-  const contextValue = useMemo(() => ({
+  const contextValue: SellerContextType = useMemo(() => ({
     ...state,
     setSellers: dataStore.setSellers,
     setGoals: dataStore.setGoals,
@@ -106,7 +106,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     isSeller: authStatus.isSeller,
   }), [state, currentSeller, authStatus, activeSprint]);
 
-  return <SellerContext.Provider value={contextValue as any}>{children}</SellerContext.Provider>;
+  return <SellerContext.Provider value={contextValue}>{children}</SellerContext.Provider>;
 };
 
 // 4. Hook para usar o contexto
