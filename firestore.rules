@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Função para verificar se o usuário é um administrador
+    function isAdmin() {
+      return request.auth.token.role == 'admin';
+    }
+
+    // Função para verificar se o usuário é o dono do documento
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Coleção 'users': Apenas o admin ou o próprio usuário podem acessar
+    match /users/{userId} {
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+
+    // Coleção 'sellers': Admins podem tudo, vendedores só podem acessar seus próprios dados
+    match /sellers/{sellerId} {
+      allow read, write: if isAdmin() || isOwner(sellerId);
+    }
+
+    // Dados públicos dentro de 'artifacts' (cursos, missões, etc.)
+    // Admins podem tudo, usuários autenticados podem apenas ler.
+    match /artifacts/{appId}/public/data/{collection}/{docId} {
+        allow read: if request.auth != null;
+        allow write: if isAdmin();
+    }
+    
+    // Qualquer outra coleção é bloqueada por padrão
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
