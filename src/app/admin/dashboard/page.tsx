@@ -8,11 +8,9 @@ import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import AiInsights from '@/components/ai-insights';
 
-// ####################################################################
-// ### 1. COMPONENTE REUTILIZÁVEL: StatCard ###
-// ####################################################################
+// Componentes e hooks permanecem os mesmos
+
 interface StatCardProps {
   title: string;
   value: string;
@@ -34,9 +32,6 @@ const StatCard = ({ title, value, description, Icon, iconClassName }: StatCardPr
   </Card>
 );
 
-// ####################################################################
-// ### 2. CUSTOM HOOK: useDashboardStats ###
-// ####################################################################
 const useDashboardStats = (sellers: Seller[]) => {
   return useMemo(() => {
     const totalSellers = sellers.length;
@@ -55,7 +50,6 @@ const useDashboardStats = (sellers: Seller[]) => {
   }, [sellers]);
 };
 
-// --- Componente GoalDistribution ---
 const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals | null }) => {
   const goalLabels = { lendaria: 'Lendária', metona: 'Metona', meta: 'Meta', metinha: 'Metinha', nenhuma: 'Nenhuma' };
 
@@ -121,10 +115,6 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
   )
 }
 
-
-// ####################################################################
-// ### 3. DASHBOARD PAGE REATORIZADA ###
-// ####################################################################
 export default function DashboardPage() {
   const { sellers, goals } = useAdminContext();
   const { totalSellers, currentSales, totalPoints, averageTicket, averagePA } = useDashboardStats(sellers);
@@ -150,7 +140,6 @@ export default function DashboardPage() {
         </div>
         <div className="space-y-4">
             <GoalDistribution sellers={sellers} goals={goals} />
-            <AiInsights sellers={sellers} />
         </div>
       </div>
     </div>

@@ -4,10 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Sparkles, BookCopy, Trash2, GraduationCap, PlusCircle, Edit, FileText, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, BookCopy, Trash2, GraduationCap, PlusCircle, Edit, FileText, Search, Users, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Course } from '@/lib/types';
 import { useAdminContext } from '@/contexts/AdminContext';
@@ -15,10 +12,8 @@ import { db } from '@/lib/firebase';
 import { collection, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { Certificate } from '@/components/Certificate';
 import { CourseEditorModal } from '@/components/CourseEditorModal';
-
-// --- Dados para os Seletores ---
-const BRANDS = ['Olympikus', 'Beira Rio', 'Moleca', 'Vizzano', 'Mizuno', 'Dakota', 'Mississipi', 'Outra'];
-const PRODUCT_TYPES = ['Tênis', 'Sandália', 'Sapatilha', 'Bota', 'Chinelo', 'Scarpin', 'Mule', 'Outro'];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 // --- Sub-componente: Pré-visualização do Certificado ---
 const CertificatePreview = ({ course }: { course: Course }) => {
@@ -44,61 +39,6 @@ const CertificatePreview = ({ course }: { course: Course }) => {
     );
 };
 
-// --- Sub-componente: Criador de Cursos ---
-const CourseCreator = ({ onCourseGenerated }: { onCourseGenerated: (course: Partial<Course>) => void }) => {
-    const [selectedBrand, setSelectedBrand] = useState('');
-    const [selectedProductType, setSelectedProductType] = useState('');
-    const [customTopic, setCustomTopic] = useState('');
-    const [isGenerating, setIsGenerating] = useState(false);
-    const { toast } = useToast();
-
-    const handleGenerateCourse = async () => {
-        const topic = customTopic || `${selectedProductType} da marca ${selectedBrand}`;
-        if (!topic.trim()) {
-            toast({ variant: 'destructive', title: 'Tópico necessário', description: 'Selecione uma opção ou descreva um tópico.' });
-            return;
-        }
-        setIsGenerating(true);
-        try {
-            const response = await fetch('/api/generateCourse', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic }),
-            });
-
-            if (!response.ok) {
-                throw new Error('A resposta da rede não foi OK');
-            }
-
-            const result = await response.json();
-            
-            onCourseGenerated(result as Course);
-            toast({ title: "Curso gerado pela IA!", description: "Revise e salve o conteúdo gerado." });
-        } catch {
-            toast({ variant: 'destructive', title: 'Falha ao Gerar Curso', description: 'Ocorreu um erro ao comunicar com a IA.' });
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    return (
-        <Card>
-            <CardHeader><CardTitle className="text-xl">Criador de Cursos</CardTitle><CardDescription>Gere cursos com IA ou crie um do zero.</CardDescription></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Marca</Label><Select onValueChange={setSelectedBrand}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{BRANDS.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></div>
-                    <div className="space-y-2"><Label>Tipo de Calçado</Label><Select onValueChange={setSelectedProductType}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{PRODUCT_TYPES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select></div>
-                </div>
-                <div className="relative"><div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Ou</span></div></div>
-                <div className="space-y-2"><Label>Tópico Customizado</Label><Input placeholder="Ex: Técnicas de venda para botas de inverno" value={customTopic} onChange={(e) => setCustomTopic(e.target.value)} /></div>
-                <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                    <Button onClick={handleGenerateCourse} disabled={isGenerating} className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold">{isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} Gerar com IA</Button>
-                    <Button onClick={() => onCourseGenerated({})} variant="secondary" className="flex-1"><PlusCircle className="mr-2 h-4 w-4" /> Criar Manualmente</Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
 
 // --- Componente Principal da Página ---
 export default function AcademiaPage() {
@@ -162,12 +102,13 @@ export default function AcademiaPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <GraduationCap className="size-8 text-primary" />
-                <h1 className="text-3xl font-bold">Academia de Vendas</h1>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                  <GraduationCap className="size-8 text-primary" />
+                  <h1 className="text-3xl font-bold">Academia de Vendas</h1>
+              </div>
+              <Button onClick={() => openCourseModal()}><PlusCircle className="mr-2 h-4 w-4" /> Criar Curso</Button>
             </div>
-
-            <CourseCreator onCourseGenerated={openCourseModal} />
 
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
