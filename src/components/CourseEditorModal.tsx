@@ -45,10 +45,12 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
 
         if (field === 'options' && typeof value === 'object' && 'index' in value) {
             question.options[value.index] = value.value;
+        } else if (field === 'question' && typeof value === 'string') {
+            question.question = value;
+        } else if (field === 'explanation' && typeof value === 'string') {
+            question.explanation = value;
         } else if (field === 'correctAnswerIndex') {
             question.correctAnswerIndex = Number(value);
-        } else if (field !== 'options') {
-            (question as any)[field] = value;
         }
         
         updatedQuiz[qIndex] = question;
