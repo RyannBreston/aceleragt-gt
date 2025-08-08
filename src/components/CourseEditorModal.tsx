@@ -67,16 +67,21 @@ export const CourseEditorModal = ({ isOpen, setIsOpen, course, collectionPath }:
         return;
     }
     setIsSubmitting(true);
-    const finalCourseData = {
-        ...currentCourse,
+    
+    const dataToSave: Omit<Course, 'id'> = {
+        title: currentCourse.title,
+        content: currentCourse.content || '',
         quiz: editingQuiz,
+        points: currentCourse.points || 100,
+        dificuldade: currentCourse.dificuldade || 'Médio',
     };
+
     try {
         if (currentCourse.id) {
-            await updateDoc(doc(db, collectionPath, currentCourse.id), finalCourseData as any);
+            await updateDoc(doc(db, collectionPath, currentCourse.id), dataToSave);
             toast({ title: 'Curso atualizado!' });
         } else {
-            await addDoc(collection(db, collectionPath), finalCourseData as any);
+            await addDoc(collection(db, collectionPath), dataToSave);
             toast({ title: 'Curso criado!' });
         }
         setIsOpen(false);
