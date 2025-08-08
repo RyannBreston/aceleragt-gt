@@ -1,4 +1,4 @@
-'use client';
+'use server';
 
 import {ai} from '@/ai/genkit';
 import {
@@ -6,7 +6,6 @@ import {
   GenerateQuizOutputSchema,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
-// ✅ CORREÇÃO APLICADA AQUI: O nome do pacote foi corrigido.
 import {geminiPro} from '@genkit-ai/googleai';
 
 export const generateQuizFlow = ai.defineFlow(
@@ -24,7 +23,6 @@ export const generateQuizFlow = ai.defineFlow(
       output: {
         schema: GenerateQuizOutputSchema,
       },
-      // Exemplo de como o output deve ser estruturado
       example: {
         title: 'Quiz sobre Vendas de Calçados',
         questions: [

@@ -1,4 +1,4 @@
-'use client';
+'use server';
 
 import {ai} from '@/ai/genkit';
 import {
@@ -6,7 +6,6 @@ import {
   GenerateCourseOutputSchema,
 } from '@/lib/types';
 import {generate} from '@genkit-ai/ai';
-// ✅ CORREÇÃO APLICADA AQUI: O nome do modelo foi atualizado.
 import {gemini10Pro} from '@genkit-ai/googleai';
 
 export const generateCourse = ai.defineFlow(
@@ -18,7 +17,7 @@ export const generateCourse = ai.defineFlow(
   async ({topic}) => {
     const prompt = `Gere um curso sobre "${topic}". O curso deve ter um título criativo, conteúdo em Markdown e um quiz com pelo menos 3 perguntas.`;
     const {output} = await generate({
-      model: gemini10Pro, // ✅ CORREÇÃO APLICADA AQUI
+      model: gemini10Pro,
       prompt: prompt,
       output: {
         schema: GenerateCourseOutputSchema,
