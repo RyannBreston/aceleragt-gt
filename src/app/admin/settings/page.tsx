@@ -36,7 +36,6 @@ const sellerPerformanceSchema = z.object({
 const gamificationSchema = z.object({
     missions: z.boolean().default(true),
     academia: z.boolean().default(true),
-    quiz: z.boolean().default(true),
     ofertas: z.boolean().default(true),
     loja: z.boolean().default(true),
     ranking: z.boolean().default(true),
@@ -142,7 +141,6 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
         { name: 'missions', label: 'Missões', icon: Target },
         { name: 'sprints', label: 'Corridinha Diária', icon: Zap },
         { name: 'academia', label: 'Academia', icon: GraduationCap },
-        { name: 'quiz', label: 'Quiz', icon: Puzzle },
         { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
         { name: 'loja', label: 'Loja de Prémios', icon: Trophy },
         { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
@@ -206,7 +204,7 @@ export default function SettingsPage() {
                 ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
+                gamification: { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true }
             }
         },
     });
@@ -226,7 +224,7 @@ export default function SettingsPage() {
                 })),
                 goals: {
                     ...contextGoals,
-                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
+                    gamification: contextGoals.gamification || { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true }
                 }
             });
         }
@@ -303,7 +301,7 @@ export default function SettingsPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <Tabs defaultValue="lancamentos" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
+                        <TabsList>
                             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
                             <TabsTrigger value="metas">Metas e Prémios</TabsTrigger>
                             <TabsTrigger value="modulos">Módulos</TabsTrigger>

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, LogOut, Puzzle, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap } from 'lucide-react';
+import { LayoutGrid, LogOut, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap, Pencil, GraduationCap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -13,11 +13,12 @@ import { GamificationSettings } from '@/lib/types';
 
 const allMenuItems = [
     {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
+    {href: '/admin/pontos', label: 'Editar Pontos', icon: Pencil, key: 'pontos'},
     {href: '/admin/ranking', label: 'Ranking', icon: Trophy, key: 'ranking'},
     {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays, key: 'escala'},
     {href: '/admin/sprints', label: 'Corridinhas Diárias', icon: Zap, key: 'sprints'}, 
     {href: '/admin/missions', label: 'Missões', icon: Target, key: 'missions'},
-    {href: '/admin/quiz', label: 'Quiz', icon: Puzzle, key: 'quiz'},
+    {href: '/admin/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
     {href: '/admin/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
     {href: '/admin/ofertas', label: 'Gestão de Ofertas', icon: ShoppingBag, key: 'ofertas'},
     {href: '/admin/historico', label: 'Histórico', icon: History, key: 'historico'},
@@ -33,13 +34,21 @@ export const AdminSidebar = () => {
   const [pendingPath, setPendingPath] = React.useState<string | null>(null);
 
   const visibleMenuItems = React.useMemo(() => {
-      const settings = goals?.gamification as GamificationSettings | undefined;
-      if (!settings) return allMenuItems;
+    const settings = goals?.gamification as GamificationSettings | undefined;
+    if (!settings) return allMenuItems;
 
-      return allMenuItems.filter(item => {
-          const itemKey = item.key as keyof GamificationSettings;
-          return settings[itemKey];
-      });
+    // Garante que 'dashboard', 'settings' e 'perfil' estejam sempre visíveis.
+    const alwaysVisibleKeys = ['dashboard', 'settings', 'perfil', 'pontos'];
+
+    return allMenuItems.filter(item => {
+        // Se a chave do item estiver na lista de chaves sempre visíveis, inclua-o.
+        if (alwaysVisibleKeys.includes(item.key)) {
+            return true;
+        }
+        // Para outros itens, verifique a configuração de gamificação.
+        const itemKey = item.key as keyof GamificationSettings;
+        return settings[itemKey];
+    });
   }, [goals]);
 
   const handleNavigate = (path: string) => {

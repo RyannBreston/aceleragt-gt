@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, LogOut, Target, ShoppingBag, History, User, Puzzle, CalendarDays, BarChart, Zap } from 'lucide-react';
+import { LayoutGrid, LogOut, Target, ShoppingBag, History, User, CalendarDays, BarChart, Zap, GraduationCap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
@@ -18,7 +18,7 @@ const allMenuItems = [
   {href: '/seller/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
   {href: '/seller/ranking', label: 'Meu Desempenho', icon: BarChart, key: 'ranking'},
   {href: '/seller/missions', label: 'Missões', icon: Target, key: 'missions'},
-  {href: '/seller/quiz', label: 'Quiz', icon: Puzzle, key: 'quiz'},
+  {href: '/seller/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
   {href: '/seller/historico', label: 'Histórico', icon: History, key: 'historico'},
   {href: '/seller/perfil', label: 'Meu Perfil', icon: User, key: 'perfil'},
 ];
@@ -48,7 +48,7 @@ const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
     if (isMobile) setOpenMobile(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = ()_ => {
     auth.signOut();
     router.push('/login');
     if (isMobile) setOpenMobile(false);

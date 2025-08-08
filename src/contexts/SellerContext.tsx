@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -32,7 +31,6 @@ const SellerContext = createContext<SellerContextType | undefined>(undefined);
 
 // 3. Criação do Provider
 export const SellerProvider = ({ children }: { children: ReactNode }) => {
-  const router = useRouter();
   const state = useStore(s => s);
   const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isSeller: boolean }>({ isAuthReady: false, user: null, isSeller: false });
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
@@ -74,7 +72,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
     });
 
-    const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
+    const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
       dataStore.setSellers(() => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
     });
 
@@ -108,7 +106,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     isSeller: authStatus.isSeller,
   }), [state, currentSeller, authStatus, activeSprint]);
 
-  return <SellerContext.Provider value={contextValue}>{children}</SellerContext.Provider>;
+  return <SellerContext.Provider value={contextValue as any}>{children}</SellerContext.Provider>;
 };
 
 // 4. Hook para usar o contexto

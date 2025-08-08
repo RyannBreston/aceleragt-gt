@@ -2,10 +2,10 @@
 
 import React from 'react';
 
-export default function AdminMissoesPage() {
+export default function SellerAcademiaPage() {
     return (
         <div>
-            <h1>Missões</h1>
+            <h1>Academia</h1>
         </div>
     );
 }

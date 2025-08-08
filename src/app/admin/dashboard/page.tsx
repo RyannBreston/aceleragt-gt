@@ -105,10 +105,10 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
                      <span className={cn("font-medium", tierKey === 'nenhuma' ? 'text-muted-foreground' : 'text-foreground')}>{tierLabel}</span>
                      <span className="font-bold text-primary">{distribution[criterion as keyof typeof distribution][tierKey]}</span>
                    </li>
-                ))}
+                ))}\n
               </ul>
             </TabsContent>
-          ))}
+          ))}\n
         </Tabs>
       </CardContent>
     </Card>

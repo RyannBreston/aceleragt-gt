@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CalendarDays, ChevronLeft, ChevronRight, Save, Loader2, Users, Settings, PlusCircle, Trash2, CalendarIcon } from "lucide-react";
@@ -22,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-// --- Tipos e Constantes Atualizadas ---
+// --- Tipos e Constantes ---
 interface ShiftDefinition {
     id: string;
     name: string;
@@ -53,7 +54,7 @@ const getShiftClass = (shiftName?: string, definitions?: ShiftDefinition[]) => {
     return 'bg-muted/50 text-muted-foreground border-transparent';
 };
 
-// --- Sub-componente: Gestão de Tipos de Turno (Melhorado) ---
+// --- Sub-componente: Gestão de Tipos de Turno ---
 function ShiftManagementDialog({ definitions, collectionPath }: { definitions: ShiftDefinition[], collectionPath: string }) {
     const [newShift, setNewShift] = React.useState<Omit<ShiftDefinition, 'id'>>({ name: '', entryTime: '', lunchTime: '', exitTime: '', color: 'blue' });
     const { toast } = useToast();
@@ -73,10 +74,8 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
     };
 
     const handleDeleteShift = async (id: string) => {
-        if (window.confirm('Tem certeza que deseja excluir este turno?')) {
-            await deleteDoc(doc(db, collectionPath, id));
-            toast({ title: 'Turno excluído!' });
-        }
+        await deleteDoc(doc(db, collectionPath, id));
+        toast({ title: 'Turno excluído!' });
     };
 
     return (
@@ -88,15 +87,16 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
                     <DialogDescription>Crie, edite ou exclua os turnos (ex: Manhã, Tarde, Folga).</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
-                    <div className="grid grid-cols-6 gap-2 text-xs font-semibold text-muted-foreground px-2">
+                    <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-muted-foreground px-2">
                         <div className="col-span-2">Nome do Turno</div>
                         <div>Entrada</div>
                         <div>Almoço/Intervalo</div>
                         <div>Saída</div>
                         <div>Cor</div>
+                        <div>Ações</div>
                     </div>
                     {definitions.map((def) => (
-                        <div key={def.id} className="grid grid-cols-6 items-center gap-2">
+                        <div key={def.id} className="grid grid-cols-7 items-center gap-2">
                             <Input className="col-span-2" defaultValue={def.name} onBlur={(e) => handleUpdateShift(def.id, 'name', e.target.value)} />
                             <Input type="time" defaultValue={def.entryTime} onBlur={(e) => handleUpdateShift(def.id, 'entryTime', e.target.value)} />
                             <Input defaultValue={def.lunchTime} onBlur={(e) => handleUpdateShift(def.id, 'lunchTime', e.target.value)} placeholder="ex: 12:00-13:00"/>
@@ -105,15 +105,24 @@ function ShiftManagementDialog({ definitions, collectionPath }: { definitions: S
                                 <SelectTrigger className={cn("w-full", shiftColors[def.color])}><SelectValue /></SelectTrigger>
                                 <SelectContent>{Object.keys(shiftColors).map(color => (<SelectItem key={color} value={color}><div className="flex items-center gap-2"><div className={cn("w-3 h-3 rounded-full", shiftColors[color])} />{color}</div></SelectItem>))}</SelectContent>
                             </Select>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteShift(def.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild><Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteShift(def.id)}>Excluir</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                         </div>
                     ))}
-                    <div className="grid grid-cols-6 items-end gap-2 pt-4 border-t">
+                    <div className="grid grid-cols-7 items-end gap-2 pt-4 border-t">
                         <Input className="col-span-2" placeholder="Nome (ex: Folga)" value={newShift.name} onChange={(e) => setNewShift(s => ({...s, name: e.target.value}))} />
                         <Input type="time" value={newShift.entryTime} onChange={(e) => setNewShift(s => ({...s, entryTime: e.target.value}))} />
                         <Input placeholder="-" value={newShift.lunchTime} onChange={(e) => setNewShift(s => ({...s, lunchTime: e.target.value}))} />
                         <Input type="time" value={newShift.exitTime} onChange={(e) => setNewShift(s => ({...s, exitTime: e.target.value}))} />
-                        <Button onClick={handleAddShift} className="col-span-2"><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button>
+                        <div className="col-span-2"><Button onClick={handleAddShift} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Button></div>
                     </div>
                 </div>
             </DialogContent>
