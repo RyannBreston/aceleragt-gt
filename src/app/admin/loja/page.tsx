@@ -56,35 +56,31 @@ const PrizeFormModal = ({ isOpen, setIsOpen, prize, onSave }: { isOpen: boolean;
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Nome do Prémio</Label>
-                        {/* --- CORRIGIDO --- */}
                         <Input id="name" value={formData.name || ''} onChange={(e) => handleChange('name', (e.target as any).value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">Descrição</Label>
-                        {/* --- CORRIGIDO --- */}
                         <Textarea id="description" value={formData.description || ''} onChange={(e) => handleChange('description', (e.target as any).value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="points">Custo (Pontos)</Label>
-                            {/* --- CORRIGIDO --- */}
                             <Input id="points" type="number" value={formData.points || 0} onChange={(e) => handleChange('points', Number((e.target as any).value))} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="stock">Stock</Label>
-                            {/* --- CORRIGIDO --- */}
                             <Input id="stock" type="number" value={formData.stock ?? ''} onChange={(e) => handleChange('stock', Number((e.target as any).value))} placeholder="Deixe em branco para ilimitado"/>
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="imageUrl">URL da Imagem</Label>
-                        {/* --- CORRIGIDO --- */}
                         <Input id="imageUrl" value={formData.imageUrl || ''} onChange={(e) => handleChange('imageUrl', (e.target as any).value)} />
                     </div>
                     {formData.imageUrl && (
                         <div className="flex flex-col items-center space-y-2">
                             <Label className="text-sm text-muted-foreground">Pré-visualização</Label>
-                            <Image src={formData.imageUrl} alt="Pré-visualização" width={96} height={96} className="object-cover rounded-md border" onError={(e) => e.currentTarget.src = 'https://placehold.co/100x100/27272a/FFF?text=Inválida'}/>
+                            {/* --- CORRIGIDO AQUI --- */}
+                            <Image src={formData.imageUrl} alt="Pré-visualização" width={96} height={96} className="object-cover rounded-md border" onError={(e) => (e.currentTarget as any).src = 'https://placehold.co/100x100/27272a/FFF?text=Inválida'}/>
                         </div>
                     )}
                 </div>
