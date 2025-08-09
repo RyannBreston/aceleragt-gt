@@ -8,8 +8,7 @@ import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-
-// Componentes e hooks permanecem os mesmos
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 interface StatCardProps {
   title: string;
@@ -105,10 +104,10 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
                      <span className={cn("font-medium", tierKey === 'nenhuma' ? 'text-muted-foreground' : 'text-foreground')}>{tierLabel}</span>
                      <span className="font-bold text-primary">{distribution[criterion as keyof typeof distribution][tierKey]}</span>
                    </li>
-                ))}\n
+                ))}
               </ul>
             </TabsContent>
-          ))}\n
+          ))}
         </Tabs>
       </CardContent>
     </Card>
@@ -118,6 +117,10 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
 export default function DashboardPage() {
   const { sellers, goals } = useAdminContext();
   const { totalSellers, currentSales, totalPoints, averageTicket, averagePA } = useDashboardStats(sellers);
+
+  if (!sellers || !goals) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-8">
