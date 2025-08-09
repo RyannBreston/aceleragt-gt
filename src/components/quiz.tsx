@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
@@ -13,12 +14,16 @@ import { db } from '@/lib/firebase';
 import { useSellerContext } from '@/contexts/SellerContext'; 
 
 const saveResultToLocalStorage = (result: QuizResult) => {
-    try {
-        const existingResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
-        existingResults.push(result);
-        localStorage.setItem('quizResults', JSON.stringify(existingResults));
-    } catch (error) {
-        console.error("Erro ao salvar resultado no localStorage:", error);
+    // --- CORREÇÃO FINAL APLICADA AQUI ---
+    // Este código só será executado no navegador, onde 'window' e 'localStorage' existem.
+    if (typeof window !== 'undefined') {
+        try {
+            const existingResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
+            existingResults.push(result);
+            localStorage.setItem('quizResults', JSON.stringify(existingResults));
+        } catch (error) {
+            console.error("Erro ao salvar resultado no localStorage:", error);
+        }
     }
 };
 
@@ -116,6 +121,9 @@ export default function QuizComponent({ quizData }: { quizData: Quiz }) {
             <Button onClick={handleSubmit} disabled={!allQuestionsAnswered} className="w-full">
                 Finalizar e Ver Resultado
             </Button>
+        </div>
+    );
+}
         </div>
     );
 }
