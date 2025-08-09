@@ -34,14 +34,15 @@ const sellerPerformanceSchema = z.object({
   extraPoints: z.coerce.number().min(0, "Deve ser positivo."),
 });
 
+// Este schema agora corresponde ao tipo GamificationSettings
 const gamificationSchema = z.object({
     missions: z.boolean().default(true),
     academia: z.boolean().default(true),
+    quiz: z.boolean().default(true),
     ofertas: z.boolean().default(true),
     loja: z.boolean().default(true),
     ranking: z.boolean().default(true),
     sprints: z.boolean().default(true),
-    quiz: z.boolean().default(true),
 });
 
 const formSchema = z.object({
@@ -64,29 +65,24 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } 
     const [stringValue, setStringValue] = useState<string>(
       field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
     );
-
     useEffect(() => {
         setStringValue(field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
     }, [field.value]);
-
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setStringValue(value);
     };
-
     const handleBlur = () => {
         const sanitizedValue = stringValue.replace(/[^0-9,]/g, '').replace(',', '.');
         const numericValue = parseFloat(sanitizedValue) || 0;
         field.onChange(numericValue);
         setStringValue(numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
     };
-
     return <Input type="text" {...props} ref={ref} value={stringValue} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" />;
 });
 CurrencyInput.displayName = 'CurrencyInput';
 
-
-// --- Sub-componente: Tabela de Lançamentos de Performance ---
+// --- Sub-componentes (TabelaDePerformance, FormularioDeMetas, etc.) ---
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: (Record<"id", string> & { name: string })[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
@@ -108,8 +104,6 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
         </CardContent>
     </Card>
 );
-
-// --- Sub-componente: Formulário de Metas ---
 const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
     const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification') as GoalMetric[];
     const goalLevels = Object.keys(getValues('goals.salesValue')) as GoalLevels[];
@@ -136,17 +130,15 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
         </Card>
     );
 };
-
-// --- Sub-componente: Gestão de Módulos ---
 const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
         { name: 'missions', label: 'Missões', icon: Target },
         { name: 'sprints', label: 'Corridinha Diária', icon: Zap },
         { name: 'academia', label: 'Academia', icon: GraduationCap },
+        { name: 'quiz', label: 'Quiz', icon: Lightbulb },
         { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
         { name: 'loja', label: 'Loja de Prémios', icon: Trophy },
         { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
-        { name: 'quiz', label: 'Quiz', icon: Lightbulb },
     ];
     return (
         <Card>
@@ -167,8 +159,6 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
         </Card>
     );
 };
-
-// --- Sub-componente: Gestão de Ciclo ---
 const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirty: boolean; }) => (
     <Card>
         <CardHeader><CardTitle>Gestão de Ciclo</CardTitle><CardDescription>Finalize o ciclo atual para arquivar os resultados e começar um novo.</CardDescription></CardHeader>
@@ -207,7 +197,7 @@ export default function SettingsPage() {
                 ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                gamification: { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true }
+                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
             }
         },
     });
@@ -227,7 +217,7 @@ export default function SettingsPage() {
                 })),
                 goals: {
                     ...contextGoals,
-                    gamification: contextGoals.gamification || { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true }
+                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
                 }
             });
         }
@@ -251,14 +241,10 @@ export default function SettingsPage() {
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
             batch.set(goalsRef, data.goals);
             await batch.commit();
-            
             setSellers(prevSellers => 
                 prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
             );
-            
-            // --- CORREÇÃO FINAL APLICADA AQUI ---
             setGoals(_ => data.goals);
-            
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
         } catch (error: unknown) {
