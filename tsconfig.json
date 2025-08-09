@@ -1,26 +1,28 @@
 {
   "compilerOptions": {
-    "target": "ES2017", // Compatível com o Node.js usado no Firebase
     "lib": [
+      "dom",
+      "dom.iterable",
       "esnext"
-    ], // Usa recursos mais recentes do JS
-    "module": "commonjs", // Necessário para Firebase Functions
-    "outDir": "lib", // Diretório de saída do TypeScript compilado
-    "rootDir": "src", // Diretório raiz do código-fonte
-    "strict": true, // Ativa todas as verificações rigorosas
-    "esModuleInterop": true, // Permite importações de módulos CommonJS
-    "resolveJsonModule": true, // Permite importar arquivos JSON
-    "skipLibCheck": true, // Ignora verificação de tipo em dependências
-    "forceConsistentCasingInFileNames": true, // Força consistência de maiúsculas/minúsculas
-    "noImplicitReturns": true, // Evita funções que podem não retornar valor
-    "noUnusedLocals": true, // Marca variáveis não usadas
-    "noUnusedParameters": true, // Marca parâmetros não usados
-    "moduleResolution": "node", // Resolve módulos como Node.js
-    "allowJs": true, // Permite arquivos JS no projeto
-    "checkJs": false, // Ignora checagem de tipos em arquivos JS
-    "noEmit": false, // Permite saída de arquivos JS compilados
-    "sourceMap": true, // Gera arquivos .map para debugging
-    "incremental": true, // Compilação incremental para melhor performance
+    ],
+    "target": "ES2017",
+    "module": "commonjs",
+    "outDir": "lib",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "moduleResolution": "node",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": false,
+    "sourceMap": true,
+    "incremental": true,
     "paths": {
       "@/*": [
         "./src/*"
