@@ -34,18 +34,19 @@ export interface GoalLevel {
     prize: number;
 }
 
-// --- CORREÇÃO APLICADA AQUI ---
 export interface PerformanceBonus {
     per: number;
     prize: number;
 }
 
+// --- CORREÇÃO FINAL APLICADA AQUI ---
 export interface SalesValueGoals {
     metinha: GoalLevel;
     meta: GoalLevel;
     metona: GoalLevel;
     lendaria: GoalLevel;
-    performanceBonus?: PerformanceBonus; // Propriedade adicionada como opcional
+    performanceBonus?: PerformanceBonus;
+    topScorerPrize?: number; // Propriedade adicionada como opcional
 }
 
 export interface GamificationSettings {
@@ -60,9 +61,9 @@ export interface GamificationSettings {
 
 export interface Goals {
     salesValue: SalesValueGoals;
-    ticketAverage: SalesValueGoals;
-    pa: SalesValueGoals;
-    points: SalesValueGoals;
+    ticketAverage: SalesValueGoals; // Assumindo que este também não tem os bônus
+    pa: SalesValueGoals; // Assumindo que este também não tem os bônus
+    points: SalesValueGoals; // Assumindo que este também não tem os bônus
     gamification: GamificationSettings;
 }
 
