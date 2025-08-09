@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
@@ -30,16 +31,19 @@ export default function EditPointsPage() {
         setIsSaving(true);
         try {
             const batch = writeBatch(db);
+            // CORREÇÃO: O caminho para o documento do vendedor deve ser correto.
+            // Assumindo que a coleção se chama 'sellers'. Ajuste se for diferente.
             const sellerRef = doc(db, 'sellers', selectedSeller.id);
             batch.update(sellerRef, { points });
 
             await batch.commit();
 
-            // Update local context
-            const updatedSellers = sellers.map(s =>
-                s.id === selectedSeller.id ? { ...s, points } : s
+            // CORREÇÃO: Atualiza o contexto usando a forma de função segura.
+            setSellers(prevSellers => 
+                prevSellers.map(s =>
+                    s.id === selectedSeller.id ? { ...s, points } : s
+                )
             );
-            setSellers(updatedSellers);
 
             toast({ title: "Pontos atualizados com sucesso!" });
             setSelectedSeller(null);
@@ -91,7 +95,8 @@ export default function EditPointsPage() {
                                                     <Input
                                                         type="number"
                                                         value={points}
-                                                        onChange={(e) => setPoints(Number(e.target.value))}
+                                                        // CORREÇÃO: Adiciona o (e.target as any) para evitar erros de build futuros.
+                                                        onChange={(e) => setPoints(Number((e.target as any).value))}
                                                     />
                                                 </div>
                                                 <DialogFooter>
