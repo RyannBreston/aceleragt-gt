@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge"; // CORREÇÃO: Importando o Badge
+import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -50,12 +50,14 @@ const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean;
     }, [offer]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
+        // --- CORRIGIDO ---
+        const { name, value } = (e.target as any);
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        // --- CORRIGIDO ---
+        const { name, value } = (e.target as any);
         const numericValue = parseFloat(value.replace(',', '.') || '0');
         setFormData(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
     };
@@ -168,7 +170,7 @@ export default function AdminOffersPage() {
                 toast({ title: 'Oferta Adicionada!' });
             }
             setIsModalOpen(false);
-        } catch (err: unknown) { // CORREÇÃO: Usando 'unknown' em vez de 'any'
+        } catch (err: unknown) {
             const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
             toast({ variant: 'destructive', title: 'Falha ao Salvar', description: errorMessage });
         }
@@ -178,7 +180,7 @@ export default function AdminOffersPage() {
         try {
             await deleteDoc(doc(db, offersCollectionPath, offerId));
             toast({ title: 'Oferta Excluída!' });
-        } catch (error: unknown) { // CORREÇÃO: Usando 'unknown' e tratando a mensagem
+        } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
             toast({ variant: 'destructive', title: 'Erro ao Excluir', description: errorMessage });
         }
