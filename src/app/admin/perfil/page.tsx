@@ -45,7 +45,6 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>
-                    {/* --- CORRIGIDO --- */}
                     {!seller?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input name="password" type="password" value={password} placeholder="Mínimo 6 caracteres" onChange={(e) => setPassword((e.target as any).value)} /></div>}
                 </div>
                 <DialogFooter>
@@ -86,7 +85,6 @@ const AdminFormModal = ({ isOpen, setIsOpen, admin, onSave }: { isOpen: boolean;
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email de Login</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>
-                    {/* --- CORRIGIDO --- */}
                     {!admin?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input name="password" type="password" value={password} placeholder="Mínimo 6 caracteres" onChange={(e) => setPassword((e.target as any).value)} /></div>}
                 </div>
                 <DialogFooter><Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button><Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button></DialogFooter>
@@ -133,7 +131,6 @@ const ChangePasswordModal = ({ user, isOpen, setIsOpen, userType }: { user: Sell
                     <DialogDescription>O utilizador será desconectado e precisará de usar a nova senha.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                    {/* --- CORRIGIDO --- */}
                     <div className="space-y-2"><Label htmlFor="newPassword">Nova Senha</Label><Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword((e.target as any).value)} placeholder="Mínimo 6 caracteres"/></div>
                 </div>
                 <DialogFooter>
@@ -173,7 +170,10 @@ export default function PerfilPage() {
             if (data.id) {
                 const updateAdminFunction = httpsCallable(functions, 'updateAdmin');
                 await updateAdminFunction({ uid: data.id, name: data.name, email: data.email });
-                if(data.name && data.email) setAdmin({ ...admin, name: data.name, email: data.email } as Admin);
+                // --- CORRIGIDO ---
+                if(data.name && data.email) {
+                    setAdmin(prevAdmin => ({ ...prevAdmin, name: data.name, email: data.email } as Admin));
+                }
                 toast({ title: 'Administrador atualizado!' });
             } else {
                 const createAdminFunction = httpsCallable(functions, 'createAdmin');
