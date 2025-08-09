@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb } from "lucide-react"; // Adicionado Lightbulb para Quiz
+import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -41,7 +41,7 @@ const gamificationSchema = z.object({
     loja: z.boolean().default(true),
     ranking: z.boolean().default(true),
     sprints: z.boolean().default(true),
-    quiz: z.boolean().default(true), // --- CORRIGIDO: Adicionado o campo 'quiz' ---
+    quiz: z.boolean().default(true),
 });
 
 const formSchema = z.object({
@@ -70,7 +70,7 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } 
     }, [field.value]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = (e.target as any).value;
+        const value = e.target.value;
         setStringValue(value);
     };
 
@@ -146,7 +146,7 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
         { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
         { name: 'loja', label: 'Loja de Prémios', icon: Trophy },
         { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
-        { name: 'quiz', label: 'Quiz', icon: Lightbulb }, // --- CORRIGIDO: Adicionado o módulo 'quiz' ---
+        { name: 'quiz', label: 'Quiz', icon: Lightbulb },
     ];
     return (
         <Card>
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                gamification: { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true } // --- CORRIGIDO: Adicionado 'quiz' ---
+                gamification: { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true }
             }
         },
     });
@@ -227,7 +227,7 @@ export default function SettingsPage() {
                 })),
                 goals: {
                     ...contextGoals,
-                    gamification: contextGoals.gamification || { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true } // --- CORRIGIDO: Adicionado 'quiz' ---
+                    gamification: contextGoals.gamification || { missions: true, academia: true, ofertas: true, loja: true, ranking: true, sprints: true, quiz: true }
                 }
             });
         }
@@ -256,7 +256,8 @@ export default function SettingsPage() {
                 prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
             );
             
-            setGoals(data.goals);
+            // --- CORREÇÃO FINAL APLICADA AQUI ---
+            setGoals(_ => data.goals);
             
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
