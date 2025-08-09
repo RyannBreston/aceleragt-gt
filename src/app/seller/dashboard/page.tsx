@@ -77,7 +77,10 @@ const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: strin
 export default function SellerDashboardPage() {
     const { currentSeller, goals, isAuthReady } = useSellerContext();
 
-    if (!isAuthReady || !currentSeller) {
+    // --- CORREÇÃO FINAL APLICADA AQUI ---
+    // Adicionamos a verificação '!goals' para garantir que os dados de metas existam
+    // antes de tentar renderizar os componentes que dependem deles.
+    if (!isAuthReady || !currentSeller || !goals) {
         return <DashboardSkeleton />;
     }
 
@@ -106,7 +109,7 @@ export default function SellerDashboardPage() {
                         title={m.title}
                         Icon={m.Icon}
                         seller={currentSeller}
-                        goals={goals}
+                        goals={goals} // Agora é seguro passar 'goals'
                         metric={m.metric}
                     />
                 ))}
