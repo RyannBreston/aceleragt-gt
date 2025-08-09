@@ -3,27 +3,30 @@
 
 import React, { useMemo, useState } from 'react';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    Trophy,
-    DollarSign,
-    Ticket,
-    Box,
-    Star,
-    Loader2,
-    Users,
+  Trophy,
+  DollarSign,
+  Ticket,
+  Box,
+  Star,
+  Loader2,
+  Users,
+  Info
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, calculateSellerPrizes } from '@/lib/utils';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 // ####################################################################
 // ### 1. TIPOS E CONSTANTES ###
@@ -48,7 +51,10 @@ const goalLevelConfig: Record<GoalLevelName, { label: string; className: string;
     'Lendária': { label: 'Lendária', className: 'border-purple-500/50 text-purple-400 bg-purple-500/10' },
 };
 
-const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatCurrency = (value: number) => {
+    if (isNaN(value)) return 'R$ 0,00';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
 
 // ####################################################################
 // ### 2. HOOK DE LÓGICA DE DADOS ###
@@ -87,10 +93,8 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
             return { percent: 0, label: '', achievedLevels: [] };
         }
         const metric = criterion as keyof Goals;
-        // --- CORREÇÃO FINAL APLICADA AQUI ---
-        // Verificamos se a métrica é 'gamification' antes de prosseguir.
         if (metric === 'gamification') {
-            return { percent: 0, label: '', achievedLevels: [] };
+            return { percent: 0, label: 'N/A', achievedLevels: [] };
         }
         
         const goalData = goals[metric];
@@ -103,7 +107,15 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
         }
 
         const levels: GoalLevelName[] = ['Metinha', 'Meta', 'Metona', 'Lendária'];
-        const allGoals = levels.map(level => ({ name: level, threshold: goalData[level.toLowerCase() as keyof typeof goalData]?.threshold || 0 }));
+        const allGoals = levels.map(level => {
+            const levelKey = level.toLowerCase() as keyof typeof goalData;
+            const goalLevelOrBonus = goalData[levelKey];
+            if (goalLevelOrBonus && typeof goalLevelOrBonus === 'object' && 'threshold' in goalLevelOrBonus) {
+                return { name: level, threshold: goalLevelOrBonus.threshold || 0 };
+            }
+            return { name: level, threshold: 0 };
+        });
+
         const achievedLevels = allGoals.filter(g => g.threshold > 0 && sellerValue >= g.threshold);
 
         let nextGoal, currentGoalBase, nextGoalLabel;
@@ -173,13 +185,13 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: G
 // ####################################################################
 // ### 4. COMPONENTE PRINCIPAL ###
 // ####################################################################
-export default function SellerPerformancePage() {
+const SellerRankingPage = () => {
     const [criterion, setCriterion] = useState<RankingCriterion>('salesValue');
     const { sellerData, currentUserRank, goalProgress, sellersWithPrizes } = useSellerPerformance(criterion);
-    const { goals } = useSellerContext();
+    const { goals, isAuthReady } = useSellerContext();
 
-    if (!sellerData) {
-        return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin size-8" /></div>;
+    if (!isAuthReady || !sellerData) {
+        return <DashboardSkeleton />;
     }
 
     const criterionLabel = TABS_CONFIG.find(t => t.value === criterion)?.label || '';
@@ -257,3 +269,6 @@ export default function SellerPerformancePage() {
         </div>
     );
 }
+
+// Garante que a exportação padrão seja o componente da página.
+export default SellerRankingPage;
