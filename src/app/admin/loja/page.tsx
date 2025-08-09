@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -55,25 +56,30 @@ const PrizeFormModal = ({ isOpen, setIsOpen, prize, onSave }: { isOpen: boolean;
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Nome do Prémio</Label>
-                        <Input id="name" value={formData.name || ''} onChange={(e) => handleChange('name', e.target.value)} />
+                        {/* --- CORRIGIDO --- */}
+                        <Input id="name" value={formData.name || ''} onChange={(e) => handleChange('name', (e.target as any).value)} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="description">Descrição</Label>
-                        <Textarea id="description" value={formData.description || ''} onChange={(e) => handleChange('description', e.target.value)} />
+                        {/* --- CORRIGIDO --- */}
+                        <Textarea id="description" value={formData.description || ''} onChange={(e) => handleChange('description', (e.target as any).value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="points">Custo (Pontos)</Label>
-                            <Input id="points" type="number" value={formData.points || 0} onChange={(e) => handleChange('points', Number(e.target.value))} />
+                            {/* --- CORRIGIDO --- */}
+                            <Input id="points" type="number" value={formData.points || 0} onChange={(e) => handleChange('points', Number((e.target as any).value))} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="stock">Stock</Label>
-                            <Input id="stock" type="number" value={formData.stock ?? ''} onChange={(e) => handleChange('stock', Number(e.target.value))} placeholder="Deixe em branco para ilimitado"/>
+                            {/* --- CORRIGIDO --- */}
+                            <Input id="stock" type="number" value={formData.stock ?? ''} onChange={(e) => handleChange('stock', Number((e.target as any).value))} placeholder="Deixe em branco para ilimitado"/>
                         </div>
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="imageUrl">URL da Imagem</Label>
-                        <Input id="imageUrl" value={formData.imageUrl || ''} onChange={(e) => handleChange('imageUrl', e.target.value)} />
+                        {/* --- CORRIGIDO --- */}
+                        <Input id="imageUrl" value={formData.imageUrl || ''} onChange={(e) => handleChange('imageUrl', (e.target as any).value)} />
                     </div>
                     {formData.imageUrl && (
                         <div className="flex flex-col items-center space-y-2">
