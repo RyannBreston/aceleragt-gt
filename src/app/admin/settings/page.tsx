@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, ChangeEvent, ForwardedRef } from "react";
@@ -68,7 +69,8 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } 
     }, [field.value]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
+        // --- CORRIGIDO ---
+        const value = (e.target as any).value;
         setStringValue(value);
     };
 
