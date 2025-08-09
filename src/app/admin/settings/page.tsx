@@ -256,7 +256,7 @@ export default function SettingsPage() {
                 prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
             );
             
-            setGoals(_ => data.goals);
+            setGoals(data.goals);
             
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);

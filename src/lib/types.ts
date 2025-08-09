@@ -133,7 +133,7 @@ export interface QuizQuestion {
     question: string;
     options: string[];
     correctAnswerIndex: number;
-    explanation: string;
+    explanation:string;
 }
 
 export interface Quiz {
@@ -143,6 +143,10 @@ export interface Quiz {
 }
 
 export interface QuizResult {
+    quizId: string;
+    quizTitle: string;
+    sellerId: string;
+    sellerName: string;
     date: string;
     score: number;
     total: number;
