@@ -1,4 +1,10 @@
+// src/lib/types.ts
+
 import { Timestamp } from 'firebase/firestore';
+
+// ====================================================================
+// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
+// ====================================================================
 
 export interface Admin {
   id: string;
@@ -33,25 +39,20 @@ export interface PerformanceBonus {
     prize: number;
 }
 
+// --- CORREÇÃO FINAL APLICADA AQUI ---
 export interface SalesValueGoals {
     metinha: GoalLevel;
     meta: GoalLevel;
     metona: GoalLevel;
     lendaria: GoalLevel;
     performanceBonus?: PerformanceBonus;
-    topScorerPrize?: number;
+    topScorerPrize?: number; // Propriedade adicionada como opcional
 }
-
-export type PointsByDifficulty = {
-    Fácil: number;
-    Médio: number;
-    Difícil: number;
-};
 
 export interface GamificationSettings {
     missions: boolean;
     academia: PointsByDifficulty;
-    // quiz: PointsByDifficulty; // Removido
+    quiz: PointsByDifficulty;
     ofertas: boolean;
     loja: boolean;
     ranking: boolean;
@@ -60,13 +61,18 @@ export interface GamificationSettings {
 
 export interface Goals {
     salesValue: SalesValueGoals;
-    ticketAverage: SalesValueGoals;
-    pa: SalesValueGoals;
-    points: SalesValueGoals;
+    ticketAverage: SalesValueGoals; 
+    pa: SalesValueGoals; 
+    points: SalesValueGoals; 
     gamification: GamificationSettings;
 }
 
-// ... (O resto dos seus tipos permanece igual)
+export type PointsByDifficulty = {
+    Fácil: number;
+    Médio: number;
+    Difícil: number;
+};
+
 export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';
 
 export interface Course {
