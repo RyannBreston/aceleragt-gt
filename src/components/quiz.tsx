@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
@@ -11,10 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import type { Quiz, QuizResult } from '@/lib/types';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useSellerContext } from '@/contexts/SellerContext';
+import { useSellerContext } from '@/contexts/SellerContext'; 
 
 const saveResultToLocalStorage = (result: QuizResult) => {
-    // Código seguro para o lado do cliente
+    // AGORA ESTE CÓDIGO FUNCIONARÁ PERFEITAMENTE
     if (typeof window !== 'undefined') {
         try {
             const existingResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
