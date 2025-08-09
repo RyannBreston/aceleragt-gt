@@ -141,3 +141,12 @@ export interface SalesEntry {
   ticketAverage: number;
   productsPerService: number;
 }
+
+// Adicione este tipo ao final do seu arquivo src/lib/types.ts
+
+export interface CycleSnapshot {
+    id: string;
+    endDate: Timestamp;
+    sellers: Seller[];
+    goals: Goals;
+  }
