@@ -50,21 +50,21 @@ const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean;
     }, [offer]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        // --- CORRIGIDO ---
         const { name, value } = (e.target as any);
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // --- CORRIGIDO ---
         const { name, value } = (e.target as any);
         const numericValue = parseFloat(value.replace(',', '.') || '0');
         setFormData(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
+        // --- CORRIGIDO AQUI ---
+        const target = e.target as any;
+        if (target.files && target.files[0]) {
+            const file = target.files[0];
             if (file.size > 5 * 1024 * 1024) { // 5MB
                 toast({ variant: 'destructive', title: 'Imagem muito grande!' });
                 return;
