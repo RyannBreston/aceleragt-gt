@@ -41,10 +41,3 @@ export const initialGoals: Goals = {
       Médio: 25,
       Difícil: 50,
     },
-    quiz: {
-      Fácil: 20,
-      Médio: 40,
-      Difícil: 60,
-    },
-  },
-};
