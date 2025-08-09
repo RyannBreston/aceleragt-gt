@@ -39,20 +39,29 @@ export interface PerformanceBonus {
     prize: number;
 }
 
-// --- CORREÇÃO FINAL APLICADA AQUI ---
 export interface SalesValueGoals {
     metinha: GoalLevel;
     meta: GoalLevel;
     metona: GoalLevel;
     lendaria: GoalLevel;
     performanceBonus?: PerformanceBonus;
-    topScorerPrize?: number; // Propriedade adicionada como opcional
+    topScorerPrize?: number;
 }
+
+// --- CORREÇÃO FINAL APLICADA AQUI ---
+export type PointsByDifficulty = {
+    Fácil: number;
+    Médio: number;
+    Difícil: number;
+};
 
 export interface GamificationSettings {
     missions: boolean;
-    academia: boolean;
-    quiz: boolean;
+    academia: { // Supondo que a academia também tenha pontos por dificuldade
+        Fácil: number;
+        Médio: number;
+        Difícil: number;
+    };
     ofertas: boolean;
     loja: boolean;
     ranking: boolean;
@@ -61,9 +70,9 @@ export interface GamificationSettings {
 
 export interface Goals {
     salesValue: SalesValueGoals;
-    ticketAverage: SalesValueGoals; // Assumindo que este também não tem os bônus
-    pa: SalesValueGoals; // Assumindo que este também não tem os bônus
-    points: SalesValueGoals; // Assumindo que este também não tem os bônus
+    ticketAverage: SalesValueGoals;
+    pa: SalesValueGoals;
+    points: SalesValueGoals;
     gamification: GamificationSettings;
 }
 
@@ -73,33 +82,8 @@ export interface Course {
     id?: string;
     title: string;
     content: string;
-    quiz: QuizQuestion[];
     points: number;
     dificuldade: CourseDifficulty;
-}
-
-export interface QuizQuestion {
-    question: string;
-    options: string[];
-    correctAnswerIndex: number;
-    explanation:string;
-}
-
-export interface Quiz {
-    id: string;
-    title: string;
-    questions: QuizQuestion[];
-}
-
-export interface QuizResult {
-    quizId: string;
-    quizTitle: string;
-    sellerId: string;
-    sellerName: string;
-    timestamp: Date;
-    score: number;
-    correctAnswers: number;
-    totalQuestions: number;
 }
 
 export interface DailySprint {
