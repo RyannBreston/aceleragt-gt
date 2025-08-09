@@ -250,12 +250,13 @@ export default function SettingsPage() {
             batch.set(goalsRef, data.goals);
             await batch.commit();
 
-            // --- CORRIGIDO AQUI ---
             setSellers(prevSellers => 
                 prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
             );
-
-            setGoals(data.goals);
+            
+            // --- CORRIGIDO AQUI ---
+            setGoals(_ => data.goals);
+            
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
         } catch (error: unknown) {
