@@ -128,20 +128,21 @@ export const Certificate = (props: CertificateProps) => {
                 backgroundColor: '#ffffff',
             });
             
-            // --- CORREÇÃO FINAL APLICADA AQUI ---
             const imgData = (canvas as any).toDataURL('image/png');
+            // --- CORREÇÃO FINAL APLICADA AQUI ---
             const pdf = new jsPDF({
                 orientation: 'landscape',
                 unit: 'px',
-                format: [canvas.width, canvas.height],
+                format: [(canvas as any).width, (canvas as any).height],
                 compress: true,
             });
 
             const filename = `certificado_${slugify(props.courseTitle)}_${slugify(
                 props.sellerName
             )}.pdf`;
-
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height, undefined, 'FAST');
+            
+            // --- CORREÇÃO FINAL APLICADA AQUI ---
+            pdf.addImage(imgData, 'PNG', 0, 0, (canvas as any).width, (canvas as any).height, undefined, 'FAST');
             pdf.save(filename);
         } catch (err) {
             console.error('Erro ao gerar PDF:', err);
