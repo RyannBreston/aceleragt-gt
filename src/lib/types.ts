@@ -1,10 +1,4 @@
-// src/lib/types.ts
-
 import { Timestamp } from 'firebase/firestore';
-
-// ====================================================================
-// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
-// ====================================================================
 
 export interface Admin {
   id: string;
@@ -48,7 +42,6 @@ export interface SalesValueGoals {
     topScorerPrize?: number;
 }
 
-// --- CORREÇÃO FINAL APLICADA AQUI ---
 export type PointsByDifficulty = {
     Fácil: number;
     Médio: number;
@@ -57,11 +50,8 @@ export type PointsByDifficulty = {
 
 export interface GamificationSettings {
     missions: boolean;
-    academia: { // Supondo que a academia também tenha pontos por dificuldade
-        Fácil: number;
-        Médio: number;
-        Difícil: number;
-    };
+    academia: PointsByDifficulty;
+    // quiz: PointsByDifficulty; // Removido
     ofertas: boolean;
     loja: boolean;
     ranking: boolean;
@@ -76,14 +66,40 @@ export interface Goals {
     gamification: GamificationSettings;
 }
 
+// ... (O resto dos seus tipos permanece igual)
 export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';
 
 export interface Course {
     id?: string;
     title: string;
     content: string;
+    quiz: QuizQuestion[];
     points: number;
     dificuldade: CourseDifficulty;
+}
+
+export interface QuizQuestion {
+    question: string;
+    options: string[];
+    correctAnswerIndex: number;
+    explanation:string;
+}
+
+export interface Quiz {
+    id: string;
+    title: string;
+    questions: QuizQuestion[];
+}
+
+export interface QuizResult {
+    quizId: string;
+    quizTitle: string;
+    sellerId: string;
+    sellerName: string;
+    timestamp: Date;
+    score: number;
+    correctAnswers: number;
+    totalQuestions: number;
 }
 
 export interface DailySprint {
