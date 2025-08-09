@@ -18,24 +18,23 @@ import type { Seller, Admin } from '@/lib/types';
 
 // --- Sub-componente: Modal de Gestão de Vendedor (Criar/Editar) ---
 const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; seller: Partial<Seller> | null; onSave: (data: Partial<Seller>, password?: string) => Promise<void> }) => {
-    // --- CORREÇÃO: Estado da senha separado do formData ---
     const [formData, setFormData] = useState<Partial<Seller>>({ name: '', email: '' });
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    useEffect(() => {
-        setFormData(seller || { name: '', email: '' });
-        setPassword(''); // Limpa a senha sempre que o modal abre
+    useEffect(() => { 
+        setFormData(seller || { name: '', email: '' }); 
+        setPassword('');
     }, [seller]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        // --- CORRIGIDO ---
+        const { name, value } = (e.target as any);
         setFormData(p => ({ ...p, [name]: value }));
     };
 
     const handleSave = async () => {
         setIsSubmitting(true);
-        // --- CORREÇÃO: Passa a senha como um argumento separado ---
         await onSave(formData, password);
         setIsSubmitting(false);
     };
@@ -47,7 +46,6 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>
-                    {/* O campo de senha agora usa seu próprio estado */}
                     {!seller?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input name="password" type="password" value={password} placeholder="Mínimo 6 caracteres" onChange={(e) => setPassword(e.target.value)} /></div>}
                 </div>
                 <DialogFooter>
@@ -61,24 +59,23 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
 
 // --- Sub-componente: Modal de Gestão de Administrador (Criar/Editar) ---
 const AdminFormModal = ({ isOpen, setIsOpen, admin, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; admin: Partial<Admin> | null; onSave: (data: Partial<Admin>, password?: string) => Promise<void> }) => {
-    // --- CORREÇÃO: Estado da senha separado do formData ---
     const [formData, setFormData] = useState<Partial<Admin>>({ name: '', email: '' });
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    useEffect(() => {
-        setFormData(admin || { name: '', email: '' });
-        setPassword(''); // Limpa a senha sempre que o modal abre
+    useEffect(() => { 
+        setFormData(admin || { name: '', email: '' }); 
+        setPassword('');
     }, [admin]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
+        // --- CORRIGIDO ---
+        const { name, value } = (e.target as any);
         setFormData(p => ({ ...p, [name]: value }));
     };
 
     const handleSave = async () => {
         setIsSubmitting(true);
-        // --- CORREÇÃO: Passa a senha como um argumento separado ---
         await onSave(formData, password);
         setIsSubmitting(false);
     };
@@ -90,7 +87,6 @@ const AdminFormModal = ({ isOpen, setIsOpen, admin, onSave }: { isOpen: boolean;
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email de Login</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>
-                    {/* O campo de senha agora usa seu próprio estado */}
                     {!admin?.id && <div className="space-y-2"><Label>Senha Inicial</Label><Input name="password" type="password" value={password} placeholder="Mínimo 6 caracteres" onChange={(e) => setPassword(e.target.value)} /></div>}
                 </div>
                 <DialogFooter><Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button><Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button></DialogFooter>
@@ -180,7 +176,6 @@ export default function PerfilPage() {
                 toast({ title: 'Administrador atualizado!' });
             } else {
                 const createAdminFunction = httpsCallable(functions, 'createAdmin');
-                // --- CORREÇÃO: Passa a senha para a Cloud Function ---
                 await createAdminFunction({ ...data, password });
                 toast({ title: 'Administrador adicionado!' });
             }
@@ -199,7 +194,6 @@ export default function PerfilPage() {
                 toast({ title: 'Vendedor atualizado!' });
             } else {
                 const createSellerFunction = httpsCallable(functions, 'createSeller');
-                // --- CORREÇÃO: Passa a senha para a Cloud Function ---
                 await createSellerFunction({ ...data, password });
                 toast({ title: 'Vendedor adicionado!' });
             }
