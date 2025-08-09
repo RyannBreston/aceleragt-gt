@@ -17,7 +17,7 @@ import {
     Box,
     Star,
     Loader2,
-    Users, // Ícone para o card de equipe
+    Users,
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller } from '@/lib/types';
@@ -58,11 +58,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
     const sellersWithPrizes = useMemo(() => {
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Se 'goals' ainda não foi carregado (é nulo), retorna um array vazio.
-        if (!goals) {
-            return [];
-        }
+        if (!goals) return [];
         return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
     }, [sellers, goals]);
 
@@ -91,6 +87,12 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
             return { percent: 0, label: '', achievedLevels: [] };
         }
         const metric = criterion as keyof Goals;
+        // --- CORREÇÃO FINAL APLICADA AQUI ---
+        // Verificamos se a métrica é 'gamification' antes de prosseguir.
+        if (metric === 'gamification') {
+            return { percent: 0, label: '', achievedLevels: [] };
+        }
+        
         const goalData = goals[metric];
         const sellerValue = metric === 'points' 
             ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
@@ -138,7 +140,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
 const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: Goals | null }) => {
     const { metinhaThreshold, bonus } = useMemo(() => ({
         metinhaThreshold: goals?.salesValue?.metinha?.threshold || 0,
-        bonus: goals?.salesValue?.metinha?.prize || 100, // Fallback para 100 se não definido
+        bonus: goals?.salesValue?.metinha?.prize || 100,
     }), [goals]);
 
     if (metinhaThreshold === 0) return null;
