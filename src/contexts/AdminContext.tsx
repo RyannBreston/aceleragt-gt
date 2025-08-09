@@ -54,7 +54,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (!authStatus.isAuthReady || !authStatus.isAdmin) return; // CORREÇÃO: Espera a autenticação estar pronta
+    if (!authStatus.isAuthReady || !authStatus.isAdmin) return;
 
     const unsubSellers = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
       const sellersFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller));
@@ -65,13 +65,20 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     const unsubGoals = onSnapshot(goalsRef, (doc) => {
         dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
     });
+    
+    // Supondo que você tenha uma coleção de missões
+    const missionsQuery = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/missions`));
+    const unsubMissions = onSnapshot(missionsQuery, (snapshot) => {
+        const missionsFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Mission));
+        dataStore.setMissions(() => missionsFromDb);
+    });
 
     const unsubHistory = onSnapshot(query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/cycle_history`), orderBy('endDate', 'asc')), (snapshot) => {
       const historyFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CycleSnapshot));
       dataStore.setCycleHistory(() => historyFromDb);
     });
 
-    return () => { unsubSellers(); unsubHistory(); unsubGoals(); };
+    return () => { unsubSellers(); unsubHistory(); unsubGoals(); unsubMissions(); };
   }, [authStatus.isAuthReady, authStatus.isAdmin]);
 
   const contextValue = useMemo(() => ({

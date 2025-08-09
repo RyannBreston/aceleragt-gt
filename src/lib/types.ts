@@ -1,8 +1,6 @@
-import { Timestamp } from 'firebase/firestore';
+// src/lib/types.ts
 
-// ====================================================================
-// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
-// ====================================================================
+import { Timestamp } from 'firebase/firestore';
 
 export interface Admin {
   id: string;
@@ -57,7 +55,6 @@ export interface Goals {
     gamification: GamificationSettings;
 }
 
-// Outros tipos que seu projeto utiliza
 export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';
 
 export interface Course {
@@ -142,11 +139,21 @@ export interface SalesEntry {
   productsPerService: number;
 }
 
-// Adicione este tipo ao final do seu arquivo src/lib/types.ts
-
 export interface CycleSnapshot {
-    id: string;
-    endDate: Timestamp;
-    sellers: Seller[];
-    goals: Goals;
-  }
+  id: string;
+  endDate: Timestamp;
+  sellers: Seller[];
+  goals: Goals;
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  type: 'individual' | 'team';
+  goal: number;
+  metric: 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+  isActive: boolean;
+  deadline: Date;
+}
