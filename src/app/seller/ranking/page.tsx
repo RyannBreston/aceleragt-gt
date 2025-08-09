@@ -16,15 +16,12 @@ import {
   Ticket,
   Box,
   Star,
-  Loader2,
   Users,
-  Info
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn, calculateSellerPrizes } from '@/lib/utils';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
@@ -51,10 +48,7 @@ const goalLevelConfig: Record<GoalLevelName, { label: string; className: string;
     'Lendária': { label: 'Lendária', className: 'border-purple-500/50 text-purple-400 bg-purple-500/10' },
 };
 
-const formatCurrency = (value: number) => {
-    if (isNaN(value)) return 'R$ 0,00';
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
+const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 // ####################################################################
 // ### 2. HOOK DE LÓGICA DE DADOS ###
@@ -185,7 +179,7 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: G
 // ####################################################################
 // ### 4. COMPONENTE PRINCIPAL ###
 // ####################################################################
-const SellerRankingPage = () => {
+const SellerPerformancePage = () => {
     const [criterion, setCriterion] = useState<RankingCriterion>('salesValue');
     const { sellerData, currentUserRank, goalProgress, sellersWithPrizes } = useSellerPerformance(criterion);
     const { goals, isAuthReady } = useSellerContext();
@@ -270,5 +264,4 @@ const SellerRankingPage = () => {
     );
 }
 
-// Garante que a exportação padrão seja o componente da página.
-export default SellerRankingPage;
+export default SellerPerformancePage;
