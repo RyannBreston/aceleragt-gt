@@ -2,6 +2,10 @@
 
 import { Timestamp } from 'firebase/firestore';
 
+// ====================================================================
+// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
+// ====================================================================
+
 export interface Admin {
   id: string;
   name: string;
@@ -30,11 +34,18 @@ export interface GoalLevel {
     prize: number;
 }
 
+// --- CORREÇÃO APLICADA AQUI ---
+export interface PerformanceBonus {
+    per: number;
+    prize: number;
+}
+
 export interface SalesValueGoals {
     metinha: GoalLevel;
     meta: GoalLevel;
     metona: GoalLevel;
     lendaria: GoalLevel;
+    performanceBonus?: PerformanceBonus; // Propriedade adicionada como opcional
 }
 
 export interface GamificationSettings {
