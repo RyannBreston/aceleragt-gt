@@ -1,27 +1,28 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useMemo, useState } from 'react';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Trophy,
-  DollarSign,
-  Ticket,
-  Box,
-  Star,
-  Loader2,
-  Users, // Ícone para o card de equipe
+    Trophy,
+    DollarSign,
+    Ticket,
+    Box,
+    Star,
+    Loader2,
+    Users, // Ícone para o card de equipe
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller } from '@/lib/types';
-import { Progress } from '@/components/ui/progress'; // Importa a barra de progresso
-import { Badge } from '@/components/ui/badge'; // Importa o badge
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { cn, calculateSellerPrizes } from '@/lib/utils';
 
 // ####################################################################
@@ -56,17 +57,22 @@ const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style:
 const useSellerPerformance = (criterion: RankingCriterion) => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
-    const sellersWithPrizes = useMemo(() => 
-        sellers.map(s => calculateSellerPrizes(s, sellers, goals)), 
-    [sellers, goals]);
+    const sellersWithPrizes = useMemo(() => {
+        // --- CORREÇÃO APLICADA AQUI ---
+        // Se 'goals' ainda não foi carregado (é nulo), retorna um array vazio.
+        if (!goals) {
+            return [];
+        }
+        return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
+    }, [sellers, goals]);
 
     const sortedSellers = useMemo(() => {
         return [...sellersWithPrizes].sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
             if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
-            const valueA = a[criterion as keyof Seller] || 0;
-            const valueB = b[criterion as keyof Seller] || 0;
-            return (valueB as number) - (valueA as number);
+            const valueA = (a as any)[criterion as keyof Seller] || 0;
+            const valueB = (b as any)[criterion as keyof Seller] || 0;
+            return valueB - valueA;
         });
     }, [sellersWithPrizes, criterion]);
 
@@ -177,7 +183,7 @@ export default function SellerPerformancePage() {
     const criterionLabel = TABS_CONFIG.find(t => t.value === criterion)?.label || '';
     const prizeForCriterion = criterion === 'totalPrize' 
         ? sellerData.totalPrize 
-        : (sellerData.prizes[criterion as keyof typeof sellerData.prizes] || 0);
+        : (sellerData.prizes as any)[criterion as keyof typeof sellerData.prizes] || 0;
 
     return (
         <div className="space-y-8">
