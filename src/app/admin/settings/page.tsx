@@ -69,7 +69,6 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } 
     }, [field.value]);
 
     const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        // --- CORRIGIDO ---
         const value = (e.target as any).value;
         setStringValue(value);
     };
@@ -250,8 +249,12 @@ export default function SettingsPage() {
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
             batch.set(goalsRef, data.goals);
             await batch.commit();
-            const updatedSellers = contextSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }));
-            setSellers(updatedSellers);
+
+            // --- CORRIGIDO AQUI ---
+            setSellers(prevSellers => 
+                prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
+            );
+
             setGoals(data.goals);
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
