@@ -188,4 +188,5 @@ export type SellerWithPrizes = Seller & {
   totalPrize: number;
   teamBonusApplied: boolean;
   topScorerBonus: number;
+  rank: number;
 };
