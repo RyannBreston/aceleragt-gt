@@ -3,17 +3,17 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Zap, Check, Trophy } from "lucide-react";
+import { Zap, Check } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import type { DailySprint, Seller } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/EmptyState';
 
 // --- Sub-componente: Card da Corridinha ---
 const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Seller }) => {
     const sellerSales = seller.salesValue || 0;
     
-    // Encontra o próximo nível de meta e o último nível alcançado.
     const nextTier = sprint.sprintTiers.find(tier => sellerSales < tier.goal);
     const lastAchievedTier = [...sprint.sprintTiers].reverse().find(tier => sellerSales >= tier.goal);
 
@@ -75,16 +75,11 @@ export default function SellerSprintPage() {
             {activeSprint ? (
                 <DailySprintCard sprint={activeSprint} seller={currentSeller} />
             ) : (
-                <Card className="text-center p-10">
-                    <CardHeader>
-                        <Trophy className="mx-auto size-12 text-muted-foreground mb-4" />
-                        <CardTitle>Nenhuma Corridinha Ativa</CardTitle>
-                        <CardDescription>
-                            Não há nenhuma corridinha de vendas ativa para si no momento. <br/>
-                            Fique atento para o próximo desafio!
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
+                <EmptyState 
+                    Icon={Zap}
+                    title="Nenhuma Corridinha Ativa"
+                    description="Não há nenhuma corridinha de vendas ativa para si no momento. Fique atento para o próximo desafio!"
+                />
             )}
         </div>
     );

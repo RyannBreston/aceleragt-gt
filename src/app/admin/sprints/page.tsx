@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { httpsCallable } from 'firebase/functions';
 import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { EmptyState } from '@/components/EmptyState'; // Importa o novo componente
 
 type NewSprintData = Omit<DailySprint, 'id' | 'createdAt' | 'isActive'>;
 
@@ -128,15 +129,10 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
 
 // Página Principal
 export default function AdminSprintsPage() {
-    const { sellers, sprints, toggleSprint } = useAdminContext();
+    const { sellers, sprints, toggleSprint, isAuthReady } = useAdminContext();
     const { toast } = useToast();
-    const [isLoading, setIsLoading] = useState(!sprints.length);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isToggling, setIsToggling] = useState<string | null>(null);
-    
-    React.useEffect(() => {
-        if(sprints.length) setIsLoading(false);
-    }, [sprints]);
 
     const handleSaveSprint = async (sprintData: NewSprintData) => {
         try {
@@ -162,6 +158,51 @@ export default function AdminSprintsPage() {
         }
     }
 
+    const renderContent = () => {
+        if (!isAuthReady) {
+            return <EmptyState Icon={Loader2} title="A carregar..." description="Aguarde um momento." className="animate-spin"/>
+        }
+        if (sprints.length === 0) {
+            return <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>
+        }
+        return (
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader><TableRow><TableHead>Título</TableHead><TableHead>Meta Máxima</TableHead><TableHead>Participantes</TableHead><TableHead>Data</TableHead><TableHead className="text-center">Ações</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                        {sprints.map(sprint => (
+                            <TableRow key={sprint.id} className={sprint.isActive ? 'bg-primary/5' : ''}>
+                                <TableCell className="font-semibold">{sprint.title}</TableCell>
+                                <TableCell>
+                                    {sprint.sprintTiers && sprint.sprintTiers.length > 0 
+                                        ? `Até ${Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`
+                                        : 'N/A'
+                                    }
+                                </TableCell>
+                                <TableCell>{sprint.participantIds.length} / {sellers.length}</TableCell>
+                                <TableCell>{sprint.createdAt ? format(sprint.createdAt.seconds * 1000, 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
+                                <TableCell className="text-center">
+                                    <Button 
+                                        size="sm"
+                                        variant={sprint.isActive ? 'destructive' : 'outline'} 
+                                        onClick={() => handleToggleSprint(sprint)}
+                                        disabled={isToggling === sprint.id}
+                                    >
+                                        {isToggling === sprint.id 
+                                            ? <Loader2 className="mr-2 size-4 animate-spin" />
+                                            : sprint.isActive ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />
+                                        }
+                                        {sprint.isActive ? 'Desativar' : 'Ativar'}
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
@@ -175,50 +216,11 @@ export default function AdminSprintsPage() {
                     <CardDescription>Lista de todas as corridinhas criadas. Apenas uma pode estar ativa por vez.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Título</TableHead><TableHead>Meta Máxima</TableHead><TableHead>Participantes</TableHead><TableHead>Data</TableHead><TableHead className="text-center">Ações</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
-                                ) : sprints.length > 0 ? (
-                                    sprints.map(sprint => (
-                                        <TableRow key={sprint.id} className={sprint.isActive ? 'bg-primary/5' : ''}>
-                                            <TableCell className="font-semibold">{sprint.title}</TableCell>
-                                            <TableCell>
-                                                {sprint.sprintTiers && sprint.sprintTiers.length > 0 
-                                                    ? `Até ${Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`
-                                                    : 'N/A'
-                                                }
-                                            </TableCell>
-                                            <TableCell>{sprint.participantIds.length} / {sellers.length}</TableCell>
-                                            <TableCell>{sprint.createdAt ? format(sprint.createdAt.seconds * 1000, 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
-                                            <TableCell className="text-center">
-                                                <Button 
-                                                    size="sm"
-                                                    variant={sprint.isActive ? 'destructive' : 'outline'} 
-                                                    onClick={() => handleToggleSprint(sprint)}
-                                                    disabled={isToggling === sprint.id}
-                                                >
-                                                    {isToggling === sprint.id 
-                                                        ? <Loader2 className="mr-2 size-4 animate-spin" />
-                                                        : sprint.isActive ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />
-                                                    }
-                                                    {sprint.isActive ? 'Desativar' : 'Ativar'}
-                                                </Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Nenhuma corridinha criada ainda.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                    {renderContent()}
                 </CardContent>
             </Card>
 
-            <SprintFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} onSave={handleSaveSprint} sellers={sellers} />
+            <SprintFormModal isOpen={isModalOpen} setIsOpen={setIsOpen} onSave={handleSaveSprint} sellers={sellers} />
         </div>
     );
 }

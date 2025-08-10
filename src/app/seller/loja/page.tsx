@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import type { PrizeItem } from '@/lib/types';
 import { useSellerContext } from '@/contexts/SellerContext';
+import { EmptyState } from '@/components/EmptyState'; // Importa o novo componente
 
 // Componentes UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -34,8 +35,7 @@ export default function SellerLojaPage() {
       const prizesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PrizeItem));
       setPrizes(prizesList);
       setLoading(false);
-    }, (error) => {
-      console.error("Erro ao carregar prémios:", error);
+    }, () => {
       toast({ variant: 'destructive', title: 'Erro ao Carregar Prémios', description: "Não foi possível buscar os prémios." });
       setLoading(false);
     });
@@ -85,7 +85,6 @@ export default function SellerLojaPage() {
 
       } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-          console.error("Erro ao resgatar o prémio:", error);
           toast({ variant: "destructive", title: "Erro no Resgate", description: errorMessage });
       } finally {
           setRedeemingId(null);
@@ -95,12 +94,7 @@ export default function SellerLojaPage() {
   const totalPoints = (currentSeller?.points || 0) + (currentSeller?.extraPoints || 0);
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-4 text-muted-foreground">A carregar prémios...</p>
-      </div>
-    );
+    return <EmptyState Icon={Loader2} title="A carregar prémios..." description="Aguarde um momento." className="animate-spin"/>
   }
 
   return (
@@ -153,13 +147,7 @@ export default function SellerLojaPage() {
           })}
         </div>
       ) : (
-        <Card>
-            <CardContent className="p-12 text-center text-muted-foreground">
-                <ShoppingBag className="mx-auto h-12 w-12" />
-                <h3 className="mt-4 text-lg font-semibold">Nenhum prémio disponível no momento.</h3>
-                <p className="mt-1 text-sm">Verifique novamente mais tarde.</p>
-            </CardContent>
-        </Card>
+        <EmptyState Icon={ShoppingBag} title="Nenhum prémio disponível" description="Verifique novamente mais tarde para novas recompensas."/>
       )}
     </div>
   );
