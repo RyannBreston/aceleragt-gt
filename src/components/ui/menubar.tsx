@@ -6,12 +6,11 @@ import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/client-utils"
 
-function MenubarMenu({
-  ...props
-}: React.ComponentPropsWithoutRef<typeof MenubarPrimitive.Menu>) {
-  return <MenubarPrimitive.Menu {...props} />
-}
-MenubarMenu.displayName = "MenubarMenu"
+const MenubarMenu = MenubarPrimitive.Menu
+const MenubarGroup = MenubarPrimitive.Group
+const MenubarPortal = MenubarPrimitive.Portal
+const MenubarSub = MenubarPrimitive.Sub
+const MenubarRadioGroup = MenubarPrimitive.RadioGroup
 
 const Menubar = React.forwardRef<
   React.ElementRef<typeof MenubarPrimitive.Root>,
@@ -208,7 +207,7 @@ const MenubarShortcut = ({
     />
   )
 }
-MenubarShortcut.displayname = "MenubarShortcut"
+MenubarShortcut.displayName = "MenubarShortcut"
 
 export {
   Menubar,
