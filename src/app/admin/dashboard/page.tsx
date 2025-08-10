@@ -3,13 +3,13 @@
 
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag, LucideIcon, Trophy } from "lucide-react";
+import { Users, DollarSign, LayoutGrid, Star, Ticket, Box, Flag, LucideIcon } from "lucide-react";
 import { useAdminContext } from '@/contexts/AdminContext';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { DashboardSkeleton } from '@/components/DashboardSkeleton'; // Supondo que você tenha um skeleton
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 interface StatCardProps {
     title: string;
@@ -35,12 +35,11 @@ const StatCard = ({ title, value, description, Icon, iconClassName }: StatCardPr
 const useDashboardStats = (sellers: Seller[]) => {
     return useMemo(() => {
         const totalSellers = sellers.length;
-        if (totalSellers === 0) return { totalSellers: 0, currentSales: 0, totalPoints: 0, averageTicket: 0, averagePA: 0, topSellerBySales: null };
+        if (totalSellers === 0) return { totalSellers: 0, currentSales: 0, totalPoints: 0, averageTicket: 0, averagePA: 0 };
         const currentSales = sellers.reduce((acc, seller) => acc + (seller.salesValue || 0), 0);
         const totalPoints = sellers.reduce((acc, seller) => acc + (seller.points || 0) + (seller.extraPoints || 0), 0);
         const totalTicket = sellers.reduce((acc, seller) => acc + (seller.ticketAverage || 0), 0);
         const totalPA = sellers.reduce((acc, seller) => acc + (seller.pa || 0), 0);
-        const topSellerBySales = [...sellers].sort((a, b) => (b.salesValue || 0) - (a.salesValue || 0))[0];
         
         return {
             totalSellers,
@@ -48,7 +47,6 @@ const useDashboardStats = (sellers: Seller[]) => {
             totalPoints,
             averageTicket: totalSellers > 0 ? totalTicket / totalSellers : 0,
             averagePA: totalSellers > 0 ? totalPA / totalSellers : 0,
-            topSellerBySales,
         };
     }, [sellers]);
 };
@@ -120,7 +118,7 @@ const GoalDistribution = ({ sellers, goals }: { sellers: Seller[], goals: Goals 
 
 export default function DashboardPage() {
     const { admin, sellers, goals } = useAdminContext();
-    const { totalSellers, currentSales, totalPoints, averageTicket, averagePA, topSellerBySales } = useDashboardStats(sellers);
+    const { totalSellers, currentSales, totalPoints, averageTicket, averagePA } = useDashboardStats(sellers);
 
     if (!admin || !sellers || !goals) {
         return <DashboardSkeleton />;
@@ -136,7 +134,7 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatCard title="Vendas Totais (Mês)" value={currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Total de vendas da equipa" Icon={DollarSign} />
                 <StatCard title="Ticket Médio (Equipe)" value={averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Média de ticket por venda" Icon={Ticket} />
                 <StatCard title="PA Médio (Equipe)" value={averagePA.toFixed(2)} description="Média de produtos por atendimento" Icon={Box} />
