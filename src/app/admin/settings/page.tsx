@@ -21,13 +21,13 @@ import type { Seller } from '@/lib/types';
 
 // --- Esquema de Validação com Zod ---
 const goalLevelSchema = z.object({
-  threshold: z.coerce.number().min(0, "O valor deve ser >= 0."),
-  prize: z.coerce.number().min(0, "O prémio deve ser >= 0."),
+  threshold: z.coerce.number().min(0, "O valor deve ser >= 0.").optional(),
+  prize: z.coerce.number().min(0, "O prémio deve ser >= 0.").optional(),
 });
 
 const performanceBonusSchema = z.object({
-    per: z.coerce.number().min(0),
-    prize: z.coerce.number().min(0),
+    per: z.coerce.number().min(0).optional(),
+    prize: z.coerce.number().min(0).optional(),
 });
 
 const metricGoalsSchema = z.object({
@@ -76,26 +76,33 @@ type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBon
 
 // --- Sub-componentes Refatorados ---
 
-const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input> & { onValueChange: (value: number) => void }>((props, ref) => {
-    const { onValueChange, value, ...rest } = props;
+const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
+  ({ value, onChange, ...props }, ref) => {
     const [displayValue, setDisplayValue] = useState('');
 
     useEffect(() => {
-        const numValue = Number(value);
-        setDisplayValue(isNaN(numValue) ? '' : numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+        if (value) {
+            setDisplayValue(Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+        } else {
+            setDisplayValue('');
+        }
     }, [value]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setDisplayValue(val);
-        const numValue = parseFloat(val.replace(/[^0-9,]/g, '').replace(',', '.'));
-        if (!isNaN(numValue)) {
-            onValueChange(numValue);
-        }
+      const { value } = e.target;
+      setDisplayValue(value);
+      
+      const numericValue = parseFloat(value.replace(/[^0-9,]/g, '').replace(',', '.'));
+      if (onChange && !isNaN(numericValue)) {
+        (onChange as any)(numericValue);
+      } else if (onChange) {
+        (onChange as any)('');
+      }
     };
 
-    return <Input type="text" {...rest} ref={ref} value={displayValue} onChange={handleChange} placeholder="0,00" />;
-});
+    return <Input ref={ref} value={displayValue} onChange={handleChange} {...props} />;
+  }
+);
 CurrencyInput.displayName = 'CurrencyInput';
 
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
@@ -108,8 +115,8 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
                     {fields.map((field, index) => (
                         <TableRow key={field.id}>
                             <TableCell className="font-medium">{field.name}</TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field: formField }) => <CurrencyInput {...formField} onValueChange={formField.onChange} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field: formField }) => <CurrencyInput {...formField} onValueChange={formField.onChange} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field: formField }) => <CurrencyInput {...formField} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field: formField }) => <CurrencyInput {...formField} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />} /></TableCell>
                         </TableRow>
@@ -135,8 +142,8 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         <FormField control={control} name="goals.teamGoalBonus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Bónus de Equipa</FormLabel>
-                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a &quot;Metinha&quot; de Vendas.</FormDescription>
-                                <FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl>
+                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a "Metinha" de Vendas.</FormDescription>
+                                <FormControl><CurrencyInput {...field} /></FormControl>
                             </FormItem>
                         )} />
                     </CardContent>
@@ -148,8 +155,8 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
-                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput {...field} onValueChange={field.onChange}/> : <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput {...field}/> : <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput {...field}/></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
                         </div>
@@ -158,11 +165,11 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             <h4 className="text-md font-semibold mb-2">Prémios de Performance Individual</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
-                                 </Card>
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput {...field}/></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl><CurrencyInput {...field}/></FormControl></FormItem>)} />
+                                </Card>
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput {...field}/></FormControl></FormItem>)} />
                                 </Card>
                             </div>
                         </div>
