@@ -20,17 +20,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import type { Seller } from '@/lib/types';
 
 // --- Esquema de Validação com Zod ---
+const optionalNumber = z.union([z.string(), z.number()]).optional().transform(v => v === '' ? undefined : Number(v) || undefined);
+
 const goalLevelSchema = z.object({
-  threshold: z.coerce.number().min(0, "O valor deve ser >= 0.").optional(),
-  prize: z.coerce.number().min(0, "O prémio deve ser >= 0.").optional(),
+  threshold: optionalNumber,
+  prize: optionalNumber,
 }).refine(data => (data.threshold != null && data.prize != null) || (data.threshold == null && data.prize == null), {
   message: "Preencha ambos os campos ou deixe-os em branco.",
   path: ["prize"],
 });
 
 const performanceBonusSchema = z.object({
-    per: z.coerce.number().min(0).optional(),
-    prize: z.coerce.number().min(0).optional(),
+    per: optionalNumber,
+    prize: optionalNumber,
 }).refine(data => (data.per != null && data.prize != null) || (data.per == null && data.prize == null), {
     message: "Preencha ambos os campos ou deixe-os em branco.",
     path: ["prize"],
@@ -42,7 +44,7 @@ const metricGoalsSchema = z.object({
     metona: goalLevelSchema,
     lendaria: goalLevelSchema,
     performanceBonus: performanceBonusSchema.optional(),
-    topScorerPrize: z.coerce.number().min(0).optional(),
+    topScorerPrize: optionalNumber,
 });
 
 const sellerPerformanceSchema = z.object({
@@ -72,7 +74,7 @@ const formSchema = z.object({
     pa: metricGoalsSchema,
     points: metricGoalsSchema,
     gamification: gamificationSchema,
-    teamGoalBonus: z.coerce.number().min(0).optional(),
+    teamGoalBonus: optionalNumber,
   }),
 });
 
@@ -81,35 +83,31 @@ type GoalLevels = 'metinha' | 'meta' | 'metona' | 'lendaria';
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBonus'>;
 
 // --- Sub-componentes Refatorados ---
-
 const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
-  ({ value, onChange, ...props }, ref) => {
-    const [displayValue, setDisplayValue] = useState('');
+    ({ value, onChange, onBlur, ...props }, ref) => {
+      const [internalValue, setInternalValue] = useState(String(value || ''));
 
-    useEffect(() => {
-        if (value) {
-            setDisplayValue(Number(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
-        } else {
-            setDisplayValue('');
-        }
-    }, [value]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { value } = e.target;
-      setDisplayValue(value);
+      useEffect(() => {
+        setInternalValue(String(value || ''));
+      }, [value]);
       
-      const numericValue = parseFloat(value.replace(/[^0-9,]/g, '').replace(',', '.'));
-      if (onChange && !isNaN(numericValue)) {
-        (onChange as any)(numericValue);
-      } else if (onChange) {
-        (onChange as any)('');
-      }
-    };
+      const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInternalValue(e.target.value);
+      };
 
-    return <Input ref={ref} value={displayValue} onChange={handleChange} {...props} />;
-  }
+      const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const numericValue = parseFloat(e.target.value.replace(/[^0-9,]/g, '').replace(',', '.'));
+        if (onChange) {
+            (onChange as any)(isNaN(numericValue) ? '' : numericValue);
+        }
+        if(onBlur) onBlur(e);
+      };
+
+      return <Input ref={ref} value={internalValue} onChange={handleChange} onBlur={handleBlur} {...props} />;
+    }
 );
 CurrencyInput.displayName = 'CurrencyInput';
+
 
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
     <Card>
@@ -232,6 +230,19 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     </Card>
 );
 
+const cleanData = (data: any) => {
+    const cleanedData = { ...data };
+    for (const key in cleanedData) {
+        if (cleanedData[key] === undefined) {
+            delete cleanedData[key];
+        } else if (typeof cleanedData[key] === 'object' && cleanedData[key] !== null) {
+            cleanedData[key] = cleanData(cleanedData[key]);
+        }
+    }
+    return cleanedData;
+};
+
+
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
     const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals } = useAdminContext();
@@ -268,12 +279,15 @@ export default function SettingsPage() {
                     pa: seller.pa, extraPoints: seller.extraPoints,
                 });
             });
+
+            const cleanedGoals = cleanData(data.goals);
+
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
-            batch.set(goalsRef, data.goals, { merge: true });
+            batch.set(goalsRef, cleanedGoals, { merge: true });
             await batch.commit();
 
             setSellers(prevSellers => prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) })));
-            setGoals(() => data.goals);
+            setGoals(() => cleanedGoals);
             
             toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
             reset(data);
