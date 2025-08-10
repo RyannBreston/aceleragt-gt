@@ -289,7 +289,7 @@ export default function SettingsPage() {
             await batch.commit();
 
             setSellers(prevSellers => prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) })));
-            setGoals(cleanedGoals as Goals);
+            setGoals(() => cleanedGoals as Goals);
             
             toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
             reset(data);
