@@ -5,7 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
-import { calculateSellerPrizes } from '@/lib/utils'; // Importa a função de cálculo
+import { calculateSellerPrizes } from '@/lib/utils';
 import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin, SellerWithPrizes } from '@/lib/types';
 
 // 1. Definição da Interface do Contexto
@@ -14,7 +14,7 @@ interface SellerContextType {
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
   goals: Goals | null;
   missions: Mission[];
-  currentSeller: SellerWithPrizes | null; // Agora usa o tipo enriquecido
+  currentSeller: SellerWithPrizes | null;
   cycleHistory: CycleSnapshot[];
   activeSprint: DailySprint | null;
   isAuthReady: boolean;
@@ -33,7 +33,6 @@ const SellerContext = createContext<SellerContextType | undefined>(undefined);
 // 3. Criação do Provider
 export const SellerProvider = ({ children }: { children: ReactNode }) => {
   const state = useStore(s => s);
-  const { sellers, goals } = state;
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -93,16 +92,19 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [sprintsCollectionPath]);
 
-  // Efeito para calcular os prémios sempre que os dados relevantes mudam
+  // Efeito para calcular os prémios, ouvindo diretamente a store
   useEffect(() => {
-    if (userId && sellers.length > 0 && goals) {
-      const sellerData = sellers.find(s => s.id === userId);
-      if (sellerData) {
-        const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
-        setCurrentSeller(sellerWithPrizes);
-      }
-    }
-  }, [userId, sellers, goals]);
+    const unsub = dataStore.subscribe(({ sellers, goals }) => {
+        if (userId && sellers.length > 0 && goals) {
+            const sellerData = sellers.find(s => s.id === userId);
+            if (sellerData) {
+                const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
+                setCurrentSeller(sellerWithPrizes);
+            }
+        }
+    });
+    return () => unsub();
+  }, [userId]);
 
   const contextValue: SellerContextType = useMemo(() => ({
     ...state,
