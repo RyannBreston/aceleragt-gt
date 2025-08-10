@@ -34,7 +34,7 @@ const sellerPerformanceSchema = z.object({
   extraPoints: z.coerce.number().min(0, "Deve ser positivo."),
 });
 
-// Este schema agora corresponde ao tipo GamificationSettings
+// Este schema agora corresponde ao tipo GamificationSettings simplificado
 const gamificationSchema = z.object({
     missions: z.boolean().default(true),
     academia: z.boolean().default(true),
@@ -60,7 +60,8 @@ type FormData = z.infer<typeof formSchema>;
 type GoalLevels = keyof FormData['goals']['salesValue'];
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
-// --- Componente de Input de Moeda ---
+// --- Sub-componentes (mantidos como no seu código original para brevidade) ---
+
 const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } & React.InputHTMLAttributes<HTMLInputElement>>(({ field, ...props }, ref: ForwardedRef<HTMLInputElement>) => {
     const [stringValue, setStringValue] = useState<string>(
       field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
@@ -82,7 +83,6 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } 
 });
 CurrencyInput.displayName = 'CurrencyInput';
 
-// --- Sub-componentes (TabelaDePerformance, FormularioDeMetas, etc.) ---
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: (Record<"id", string> & { name: string })[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
@@ -104,6 +104,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
         </CardContent>
     </Card>
 );
+
 const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
     const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification') as GoalMetric[];
     const goalLevels = Object.keys(getValues('goals.salesValue')) as GoalLevels[];
@@ -130,6 +131,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
         </Card>
     );
 };
+
 const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
         { name: 'missions', label: 'Missões', icon: Target },
@@ -159,6 +161,7 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
         </Card>
     );
 };
+
 const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirty: boolean; }) => (
     <Card>
         <CardHeader><CardTitle>Gestão de Ciclo</CardTitle><CardDescription>Finalize o ciclo atual para arquivar os resultados e começar um novo.</CardDescription></CardHeader>
@@ -182,6 +185,7 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     </Card>
 );
 
+
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
     const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals, setIsDirty } = useAdminContext();
@@ -192,6 +196,7 @@ export default function SettingsPage() {
         resolver: zodResolver(formSchema),
         defaultValues: {
             sellers: [],
+            // O fallback agora corresponde ao schema e aos tipos
             goals: contextGoals || {
                 salesValue: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
                 ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
@@ -241,10 +246,13 @@ export default function SettingsPage() {
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
             batch.set(goalsRef, data.goals);
             await batch.commit();
+            
             setSellers(prevSellers => 
                 prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
             );
+            
             setGoals(_ => data.goals);
+            
             toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
             form.reset(data);
         } catch (error: unknown) {

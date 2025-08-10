@@ -1,7 +1,10 @@
-import type { Goals } from './types';
+import type { Goals, Seller, Mission } from './types';
 
-// Este é um objeto de exemplo com as metas iniciais.
-// A estrutura agora corresponde à interface 'Goals' atualizada em types.ts
+// --- CORRIGIDO: Exportando os dados que estavam faltando ---
+export const initialSellers: Seller[] = [];
+export const initialMissions: Mission[] = [];
+
+// Corrigindo a estrutura de 'gamification' para usar booleanos
 export const initialGoals: Goals = {
   salesValue: {
     metinha: { threshold: 10000, prize: 50 },
@@ -30,12 +33,8 @@ export const initialGoals: Goals = {
     lendaria: { threshold: 2000, prize: 150 },
   },
   gamification: {
-    academia: {
-      Fácil: 15,
-      Médio: 25,
-      Difícil: 50,
-    },
-    // quiz: { ... } foi removido
+    academia: true,
+    quiz: true,
     missions: true,
     ofertas: true,
     loja: true,
