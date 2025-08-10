@@ -70,7 +70,14 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
             if (current) setCurrentSeller(current);
         });
 
-        const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
+        const sprintsQuery = query(
+          collection(db, sprintsCollectionPath), 
+          where('isActive', '==', true), 
+          where('participantIds', 'array-contains', user.uid),
+          orderBy('createdAt', 'desc'), 
+          limit(1)
+        );
+
         const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
             setActiveSprint(snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
         });
