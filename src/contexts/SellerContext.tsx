@@ -5,7 +5,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
-import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin } from '@/lib/types';
+import { calculateSellerPrizes } from '@/lib/utils'; // Importa a função de cálculo
+import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin, SellerWithPrizes } from '@/lib/types';
 
 // 1. Definição da Interface do Contexto
 interface SellerContextType {
@@ -13,7 +14,7 @@ interface SellerContextType {
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
   goals: Goals | null;
   missions: Mission[];
-  currentSeller: Seller | null;
+  currentSeller: SellerWithPrizes | null; // Agora usa o tipo enriquecido
   cycleHistory: CycleSnapshot[];
   activeSprint: DailySprint | null;
   isAuthReady: boolean;
@@ -32,10 +33,11 @@ const SellerContext = createContext<SellerContextType | undefined>(undefined);
 // 3. Criação do Provider
 export const SellerProvider = ({ children }: { children: ReactNode }) => {
   const state = useStore(s => s);
+  const { sellers, goals } = state;
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
+  const [currentSeller, setCurrentSeller] = useState<SellerWithPrizes | null>(null);
   const [activeSprint, setActiveSprint] = useState<DailySprint | null>(null);
   
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
@@ -44,7 +46,6 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     let unsubscribers: (() => void)[] = [];
     
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Limpa subscrições anteriores sempre que o user muda
       unsubscribers.forEach(unsub => unsub());
       unsubscribers = [];
 
@@ -64,20 +65,10 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setIsSeller(true);
 
         const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
-            const sellers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller);
-            dataStore.setSellers(() => sellers);
-            const current = sellers.find(s => s.id === user.uid);
-            if (current) setCurrentSeller(current);
+            dataStore.setSellers(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller));
         });
 
-        const sprintsQuery = query(
-          collection(db, sprintsCollectionPath), 
-          where('isActive', '==', true), 
-          where('participantIds', 'array-contains', user.uid),
-          orderBy('createdAt', 'desc'), 
-          limit(1)
-        );
-
+        const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', user.uid), orderBy('createdAt', 'desc'), limit(1));
         const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
             setActiveSprint(snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
         });
@@ -101,6 +92,17 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         unsubscribers.forEach(unsub => unsub());
     };
   }, [sprintsCollectionPath]);
+
+  // Efeito para calcular os prémios sempre que os dados relevantes mudam
+  useEffect(() => {
+    if (userId && sellers.length > 0 && goals) {
+      const sellerData = sellers.find(s => s.id === userId);
+      if (sellerData) {
+        const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
+        setCurrentSeller(sellerWithPrizes);
+      }
+    }
+  }, [userId, sellers, goals]);
 
   const contextValue: SellerContextType = useMemo(() => ({
     ...state,
