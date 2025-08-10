@@ -38,9 +38,14 @@ const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
       return allMenuItems.filter(item => ['/seller/dashboard', '/seller/perfil'].includes(item.href));
     }
 
+    const alwaysVisibleKeys = ['dashboard', 'perfil'];
+
     return allMenuItems.filter(item => {
+        if (alwaysVisibleKeys.includes(item.key)) {
+            return true;
+        }
         const itemKey = item.key as keyof GamificationSettings;
-        return settings[itemKey];
+        return !!settings[itemKey];
     });
   }, [goals, isAuthReady]);
 
