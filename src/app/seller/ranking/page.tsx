@@ -19,7 +19,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
-import type { Goals, Seller } from '@/lib/types';
+import type { Goals, Seller, MetricGoals } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { cn, calculateSellerPrizes } from '@/lib/utils';
@@ -86,28 +86,26 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
         if (!sellerData || !goals || criterion === 'totalPrize') {
             return { percent: 0, label: '', achievedLevels: [] };
         }
-        const metric = criterion as keyof Goals;
-        if (metric === 'gamification') {
-            return { percent: 0, label: 'N/A', achievedLevels: [] };
-        }
+        const metric = criterion as keyof Omit<Goals, 'gamification' | 'teamGoalBonus'>;
         
         const goalData = goals[metric];
+        if (typeof goalData !== 'object' || goalData === null) {
+            return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
+        }
+
         const sellerValue = metric === 'points' 
             ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
             : (sellerData[metric as keyof Seller] as number) || 0;
 
-        if (!goalData?.metinha?.threshold) {
+        if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
         const levels: GoalLevelName[] = ['Metinha', 'Meta', 'Metona', 'Lendária'];
         const allGoals = levels.map(level => {
-            const levelKey = level.toLowerCase() as keyof typeof goalData;
-            const goalLevelOrBonus = goalData[levelKey];
-            if (goalLevelOrBonus && typeof goalLevelOrBonus === 'object' && 'threshold' in goalLevelOrBonus) {
-                return { name: level, threshold: goalLevelOrBonus.threshold || 0 };
-            }
-            return { name: level, threshold: 0 };
+            const levelKey = level.toLowerCase() as keyof MetricGoals;
+            const goalLevel = goalData[levelKey] as { threshold: number } | undefined;
+            return { name: level, threshold: goalLevel?.threshold || 0 };
         });
 
         const achievedLevels = allGoals.filter(g => g.threshold > 0 && sellerValue >= g.threshold);
@@ -146,7 +144,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
 const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: Goals | null }) => {
     const { metinhaThreshold, bonus } = useMemo(() => ({
         metinhaThreshold: goals?.salesValue?.metinha?.threshold || 0,
-        bonus: goals?.salesValue?.metinha?.prize || 100,
+        bonus: goals?.teamGoalBonus || 0,
     }), [goals]);
 
     if (metinhaThreshold === 0) return null;
