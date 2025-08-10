@@ -22,6 +22,8 @@ export interface Seller {
   pa: number;
   points: number;
   extraPoints: number;
+  dailyAttendanceCount?: number;
+  lastAttendanceUpdate?: Timestamp;
   completedCourseIds?: string[];
   workSchedule?: Record<string, string>;
   createdAt?: Timestamp;

@@ -1,14 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Star, Ticket, Box, TrendingUp, Zap, Check } from "lucide-react";
+import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2 } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Goals, Seller, DailySprint } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import { cn } from '@/lib/utils';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
 type Metric = 'ticketAverage' | 'pa';
 
@@ -118,6 +122,40 @@ const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Sell
     );
 };
 
+const AttendanceCard = ({ seller }: { seller: Seller }) => {
+    const { toast } = useToast();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const attendanceCount = seller.dailyAttendanceCount || 0;
+
+    const handleIncrement = async () => {
+        setIsSubmitting(true);
+        try {
+            const incrementFunction = httpsCallable(functions, 'incrementAttendance');
+            await incrementFunction();
+            toast({ title: "Atendimento Registado!", description: "O seu contador de atendimentos foi atualizado." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível registar o atendimento." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-sm font-medium">Atendimentos do Dia</CardTitle>
+                <CardDescription className="text-xs">Clientes que atendeu hoje.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+                <div className="text-3xl font-bold">{attendanceCount}</div>
+                <Button onClick={handleIncrement} disabled={isSubmitting} size="lg">
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus />}
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function SellerDashboardPage() {
     const { currentSeller, goals, isAuthReady, activeSprint } = useSellerContext();
@@ -141,7 +179,9 @@ export default function SellerDashboardPage() {
                 </div>
             </div>
             
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <AttendanceCard seller={currentSeller} />
+
                 {metrics.map(m => (
                     <GoalProgressCard 
                         key={m.metric}
