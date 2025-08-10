@@ -6,33 +6,35 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+type PrizeMetric = 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+
 export const calculateSellerPrizes = (
   sellerData: Seller,
   sellers: Seller[],
   goals: Goals
 ): SellerWithPrizes => {
-  const prizes = {
+  const prizes: Record<PrizeMetric, number> = {
     salesValue: 0,
     ticketAverage: 0,
     pa: 0,
     points: 0,
   };
 
-  const metrics: (keyof MetricGoals)[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
+  const metrics: PrizeMetric[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
 
   metrics.forEach(metric => {
     const sellerValue = metric === 'points' 
       ? (sellerData.points || 0) + (sellerData.extraPoints || 0)
       : (sellerData[metric as keyof Seller] as number) || 0;
       
-    const metricGoals = goals[metric as keyof Goals] as MetricGoals;
+    const metricGoals = goals[metric] as MetricGoals;
     if (!metricGoals) return;
 
     const levels: (keyof MetricGoals)[] = ['lendaria', 'metona', 'meta', 'metinha'];
     for (const level of levels) {
       const goalLevel = metricGoals[level] as GoalLevel;
       if (goalLevel && sellerValue >= goalLevel.threshold) {
-        prizes[metric as keyof typeof prizes] = goalLevel.prize;
+        prizes[metric] = goalLevel.prize;
         break; 
       }
     }
