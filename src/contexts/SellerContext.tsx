@@ -5,7 +5,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { store, useStore } from '@/lib/store';
-import { calculateSellerPrizes } from '@/lib/utils';
+import { calculateSellerPrizes } from '@/lib/client-utils';
 import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin, SellerWithPrizes } from '@/lib/types';
 
 // 1. Definição da Interface do Contexto
