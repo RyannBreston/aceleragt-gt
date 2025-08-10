@@ -9,9 +9,11 @@ export function cn(...inputs: ClassValue[]) {
 export const calculateSellerPrizes = (
     seller: Seller,
     allSellers: Seller[],
-    goals: Goals
+    goals: Goals | null // Aceita que goals pode ser nulo
 ) => {
-    const prizes: Record<keyof Omit<Goals, 'salesValue' | 'gamification'>, number> = {
+    // --- CORREÇÃO ADICIONADA AQUI ---
+    // A definição de tipo agora inclui 'salesValue' e exclui apenas 'gamification'.
+    const prizes: Record<keyof Omit<Goals, 'gamification'>, number> = {
         salesValue: 0,
         ticketAverage: 0,
         pa: 0,
@@ -19,13 +21,11 @@ export const calculateSellerPrizes = (
     };
     const zeroedPrizes = {...prizes};
 
-    // --- CORREÇÃO ADICIONADA AQUI ---
     // Verifica se os dados das metas foram carregados antes de continuar.
     if (!goals || !goals.points) {
         console.warn("Cálculo de prémios ignorado: objeto de metas (goals) ainda não está disponível.");
         return { ...seller, prizes: zeroedPrizes, totalPrize: 0, teamBonusApplied: false, topScorerBonus: 0 };
     }
-    // --- FIM DA CORREÇÃO ---
 
     // Regra: Tem de atingir a "metinha" de pontos para ser elegível a qualquer prémio
     if ((seller.points + seller.extraPoints) < goals.points.metinha.threshold) {
