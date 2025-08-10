@@ -33,9 +33,11 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
     const [participantIds, setParticipantIds] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleTierChange = (index: number, field: 'goal' | 'points', value: number) => {
+    const handleTierChange = (index: number, field: 'goal' | 'points', value: string) => {
+        const numericValue = Number(value);
+        if (isNaN(numericValue)) return;
         const newTiers = [...sprintTiers];
-        const tierToUpdate = { ...newTiers[index], [field]: value };
+        const tierToUpdate = { ...newTiers[index], [field]: numericValue };
         newTiers[index] = tierToUpdate;
         setSprintTiers(newTiers);
     };
@@ -87,14 +89,14 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
                     <DialogDescription>Defina os níveis de metas e os pontos de prêmio para a sua equipe.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <div className="space-y-2"><Label htmlFor="sprint-title">Título da Corridinha</Label><Input id="sprint-title" value={title} onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle((e.target as any).value)} placeholder="Ex: Sprint de Vendas Relâmpago" /></div>
+                    <div className="space-y-2"><Label htmlFor="sprint-title">Título da Corridinha</Label><Input id="sprint-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Sprint de Vendas Relâmpago" /></div>
                     <div className="space-y-4 rounded-md border p-4">
                         <Label className="font-semibold">Níveis de Metas e Prêmios</Label>
                         {sprintTiers.map((tier, index) => (
                             <div key={index} className="flex items-center gap-4">
                                 <Label className="w-20 text-sm text-muted-foreground">{tier.label}</Label>
-                                <Input type="number" placeholder="Meta (R$)" value={tier.goal} onChange={(e: ChangeEvent<HTMLInputElement>) => handleTierChange(index, 'goal', Number((e.target as any).value))} />
-                                <Input type="number" placeholder="Prêmio (Pts)" value={tier.points} onChange={(e: ChangeEvent<HTMLInputElement>) => handleTierChange(index, 'points', Number((e.target as any).value))} />
+                                <Input type="number" placeholder="Meta (R$)" value={tier.goal} onChange={(e) => handleTierChange(index, 'goal', e.target.value)} />
+                                <Input type="number" placeholder="Prêmio (Pts)" value={tier.points} onChange={(e) => handleTierChange(index, 'points', e.target.value)} />
                             </div>
                         ))}
                     </div>
