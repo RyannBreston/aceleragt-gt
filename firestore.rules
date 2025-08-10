@@ -23,16 +23,11 @@ service cloud.firestore {
       allow read, write: if isAdmin() || isOwner(sellerId);
     }
 
-    // Dados públicos dentro de 'artifacts' (cursos, missões, etc.)
-    // Admins podem tudo, usuários autenticados podem apenas ler.
+    // ✅ REGRA ADICIONADA: Permite a leitura de dados públicos (Corridinhas, Metas, etc.)
+    // Apenas administradores podem escrever nesta coleção.
     match /artifacts/{appId}/public/data/{collection}/{docId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-    }
-    
-    // Qualquer outra coleção é bloqueada por padrão
-    match /{document=**} {
-      allow read, write: if false;
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }
