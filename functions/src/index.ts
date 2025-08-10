@@ -8,11 +8,14 @@ const db = admin.firestore();
 // Define o caminho base para as coleções de dados para evitar repetição
 const ARTIFACTS_PATH = `artifacts/${process.env.GCLOUD_PROJECT || 'default-app-id'}/public/data`;
 
+// Opções de CORS para permitir o seu frontend
+const corsOptions = { cors: ["https://apps-das-supermoda.netlify.app", "https://aceleragt-gt.web.app", "http://localhost:3000"] };
+
 // ##################################################
 // ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
 // ##################################################
 
-export const createAdmin = onCall(async (request) => {
+export const createAdmin = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') {
         throw new HttpsError('permission-denied', 'Apenas outros administradores podem executar esta ação.');
     }
@@ -36,7 +39,7 @@ export const createAdmin = onCall(async (request) => {
     }
 });
 
-export const updateAdmin = onCall(async (request) => {
+export const updateAdmin = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid, name, email } = request.data;
     if (!uid || !name || !email) throw new HttpsError('invalid-argument', 'UID, nome e email são obrigatórios.');
@@ -53,7 +56,7 @@ export const updateAdmin = onCall(async (request) => {
     }
 });
 
-export const changeAdminPassword = onCall(async (request) => {
+export const changeAdminPassword = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid, newPassword } = request.data;
     if (!uid || !newPassword || newPassword.length < 6) throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -71,7 +74,7 @@ export const changeAdminPassword = onCall(async (request) => {
 // ### FUNÇÕES DE GESTÃO DE VENDEDORES ###
 // ##################################################
 
-export const createSeller = onCall(async (request) => {
+export const createSeller = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') {
         throw new HttpsError('permission-denied', 'Ação não autorizada.');
     }
@@ -100,7 +103,7 @@ export const createSeller = onCall(async (request) => {
     }
 });
 
-export const updateSeller = onCall(async (request) => {
+export const updateSeller = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid, name, email } = request.data;
     if (!uid || !name || !email) throw new HttpsError('invalid-argument', 'Argumentos inválidos.');
@@ -120,7 +123,7 @@ export const updateSeller = onCall(async (request) => {
     }
 });
 
-export const deleteSeller = onCall(async (request) => {
+export const deleteSeller = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid } = request.data;
     if (!uid) throw new HttpsError("invalid-argument", "O ID do utilizador é necessário.");
@@ -137,7 +140,7 @@ export const deleteSeller = onCall(async (request) => {
     }
 });
 
-export const changeSellerPassword = onCall(async (request) => {
+export const changeSellerPassword = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid, newPassword } = request.data;
     if (!uid || !newPassword || newPassword.length < 6) throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -151,7 +154,7 @@ export const changeSellerPassword = onCall(async (request) => {
     }
 });
 
-export const updateSellerPoints = onCall(async (request) => {
+export const updateSellerPoints = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { uid, points } = request.data;
     if (!uid || points === undefined || typeof points !== 'number' || points < 0) throw new HttpsError('invalid-argument', 'Argumentos inválidos.');
@@ -164,19 +167,18 @@ export const updateSellerPoints = onCall(async (request) => {
     }
 });
 
-export const createDailySprint = onCall(async (request) => {
+export const createDailySprint = onCall(corsOptions, async (request) => {
     if (request.auth?.token.role !== 'admin') throw new HttpsError('permission-denied', 'Ação não autorizada.');
     const { title, sprintTiers, participantIds } = request.data;
     if (!title || !sprintTiers || !participantIds || participantIds.length === 0) throw new HttpsError('invalid-argument', 'Argumentos inválidos.');
 
     const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
     try {
-        // A corridinha é criada como INATIVA. A ativação é feita manually pelo admin.
         const newSprintData = { 
             title, 
             sprintTiers, 
             participantIds, 
-            isActive: false, // <-- A MUDANÇA PRINCIPAL
+            isActive: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp() 
         };
         await sprintsRef.add(newSprintData);
