@@ -1,17 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, Ticket, Box, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Star, Ticket, Box, TrendingUp, Zap, Check } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { Goals, Seller } from '@/lib/types';
+import type { Goals, Seller, DailySprint } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+import { cn } from '@/lib/utils';
 
-type Metric = 'ticketAverage' | 'pa'; // Métrica de Vendas removida
+type Metric = 'ticketAverage' | 'pa';
 
-// Função segura que calcula o progresso para uma meta individual (sem alterações).
 const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) => {
     const sellerValue = seller[metric] || 0;
     const goalData = goals?.[metric];
@@ -39,7 +39,6 @@ const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) =>
     };
 };
 
-// Sub-componente para os cartões de progresso de meta.
 const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: string; Icon: React.ElementType; seller: Seller; goals: Goals; metric: Metric }) => {
     const progress = getGoalProgressDetails(seller, goals, metric);
     const sellerValue = seller[metric] || 0;
@@ -73,18 +72,60 @@ const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: strin
     );
 };
 
-// --- Componente principal da página ---
-export default function SellerDashboardPage() {
-    const { currentSeller, goals, isAuthReady } = useSellerContext();
+const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Seller }) => {
+    const sellerSales = seller.salesValue || 0;
+    
+    const nextTier = sprint.sprintTiers.find(tier => sellerSales < tier.goal);
+    const lastAchievedTier = [...sprint.sprintTiers].reverse().find(tier => sellerSales >= tier.goal);
 
-    // --- CORREÇÃO FINAL APLICADA AQUI ---
-    // Adicionamos a verificação '!goals' para garantir que os dados de metas existam
-    // antes de tentar renderizar os componentes que dependem deles.
+    let progress = 0;
+    let progressLabel = "Meta máxima atingida!";
+    let description = `Parabéns! Você ganhou ${lastAchievedTier?.points || 0} pontos extras!`;
+
+    if (nextTier) {
+        const baseGoal = lastAchievedTier?.goal || 0;
+        const range = nextTier.goal - baseGoal;
+        progress = range > 0 ? ((sellerSales - baseGoal) / range) * 100 : 0;
+        progressLabel = `Próximo Nível: ${nextTier.goal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
+        description = `Venda mais ${Math.max(0, nextTier.goal - sellerSales).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} para ganhar +${nextTier.points} pts!`;
+    }
+
+    return (
+        <Card className="col-span-full bg-gradient-to-r from-primary to-secondary text-primary-foreground">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-2xl"><Zap /> {sprint.title}</CardTitle>
+                <CardDescription className="text-primary-foreground/80 text-base">{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex justify-between font-semibold mb-2 text-primary-foreground/90">
+                    <span>{progressLabel}</span>
+                    <span>{progress.toFixed(0)}%</span>
+                </div>
+                <Progress value={progress} className="h-4 [&>div]:bg-white" />
+                <div className="flex gap-2 mt-4">
+                    {sprint.sprintTiers.map((tier, index) => (
+                        <div key={index} className={cn(
+                            'flex-1 text-center text-sm p-2 rounded-lg font-semibold transition-all',
+                            sellerSales >= tier.goal ? 'bg-white/30' : 'bg-black/20 opacity-70'
+                        )}>
+                            {sellerSales >= tier.goal && <Check className="inline size-5 mr-1.5"/>}
+                            Nível {index + 1}
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
+
+
+export default function SellerDashboardPage() {
+    const { currentSeller, goals, isAuthReady, activeSprint } = useSellerContext();
+
     if (!isAuthReady || !currentSeller || !goals) {
         return <DashboardSkeleton />;
     }
 
-    // ✅ LISTA DE MÉTRICAS ATUALIZADA: Apenas Ticket Médio e PA
     const metrics: { title: string; Icon: React.ElementType; metric: Metric }[] = [
         { title: 'Meta de Ticket Médio', Icon: Ticket, metric: 'ticketAverage' },
         { title: 'Meta de PA', Icon: Box, metric: 'pa' },
@@ -100,21 +141,18 @@ export default function SellerDashboardPage() {
                 </div>
             </div>
             
-            {/* ✅ LAYOUT ATUALIZADO para 3 colunas em ecrãs grandes */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Renderiza os cards de progresso de meta */}
                 {metrics.map(m => (
                     <GoalProgressCard 
                         key={m.metric}
                         title={m.title}
                         Icon={m.Icon}
                         seller={currentSeller}
-                        goals={goals} // Agora é seguro passar 'goals'
+                        goals={goals}
                         metric={m.metric}
                     />
                 ))}
                 
-                {/* O card de Pontos é renderizado separadamente */}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Meus Pontos</CardTitle>
@@ -129,8 +167,7 @@ export default function SellerDashboardPage() {
                 </Card>
             </div>
 
-            {/* O card da "Corridinha Diária" pode continuar aqui, se existir */}
-            {/* {activeSprint && <DailySprintCard sprint={activeSprint} seller={currentSeller} />} */}
+            {activeSprint && <DailySprintCard sprint={activeSprint} seller={currentSeller} />}
         </div>
     );
 }
