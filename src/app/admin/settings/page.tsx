@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useForm, useFieldArray, Control, UseFormGetValues } from "react-hook-form";
+import { useForm, Control, UseFormGetValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -70,7 +70,7 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-type GoalLevels = keyof FormData['goals']['salesValue'];
+type GoalLevels = 'metinha' | 'meta' | 'metona' | 'lendaria';
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
 // --- Sub-componentes Refatorados ---
@@ -121,7 +121,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
 
 const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
     const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification') as GoalMetric[];
-    const goalLevels = Object.keys(getValues('goals.salesValue')) as GoalLevels[];
+    const goalLevels: GoalLevels[] = ['metinha', 'meta', 'metona', 'lendaria'];
     const getMetricLabel = (metric: string) => ({ salesValue: 'Vendas', ticketAverage: 'Ticket Médio', pa: 'PA (Peças por Atendimento)', points: 'Pontos' }[metric] || metric);
     
     return (
