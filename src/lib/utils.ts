@@ -259,7 +259,7 @@ export const updateSellerPoints = async (request: { auth?: { token: { role: stri
   }
 };
 
-export const createDailySprint = async (request: { auth?: { token: { role: string } }; data: { title?: string; sprintTiers?: any[]; participantIds?: string[] } }) => {
+export const createDailySprint = async (request: { auth?: { token: { role: string } }; data: { title?: string; sprintTiers?: { goal: number; points: number }[]; participantIds?: string[] } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
