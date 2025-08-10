@@ -19,7 +19,7 @@ interface SellerContextType {
   isAuthReady: boolean;
   userId: string | null;
   isSeller: boolean;
-  admin: Admin | null; 
+  admin: Admin | null;
   setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
   setGoals: (updater: (prev: Goals | null) => Goals | null) => void;
   setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
@@ -58,7 +58,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!authStatus.isAuthReady || !authStatus.isSeller || !authStatus.user) return;
 
-    const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', authStatus.user.uid), orderBy('createdAt', 'desc'), limit(1));
+    const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
     const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
       if (!snapshot.empty) {
         setActiveSprint({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
