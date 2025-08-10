@@ -22,7 +22,7 @@ import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller, MetricGoals } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { cn, calculateSellerPrizes } from '@/lib/utils';
+import { cn, calculateSellerPrizes } from '@/lib/client-utils';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 // ####################################################################

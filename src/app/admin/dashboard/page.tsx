@@ -8,7 +8,7 @@ import { useAdminContext } from '@/contexts/AdminContext';
 import SalesOverviewChart from '@/components/SalesOverviewChart';
 import type { Goals, Seller } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/client-utils';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 interface StatCardProps {
@@ -138,7 +138,7 @@ export default function DashboardPage() {
                 <StatCard title="Vendas Totais (Mês)" value={currentSales.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Total de vendas da equipa" Icon={DollarSign} />
                 <StatCard title="Ticket Médio (Equipe)" value={averageTicket.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} description="Média de ticket por venda" Icon={Ticket} />
                 <StatCard title="PA Médio (Equipe)" value={averagePA.toFixed(2)} description="Média de produtos por atendimento" Icon={Box} />
-                <StatCard title="Pontos Totais da Equipe" value={totalPoints.toLocaleString('pt-BR')} description="Soma de todos os pontos ganhos" Icon={Star} iconClassName="text-yellow-400" />
+                <StatCard title="Pontos Totais da Equipe" value={totalPoints.toLocaleString('pt-br')} description="Soma de todos os pontos ganhos" Icon={Star} iconClassName="text-yellow-400" />
                 <StatCard title="Vendedores Ativos" value={String(totalSellers)} description="Total de vendedores na equipe" Icon={Users} />
             </div>
             

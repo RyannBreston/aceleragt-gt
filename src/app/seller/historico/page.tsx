@@ -18,7 +18,7 @@ import { History, Trophy, DollarSign, Star } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { calculateSellerPrizes } from '@/lib/utils';
+import { calculateSellerPrizes } from '@/lib/client-utils';
 import type { CycleSnapshot } from '@/lib/types';
 
 const formatCurrency = (value: number) => {

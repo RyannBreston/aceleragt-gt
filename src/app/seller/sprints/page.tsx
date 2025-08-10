@@ -7,7 +7,7 @@ import { Zap, Check } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 import type { DailySprint, Seller } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/client-utils';
 import { EmptyState } from '@/components/EmptyState';
 
 // --- Sub-componente: Card da Corridinha ---

@@ -7,7 +7,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Coffee, Moon, Sun } from "luci
 import { useSellerContext } from '@/contexts/SellerContext';
 import { addDays, startOfWeek, endOfWeek, format, eachDayOfInterval, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/client-utils';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';

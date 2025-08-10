@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Goals, Seller, DailySprint } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/client-utils';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';

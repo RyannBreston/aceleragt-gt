@@ -1,4 +1,10 @@
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 import type { Seller, Goals, SellerWithPrizes } from '@/lib/types';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 export const calculateSellerPrizes = (
   sellerData: Seller,

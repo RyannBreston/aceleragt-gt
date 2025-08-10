@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useAdminContext } from '@/contexts/AdminContext';
 import type { Goals, Seller } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { calculateSellerPrizes } from '@/lib/utils';
+import { calculateSellerPrizes } from '@/lib/client-utils';
 
 // Tipos e Constantes
 type RankingCriterion = 'totalPrize' | 'salesValue' | 'ticketAverage' | 'pa' | 'points';
