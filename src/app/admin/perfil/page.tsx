@@ -41,7 +41,10 @@ const SellerFormModal = ({ isOpen, setIsOpen, seller, onSave }: { isOpen: boolea
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>{seller?.id ? 'Editar Vendedor' : 'Adicionar Novo Vendedor'}</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>{seller?.id ? 'Editar Vendedor' : 'Adicionar Novo Vendedor'}</DialogTitle>
+                    <DialogDescription>Preencha os dados para adicionar ou atualizar um vendedor.</DialogDescription>
+                </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>
@@ -81,7 +84,10 @@ const AdminFormModal = ({ isOpen, setIsOpen, admin, onSave }: { isOpen: boolean;
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent>
-                <DialogHeader><DialogTitle>{admin?.id ? 'Editar Administrador' : 'Adicionar Novo Administrador'}</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>{admin?.id ? 'Editar Administrador' : 'Adicionar Novo Administrador'}</DialogTitle>
+                    <DialogDescription>Preencha os dados para adicionar ou atualizar um administrador.</DialogDescription>
+                </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="space-y-2"><Label>Nome Completo</Label><Input name="name" value={formData.name || ''} onChange={handleChange} /></div>
                     <div className="space-y-2"><Label>Email de Login</Label><Input name="email" type="email" value={formData.email || ''} onChange={handleChange} /></div>

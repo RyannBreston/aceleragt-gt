@@ -8,8 +8,8 @@ const db = admin.firestore();
 // Define o caminho base para as coleções de dados para evitar repetição
 const ARTIFACTS_PATH = `artifacts/${process.env.GCLOUD_PROJECT || 'default-app-id'}/public/data`;
 
-// Opções de CORS para permitir o seu frontend
-const corsOptions = { cors: ["https://apps-das-supermoda.netlify.app", "https://aceleragt-gt.web.app", "http://localhost:3000"] };
+// Opções de CORS para permitir qualquer origem (seguro para onCall)
+const corsOptions = { cors: true };
 
 // ##################################################
 // ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
