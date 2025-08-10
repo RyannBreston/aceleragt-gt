@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAdminContext } from '@/contexts/AdminContext';
+import { useAdminContext, Goals } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
@@ -231,17 +231,17 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     </Card>
 );
 
-const cleanData = (obj: Record<string, any>): Record<string, any> => {
+const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
     return Object.entries(obj).reduce((acc, [key, value]) => {
         if (value !== undefined) {
             if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                acc[key] = cleanData(value);
+                acc[key as keyof T] = cleanData(value as Record<string, unknown>) as T[keyof T];
             } else {
-                acc[key] = value;
+                acc[key as keyof T] = value as T[keyof T];
             }
         }
         return acc;
-    }, {} as Record<string, any>);
+    }, {} as T);
 };
 
 
@@ -289,7 +289,7 @@ export default function SettingsPage() {
             await batch.commit();
 
             setSellers(prevSellers => prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) })));
-            setGoals(() => cleanedGoals);
+            setGoals(cleanedGoals as Goals);
             
             toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
             reset(data);
