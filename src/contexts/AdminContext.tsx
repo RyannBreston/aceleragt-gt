@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
@@ -36,7 +36,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const state = useStore(s => s);
   const [isDirty, setIsDirty] = useState(false);
   const [sprints, setSprints] = useState<DailySprint[]>([]);
-  const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isAdmin: boolean }>({ isAuthReady: false, user: null, isAdmin: false });
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
@@ -47,13 +47,13 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists() && userDoc.data().role === 'admin') {
           dataStore.setAdmin(() => ({ id: user.uid, ...userDoc.data() } as Admin));
-          setAuthStatus({ isAuthReady: true, user, isAdmin: true });
         } else {
-          setAuthStatus({ isAuthReady: true, user: null, isAdmin: false });
+          dataStore.setAdmin(() => null);
         }
       } else {
-        setAuthStatus({ isAuthReady: true, user: null, isAdmin: false });
+        dataStore.setAdmin(() => null);
       }
+      setIsAuthReady(true);
     });
     return () => unsubscribe();
   }, []);
@@ -78,7 +78,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   }, [sprints, sprintsCollectionPath]);
 
   useEffect(() => {
-    if (!authStatus.isAuthReady || !authStatus.isAdmin) return;
+    if (!isAuthReady || !state.admin) return;
 
     const unsubSellers = onSnapshot(query(collection(db, 'sellers'), orderBy('name', 'asc')), (snapshot) => {
       dataStore.setSellers(() => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
@@ -107,7 +107,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => { unsubSellers(); unsubHistory(); unsubGoals(); unsubMissions(); unsubSprints(); };
-  }, [authStatus.isAuthReady, authStatus.isAdmin, sprintsCollectionPath]);
+  }, [isAuthReady, state.admin, sprintsCollectionPath]);
 
   const contextValue = useMemo(() => ({
     ...state,
@@ -118,12 +118,12 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     setCycleHistory: dataStore.setCycleHistory,
     isDirty,
     setIsDirty,
-    isAuthReady: authStatus.isAuthReady,
-    isAdmin: authStatus.isAdmin,
-    userId: authStatus.user?.uid || null,
+    isAuthReady,
+    isAdmin: !!state.admin,
+    userId: state.admin?.id || null,
     sprints,
     toggleSprint,
-  }), [state, isDirty, authStatus, sprints, toggleSprint]);
+  }), [state, isDirty, isAuthReady, sprints, toggleSprint]);
 
   return <AdminContext.Provider value={contextValue}>{children}</AdminContext.Provider>;
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
@@ -41,7 +41,13 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
   useEffect(() => {
+    let unsubscribers: (() => void)[] = [];
+    
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Limpa subscrições anteriores sempre que o user muda
+      unsubscribers.forEach(unsub => unsub());
+      unsubscribers = [];
+
       if (!user) {
         setIsSeller(false);
         setUserId(null);
@@ -57,7 +63,6 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setUserId(user.uid);
         setIsSeller(true);
 
-        // Subscrições para dados do vendedor
         const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
             const sellers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller);
             dataStore.setSellers(() => sellers);
@@ -75,22 +80,19 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
             dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
         });
 
-        setIsAuthReady(true); // Tudo pronto para o vendedor
-
-        return () => {
-          sellersUnsubscribe();
-          sprintUnsubscribe();
-          goalsUnsubscribe();
-        };
+        unsubscribers = [sellersUnsubscribe, sprintUnsubscribe, goalsUnsubscribe];
+        setIsAuthReady(true);
       } else {
-        // Se não é vendedor, apenas finaliza a autenticação
         setIsSeller(false);
         setCurrentSeller(null);
         setIsAuthReady(true);
       }
     });
 
-    return () => authUnsubscribe();
+    return () => {
+        authUnsubscribe();
+        unsubscribers.forEach(unsub => unsub());
+    };
   }, [sprintsCollectionPath]);
 
   const contextValue: SellerContextType = useMemo(() => ({

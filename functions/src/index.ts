@@ -29,7 +29,7 @@ export const createAdmin = onCall(async (request) => {
         });
         return { result: `Administrador ${name} criado com sucesso.` };
     } catch (error: any) {
-        if (error.code === 'auth/email-already-exists') {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/email-already-exists') {
             throw new HttpsError('already-exists', 'Este email já está a ser utilizado.');
         }
         throw new HttpsError('internal', 'Ocorreu um erro inesperado ao criar o administrador.');
@@ -46,7 +46,9 @@ export const updateAdmin = onCall(async (request) => {
         await db.collection('users').doc(uid).update({ name, email });
         return { result: `Administrador ${name} atualizado com sucesso.` };
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') throw new HttpsError('not-found', 'Administrador não encontrado.');
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/user-not-found') {
+            throw new HttpsError('not-found', 'Administrador não encontrado.');
+        }
         throw new HttpsError('internal', 'Ocorreu um erro inesperado ao atualizar o administrador.');
     }
 });
@@ -91,7 +93,9 @@ export const createSeller = onCall(async (request) => {
 
         return { result: `Vendedor ${name} criado com sucesso.` };
     } catch (error: any) {
-        if (error.code === 'auth/email-already-exists') throw new HttpsError('already-exists', 'Este email já está em uso.');
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/email-already-exists') {
+            throw new HttpsError('already-exists', 'Este email já está em uso.');
+        }
         throw new HttpsError('internal', 'Ocorreu um erro ao criar o vendedor.');
     }
 });
@@ -109,7 +113,9 @@ export const updateSeller = onCall(async (request) => {
         await batch.commit();
         return { result: `Vendedor ${name} atualizado com sucesso.` };
     } catch (error: any) {
-        if (error.code === 'auth/user-not-found') throw new HttpsError('not-found', 'Utilizador não encontrado.');
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'auth/user-not-found') {
+            throw new HttpsError('not-found', 'Utilizador não encontrado.');
+        }
         throw new HttpsError('internal', 'Ocorreu um erro ao atualizar o vendedor.');
     }
 });
@@ -165,7 +171,7 @@ export const createDailySprint = onCall(async (request) => {
 
     const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
     try {
-        // A corridinha é criada como INATIVA. A ativação é feita manualmente pelo admin.
+        // A corridinha é criada como INATIVA. A ativação é feita manually pelo admin.
         const newSprintData = { 
             title, 
             sprintTiers, 

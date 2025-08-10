@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, ChangeEvent, ForwardedRef } from "react";
-import { useForm, useFieldArray, Control, UseFormGetValues, FieldValues } from "react-hook-form";
+import React, { useState, useEffect, useCallback } from "react";
+import { useForm, useFieldArray, Control, UseFormGetValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, InputProps } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb } from "lucide-react";
@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, addDoc, collection, writeBatch } from "firebase/firestore";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import type { Seller } from '@/lib/types';
 
 // --- Esquema de Validação com Zod ---
 const goalLevelSchema = z.object({
@@ -34,7 +35,6 @@ const sellerPerformanceSchema = z.object({
   extraPoints: z.coerce.number().min(0, "Deve ser positivo."),
 });
 
-// Este schema agora corresponde ao tipo GamificationSettings simplificado
 const gamificationSchema = z.object({
     missions: z.boolean().default(true),
     academia: z.boolean().default(true),
@@ -60,30 +60,31 @@ type FormData = z.infer<typeof formSchema>;
 type GoalLevels = keyof FormData['goals']['salesValue'];
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
-// --- Sub-componentes (mantidos como no seu código original para brevidade) ---
+// --- Sub-componentes Refatorados ---
 
-const CurrencyInput = React.forwardRef<HTMLInputElement, { field: FieldValues } & React.InputHTMLAttributes<HTMLInputElement>>(({ field, ...props }, ref: ForwardedRef<HTMLInputElement>) => {
-    const [stringValue, setStringValue] = useState<string>(
-      field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
-    );
+const CurrencyInput = React.forwardRef<HTMLInputElement, InputProps & { onValueChange: (value: number) => void }>((props, ref) => {
+    const { onValueChange, value, ...rest } = props;
+    const [displayValue, setDisplayValue] = useState('');
+
     useEffect(() => {
-        setStringValue(field.value ? field.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '');
-    }, [field.value]);
-    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setStringValue(value);
+        const numValue = Number(value);
+        setDisplayValue(isNaN(numValue) ? '' : numValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+    }, [value]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setDisplayValue(val);
+        const numValue = parseFloat(val.replace(/[^0-9,]/g, '').replace(',', '.'));
+        if (!isNaN(numValue)) {
+            onValueChange(numValue);
+        }
     };
-    const handleBlur = () => {
-        const sanitizedValue = stringValue.replace(/[^0-9,]/g, '').replace(',', '.');
-        const numericValue = parseFloat(sanitizedValue) || 0;
-        field.onChange(numericValue);
-        setStringValue(numericValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
-    };
-    return <Input type="text" {...props} ref={ref} value={stringValue} onChange={handleChange} onBlur={handleBlur} placeholder="0,00" />;
+
+    return <Input type="text" {...rest} ref={ref} value={displayValue} onChange={handleChange} placeholder="0,00" />;
 });
 CurrencyInput.displayName = 'CurrencyInput';
 
-const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: (Record<"id", string> & { name: string })[] }) => (
+const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
@@ -93,10 +94,10 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
                     {fields.map((field, index) => (
                         <TableRow key={field.id}>
                             <TableCell className="font-medium">{field.name}</TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field }) => <CurrencyInput field={field} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field }) => <CurrencyInput field={field} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" step="0.1" {...field} value={field.value || ''} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field: formField }) => <CurrencyInput {...formField} onValueChange={formField.onChange} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field: formField }) => <CurrencyInput {...formField} onValueChange={formField.onChange} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />} /></TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -120,8 +121,8 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
-                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput field={field} /> : <Input type="number" {...field} value={field.value || ''} />}</FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput field={field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput {...field} onValueChange={field.onChange}/> : <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
                         </div>
@@ -134,13 +135,8 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
 
 const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
-        { name: 'missions', label: 'Missões', icon: Target },
-        { name: 'sprints', label: 'Corridinha Diária', icon: Zap },
-        { name: 'academia', label: 'Academia', icon: GraduationCap },
-        { name: 'quiz', label: 'Quiz', icon: Lightbulb },
-        { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag },
-        { name: 'loja', label: 'Loja de Prémios', icon: Trophy },
-        { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
+        { name: 'missions', label: 'Missões', icon: Target }, { name: 'sprints', label: 'Corridinha Diária', icon: Zap }, { name: 'academia', label: 'Academia', icon: GraduationCap },
+        { name: 'quiz', label: 'Quiz', icon: Lightbulb }, { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag }, { name: 'loja', label: 'Loja de Prémios', icon: Trophy }, { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
     ];
     return (
         <Card>
@@ -149,11 +145,8 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
                 {modulos.map(({ name, label, icon: Icon }) => (
                     <FormField key={name} control={control} name={`goals.gamification.${name}`} render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                                <FormLabel className="text-base flex items-center gap-2"><Icon className="size-5" />{label}</FormLabel>
-                                <FormDescription>{field.value ? 'Visível' : 'Oculto'} para os vendedores.</FormDescription>
-                            </div>
-                            <FormControl><Switch checked={!!field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <div className="space-y-0.5"><FormLabel className="text-base flex items-center gap-2"><Icon className="size-5" />{label}</FormLabel><FormDescription>{field.value ? 'Visível' : 'Oculto'}</FormDescription></div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                         </FormItem>
                     )} />
                 ))}
@@ -166,69 +159,51 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     <Card>
         <CardHeader><CardTitle>Gestão de Ciclo</CardTitle><CardDescription>Finalize o ciclo atual para arquivar os resultados e começar um novo.</CardDescription></CardHeader>
         <CardContent>
-            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4"><div className="flex items-start gap-4">
-                <AlertTriangle className="size-6 text-destructive mt-1" />
-                <div>
-                    <h4 className="font-semibold text-destructive">Ação Irreversível</h4>
-                    <p className="text-sm text-destructive/80 mt-1">Ao finalizar, os dados de performance de todos os vendedores serão zerados. O estado atual será salvo no histórico.</p>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild><Button variant="destructive" className="mt-4" disabled={isDirty}><RefreshCw className="mr-2" />Finalizar Ciclo</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Tem a certeza que deseja finalizar o ciclo?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onEndCycle}>Sim, finalizar</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    {isDirty && <p className="text-xs text-destructive/80 mt-2">Salve as alterações pendentes para poder finalizar o ciclo.</p>}
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+                <div className="flex items-start gap-4"><AlertTriangle className="size-6 text-destructive mt-1" />
+                    <div>
+                        <h4 className="font-semibold text-destructive">Ação Irreversível</h4>
+                        <p className="text-sm text-destructive/80 mt-1">Ao finalizar, os dados de performance de todos os vendedores serão zerados. O estado atual será salvo no histórico.</p>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild><Button variant="destructive" className="mt-4" disabled={isDirty}><RefreshCw className="mr-2" />Finalizar Ciclo</Button></AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Tem a certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onEndCycle}>Sim, finalizar</AlertDialogAction></AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                        {isDirty && <p className="text-xs text-destructive/80 mt-2">Salve as alterações pendentes para poder finalizar o ciclo.</p>}
+                    </div>
                 </div>
-            </div></div>
+            </div>
         </CardContent>
     </Card>
 );
 
-
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
-    const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals, setIsDirty } = useAdminContext();
+    const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals } = useAdminContext();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
     const form = useForm<FormData>({
         resolver: zodResolver(formSchema),
-        defaultValues: {
-            sellers: [],
-            // O fallback agora corresponde ao schema e aos tipos
-            goals: contextGoals || {
-                salesValue: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                ticketAverage: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                pa: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                points: { metinha: {threshold:0, prize:0}, meta: {threshold:0, prize:0}, metona: {threshold:0, prize:0}, lendaria: {threshold:0, prize:0} },
-                gamification: { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
-            }
-        },
+        defaultValues: { sellers: [], goals: contextGoals || undefined },
     });
 
-    const { fields } = useFieldArray({ control: form.control, name: "sellers" });
-
+    const { control, handleSubmit, reset, formState: { isDirty } } = form;
+    const { fields } = useFieldArray({ control, name: "sellers" });
+    
     useEffect(() => {
-        if (contextSellers.length > 0 && contextGoals) {
-            form.reset({
+        if (contextSellers.length > 0) {
+            reset({
                 sellers: contextSellers.map(s => ({
-                    id: s.id,
-                    name: s.name,
-                    salesValue: s.salesValue || 0,
-                    ticketAverage: s.ticketAverage || 0,
-                    pa: s.pa || 0,
-                    extraPoints: s.extraPoints || 0,
+                    id: s.id, name: s.name, salesValue: s.salesValue || 0,
+                    ticketAverage: s.ticketAverage || 0, pa: s.pa || 0, extraPoints: s.extraPoints || 0,
                 })),
-                goals: {
-                    ...contextGoals,
-                    gamification: contextGoals.gamification || { missions: true, academia: true, quiz: true, ofertas: true, loja: true, ranking: true, sprints: true }
-                }
+                goals: contextGoals || undefined,
             });
         }
-    }, [contextSellers, contextGoals, form]);
-
-    useEffect(() => { setIsDirty(form.formState.isDirty); }, [form.formState.isDirty, setIsDirty]);
+    }, [contextSellers, contextGoals, reset]);
 
     const onSubmit = async (data: FormData) => {
         setIsSaving(true);
@@ -237,71 +212,69 @@ export default function SettingsPage() {
             data.sellers.forEach(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, {
-                    salesValue: seller.salesValue,
-                    ticketAverage: seller.ticketAverage,
-                    pa: seller.pa,
-                    extraPoints: seller.extraPoints,
+                    salesValue: seller.salesValue, ticketAverage: seller.ticketAverage,
+                    pa: seller.pa, extraPoints: seller.extraPoints,
                 });
             });
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
-            batch.set(goalsRef, data.goals);
+            batch.set(goalsRef, data.goals, { merge: true });
             await batch.commit();
+
+            setSellers(prevSellers => prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) })));
+            setGoals(() => data.goals);
             
-            setSellers(prevSellers => 
-                prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) }))
-            );
-            
-            setGoals(_ => data.goals);
-            
-            toast({ title: "Alterações Salvas!", description: "As suas configurações foram atualizadas com sucesso." });
-            form.reset(data);
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-            toast({ variant: "destructive", title: "Erro ao Salvar", description: errorMessage });
+            toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
+            reset(data);
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro ao Salvar", description: String(error) });
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleEndCycle = async () => {
-        if (form.formState.isDirty) {
+    const handleEndCycle = useCallback(async () => {
+        if (isDirty) {
             toast({ variant: "destructive", title: "Alterações Pendentes", description: "Salve as suas alterações antes de finalizar o ciclo."});
             return;
         }
         setIsSaving(true);
         try {
-            const cycleData = { endDate: new Date(), sellers: contextSellers, goals: contextGoals };
-            await addDoc(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/cycle_history`), cycleData);
+            await addDoc(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/cycle_history`), {
+                endDate: new Date(),
+                sellers: contextSellers,
+                goals: contextGoals
+            });
+
             const batch = writeBatch(db);
             contextSellers.forEach(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 });
             });
             await batch.commit();
-            toast({ title: "Ciclo Finalizado com Sucesso!", description: "Os dados de performance foram zerados e o histórico foi salvo." });
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-            toast({ variant: "destructive", title: "Erro ao Finalizar o Ciclo", description: errorMessage });
+            
+            toast({ title: "Ciclo Finalizado!", description: "Dados de performance zerados." });
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro ao Finalizar Ciclo", description: String(error) });
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [isDirty, contextSellers, contextGoals, toast]);
 
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4"><Shield className="size-8 text-primary" /><h1 className="text-3xl font-bold">Configurações Gerais</h1></div>
-                {form.formState.isDirty && (
+                {isDirty && (
                     <div className="flex items-center gap-2">
                         <span className="text-yellow-400 font-semibold hidden sm:inline">Alterações não salvas</span>
-                        <Button onClick={form.handleSubmit(onSubmit)} disabled={isSaving}>
+                        <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Salvar Tudo
                         </Button>
                     </div>
                 )}
             </div>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={handleSubmit(onSubmit)}>
                     <Tabs defaultValue="lancamentos" className="w-full">
                         <TabsList>
                             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
@@ -309,10 +282,10 @@ export default function SettingsPage() {
                             <TabsTrigger value="modulos">Módulos</TabsTrigger>
                             <TabsTrigger value="ciclo">Ciclo de Vendas</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={form.control} fields={fields} /></TabsContent>
-                        <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={form.control} getValues={form.getValues} /></TabsContent>
-                        <TabsContent value="modulos" className="mt-6"><GestaoDeModulos control={form.control} /></TabsContent>
-                        <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={form.formState.isDirty} /></TabsContent>
+                        <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={control} fields={contextSellers} /></TabsContent>
+                        <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={control} getValues={form.getValues} /></TabsContent>
+                        <TabsContent value="modulos" className="mt-6"><GestaoDeModulos control={control} /></TabsContent>
+                        <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={isDirty} /></TabsContent>
                     </Tabs>
                 </form>
             </Form>
