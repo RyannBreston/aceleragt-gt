@@ -57,7 +57,7 @@ export const Certificate: React.FC<CertificateProps> = ({
       pdf.save(`Certificado-${courseName.replace(/\s/g, '_')}-${sellerName.replace(/\s/g, '_')}.pdf`);
       
       toast({ title: "Download Concluído!", description: "O seu certificado foi descarregado com sucesso." });
-    } catch (error) {
+    } catch {
       toast({ variant: "destructive", title: "Erro!", description: "Não foi possível gerar o certificado. Tente novamente." });
     }
   };
