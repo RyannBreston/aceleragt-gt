@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -7,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input, InputProps } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb } from "lucide-react";
@@ -62,7 +61,7 @@ type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
 
 // --- Sub-componentes Refatorados ---
 
-const CurrencyInput = React.forwardRef<HTMLInputElement, InputProps & { onValueChange: (value: number) => void }>((props, ref) => {
+const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input> & { onValueChange: (value: number) => void }>((props, ref) => {
     const { onValueChange, value, ...rest } = props;
     const [displayValue, setDisplayValue] = useState('');
 
@@ -191,7 +190,6 @@ export default function SettingsPage() {
     });
 
     const { control, handleSubmit, reset, formState: { isDirty } } = form;
-    const { fields } = useFieldArray({ control, name: "sellers" });
     
     useEffect(() => {
         if (contextSellers.length > 0) {

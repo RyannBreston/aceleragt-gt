@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState } from 'react';
@@ -140,7 +139,6 @@ export default function AdminSprintsPage() {
             await createSprintCallable(sprintData);
             toast({ title: 'Sucesso!', description: 'A corridinha diária foi criada. Ative-a para começar.' });
         } catch (error: unknown) {
-            console.error("Erro ao chamar a Cloud Function 'createDailySprint':", error);
             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
             toast({ variant: 'destructive', title: 'Erro ao criar corridinha', description: errorMessage });
         }
@@ -151,7 +149,7 @@ export default function AdminSprintsPage() {
         try {
             await toggleSprint(sprint.id, sprint.isActive);
             toast({ title: "Status alterado!", description: `A corridinha "${sprint.title}" foi ${sprint.isActive ? 'desativada' : 'ativada'}.`});
-        } catch (error) {
+        } catch {
              toast({ variant: "destructive", title: "Erro ao alterar status", description: "Não foi possível alterar o status da corridinha."});
         } finally {
             setIsToggling(null);
@@ -220,7 +218,7 @@ export default function AdminSprintsPage() {
                 </CardContent>
             </Card>
 
-            <SprintFormModal isOpen={isModalOpen} setIsOpen={setIsOpen} onSave={handleSaveSprint} sellers={sellers} />
+            <SprintFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} onSave={handleSaveSprint} sellers={sellers} />
         </div>
     );
 }
