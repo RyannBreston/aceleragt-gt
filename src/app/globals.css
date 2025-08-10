@@ -13,13 +13,13 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
 
-    /* Pink from logo */
-    --primary: 343 88% 61%;
+    /* Primary: Roxo Sofisticado */
+    --primary: 262 84% 59%;
     --primary-foreground: 0 0% 100%;
 
-    /* Blue from logo */
-    --secondary: 239 36% 55%;
-    --secondary-foreground: 0 0% 100%;
+    /* Secondary: Cinza Sóbrio */
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
 
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
@@ -32,26 +32,28 @@
 
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 343 88% 61%;
+    --ring: 262 84% 59%;
 
     --radius: 0.5rem;
   }
 
   html.dark {
-    --background: 240 10% 3.9%;
+    --background: 240 6% 10%; /* Fundo escuro mais neutro */
     --foreground: 0 0% 98%;
 
-    --card: 240 10% 3.9%;
+    --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 10% 3.9%;
+    --popover: 240 6% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 343 88% 61%;
+    /* Primary: Roxo Sofisticado */
+    --primary: 262 84% 59%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 239 36% 55%;
-    --secondary-foreground: 0 0% 100%;
+    
+    /* Secondary: Cinza escuro para contraste */
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
@@ -64,7 +66,7 @@
 
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
-    --ring: 343 88% 61%;
+    --ring: 262 84% 59%;
   }
 }
 

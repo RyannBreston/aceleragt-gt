@@ -1,6 +1,17 @@
 body {
-    background-color: #1a1a1a;
+    background-color: hsl(var(--background));
     position: relative;
+    --gradient-color-1: hsl(262 84% 59% / 0.2);
+    --gradient-color-2: hsl(240 6% 10% / 0.2);
+    --gradient-color-3: hsl(262 84% 59% / 0.3);
+    --gradient-color-4: hsl(240 6% 10% / 0.3);
+}
+
+html.dark body {
+    --gradient-color-1: hsl(262 84% 59% / 0.15);
+    --gradient-color-2: hsl(240 6% 10% / 0.15);
+    --gradient-color-3: hsl(262 84% 59% / 0.2);
+    --gradient-color-4: hsl(240 6% 10% / 0.2);
 }
 
 body::before {
@@ -14,36 +25,31 @@ body::before {
     background-repeat: repeat;
     opacity: 0.05;
     z-index: -1;
+    pointer-events: none;
 }
 
 body::after {
     content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background:
-        radial-gradient(ellipse at center, rgba(118, 59, 232, 0.3) 0%, rgba(118, 59, 232, 0) 70%),
-        radial-gradient(ellipse at center, rgba(59, 178, 232, 0.3) 0%, rgba(59, 178, 232, 0) 70%);
-    animation: grain 10s ease-in-out infinite, rotate 20s linear infinite;
+    position: fixed;
+    top: -50vh;
+    left: -50vw;
+    width: 200vw;
+    height: 200vh;
+    background: 
+        radial-gradient(ellipse at 20% 20%, var(--gradient-color-1) 0%, transparent 70%),
+        radial-gradient(ellipse at 80% 30%, var(--gradient-color-2) 0%, transparent 70%),
+        radial-gradient(ellipse at 30% 80%, var(--gradient-color-3) 0%, transparent 70%),
+        radial-gradient(ellipse at 90% 90%, var(--gradient-color-4) 0%, transparent 70%);
+    animation: slow-pan 45s linear infinite;
     z-index: -2;
+    will-change: transform;
+    pointer-events: none;
 }
 
-@keyframes grain {
-    0%, 100% { transform: translate(0, 0); }
-    10% { transform: translate(-5%, -10%); }
-    20% { transform: translate(-15%, 5%); }
-    30% { transform: translate(7%, -25%); }
-    40% { transform: translate(-5%, 25%); }
-    50% { transform: translate(-15%, 10%); }
-    60% { transform: translate(15%, 0%); }
-    70% { transform: translate(0%, 15%); }
-    80% { transform: translate(3%, 35%); }
-    90% { transform: translate(-10%, 10%); }
-}
-
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+@keyframes slow-pan {
+    0% { transform: translate(0%, 0%) rotate(0deg); }
+    25% { transform: translate(10%, -5%) rotate(90deg); }
+    50% { transform: translate(0%, 10%) rotate(180deg); }
+    75% { transform: translate(-10%, -5%) rotate(270deg); }
+    100% { transform: translate(0%, 0%) rotate(360deg); }
 }
