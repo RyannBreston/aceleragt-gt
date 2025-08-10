@@ -15,7 +15,6 @@ import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import { useToast } from '@/hooks/use-toast';
 import { auth, db } from '@/lib/firebase';
-import '../animated-background.css';
 
 export default function LoginPage() {
     const router = useRouter();
