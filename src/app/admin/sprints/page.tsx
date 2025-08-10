@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useMemo, ChangeEvent } from 'react';
+import React, { useState, useMemo, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -9,12 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Save, Zap } from "lucide-react";
+import { Loader2, PlusCircle, Save, Zap, Power, PowerOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { db, functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import type { Seller } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -55,7 +54,7 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
         setSprintTiers(newTiers);
     };
     
-    useEffect(() => {
+    React.useEffect(() => {
         if (!isOpen) {
             setTitle('');
             setParticipantIds([]);
@@ -102,16 +101,13 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
                     <DialogDescription>Defina os níveis de metas e os pontos de prêmio para a sua equipe.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    {/* --- CORRIGIDO --- */}
                     <div className="space-y-2"><Label htmlFor="sprint-title">Título da Corridinha</Label><Input id="sprint-title" value={title} onChange={(e: ChangeEvent<HTMLInputElement>) => setTitle((e.target as any).value)} placeholder="Ex: Sprint de Vendas Relâmpago" /></div>
                     <div className="space-y-4 rounded-md border p-4">
                         <Label className="font-semibold">Níveis de Metas e Prêmios</Label>
                         {sprintTiers.map((tier, index) => (
                             <div key={index} className="flex items-center gap-4">
                                 <Label className="w-20 text-sm text-muted-foreground">{tier.label}</Label>
-                                {/* --- CORRIGIDO --- */}
                                 <Input type="number" placeholder="Meta (R$)" value={tier.goal} onChange={(e: ChangeEvent<HTMLInputElement>) => handleTierChange(index, 'goal', Number((e.target as any).value))} />
-                                {/* --- CORRIGIDO --- */}
                                 <Input type="number" placeholder="Prêmio (Pts)" value={tier.points} onChange={(e: ChangeEvent<HTMLInputElement>) => handleTierChange(index, 'points', Number((e.target as any).value))} />
                             </div>
                         ))}
@@ -144,40 +140,39 @@ const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boole
 
 // Página Principal
 export default function AdminSprintsPage() {
-    const { sellers } = useAdminContext();
+    const { sellers, sprints, toggleSprint } = useAdminContext();
     const { toast } = useToast();
-    const [sprints, setSprints] = useState<DailySprint[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(!sprints.length);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isToggling, setIsToggling] = useState<string | null>(null);
     
-    const sprintsCollectionPath = useMemo(() => `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`, []);
-
-    useEffect(() => {
-        const q = query(collection(db, sprintsCollectionPath), orderBy('createdAt', 'desc'));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const sprintsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailySprint));
-            setSprints(sprintsData);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Erro ao carregar corridinhas:", error);
-            const errorMessage = error instanceof Error ? error.message : "Não foi possível buscar as corridinhas.";
-            toast({ variant: "destructive", title: "Erro ao carregar dados", description: errorMessage });
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, [sprintsCollectionPath, toast]);
+    React.useEffect(() => {
+        if(sprints.length) setIsLoading(false);
+    }, [sprints]);
 
     const handleSaveSprint = async (sprintData: NewSprintData) => {
         try {
             const createSprintCallable = httpsCallable(functions, 'createDailySprint');
             await createSprintCallable(sprintData);
-            toast({ title: 'Sucesso!', description: 'A corridinha diária foi criada e já está ativa.' });
+            toast({ title: 'Sucesso!', description: 'A corridinha diária foi criada. Ative-a para começar.' });
         } catch (error: unknown) {
             console.error("Erro ao chamar a Cloud Function 'createDailySprint':", error);
             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
             toast({ variant: 'destructive', title: 'Erro ao criar corridinha', description: errorMessage });
         }
     };
+    
+    const handleToggleSprint = async (sprint: DailySprint) => {
+        setIsToggling(sprint.id);
+        try {
+            await toggleSprint(sprint.id, sprint.isActive);
+            toast({ title: "Status alterado!", description: `A corridinha "${sprint.title}" foi ${sprint.isActive ? 'desativada' : 'ativada'}.`});
+        } catch (error) {
+             toast({ variant: "destructive", title: "Erro ao alterar status", description: "Não foi possível alterar o status da corridinha."});
+        } finally {
+            setIsToggling(null);
+        }
+    }
 
     return (
         <div className="space-y-8">
@@ -189,12 +184,12 @@ export default function AdminSprintsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Histórico de Corridinhas</CardTitle>
-                    <CardDescription>Lista de todas as corridinhas criadas, da mais recente para a mais antiga.</CardDescription>
+                    <CardDescription>Lista de todas as corridinhas criadas. Apenas uma pode estar ativa por vez.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="rounded-md border">
                         <Table>
-                            <TableHeader><TableRow><TableHead>Título</TableHead><TableHead>Meta Máxima</TableHead><TableHead>Participantes</TableHead><TableHead>Data</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Título</TableHead><TableHead>Meta Máxima</TableHead><TableHead>Participantes</TableHead><TableHead>Data</TableHead><TableHead className="text-center">Ações</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow><TableCell colSpan={5} className="h-24 text-center"><Loader2 className="animate-spin mx-auto" /></TableCell></TableRow>
@@ -210,10 +205,19 @@ export default function AdminSprintsPage() {
                                             </TableCell>
                                             <TableCell>{sprint.participantIds.length} / {sellers.length}</TableCell>
                                             <TableCell>{sprint.createdAt ? format(sprint.createdAt.seconds * 1000, 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${sprint.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                                                    {sprint.isActive ? "Ativa" : "Finalizada"}
-                                                </span>
+                                            <TableCell className="text-center">
+                                                <Button 
+                                                    size="sm"
+                                                    variant={sprint.isActive ? 'destructive' : 'outline'} 
+                                                    onClick={() => handleToggleSprint(sprint)}
+                                                    disabled={isToggling === sprint.id}
+                                                >
+                                                    {isToggling === sprint.id 
+                                                        ? <Loader2 className="mr-2 size-4 animate-spin" />
+                                                        : sprint.isActive ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />
+                                                    }
+                                                    {sprint.isActive ? 'Desativar' : 'Ativar'}
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))

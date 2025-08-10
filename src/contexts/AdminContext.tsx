@@ -2,10 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
-import type { Admin, Goals, Mission, Seller, CycleSnapshot } from '@/lib/types';
+import type { Admin, Goals, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
 
 // 1. Definição da Interface
 interface AdminContextType {
@@ -15,6 +15,8 @@ interface AdminContextType {
   setGoals: (updater: (prev: Goals | null) => Goals | null) => void;
   missions: Mission[];
   setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
+  sprints: DailySprint[];
+  toggleSprint: (sprintId: string, currentState: boolean) => Promise<void>;
   admin: Admin | null;
   setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
   isDirty: boolean;
@@ -33,7 +35,10 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const state = useStore(s => s);
   const [isDirty, setIsDirty] = useState(false);
+  const [sprints, setSprints] = useState<DailySprint[]>([]);
   const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isAdmin: boolean }>({ isAuthReady: false, user: null, isAdmin: false });
+
+  const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -65,6 +70,12 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     const unsubGoals = onSnapshot(goalsRef, (doc) => {
         dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
     });
+
+    const sprintsQuery = query(collection(db, sprintsCollectionPath), orderBy('createdAt', 'desc'));
+    const unsubSprints = onSnapshot(sprintsQuery, (snapshot) => {
+        const sprintsFromDb = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailySprint));
+        setSprints(sprintsFromDb);
+    });
     
     // Supondo que você tenha uma coleção de missões
     const missionsQuery = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/missions`));
@@ -78,8 +89,28 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       dataStore.setCycleHistory(() => historyFromDb);
     });
 
-    return () => { unsubSellers(); unsubHistory(); unsubGoals(); unsubMissions(); };
-  }, [authStatus.isAuthReady, authStatus.isAdmin]);
+    return () => { unsubSellers(); unsubHistory(); unsubGoals(); unsubMissions(); unsubSprints(); };
+  }, [authStatus.isAuthReady, authStatus.isAdmin, sprintsCollectionPath]);
+
+  const toggleSprint = async (sprintId: string, currentState: boolean) => {
+    const batch = writeBatch(db);
+    const newActiveState = !currentState;
+    
+    // Se estamos a ativar uma nova sprint, desativamos primeiro todas as outras.
+    if (newActiveState) {
+        sprints.forEach(sprint => {
+            if (sprint.isActive) {
+                const sprintRef = doc(db, sprintsCollectionPath, sprint.id);
+                batch.update(sprintRef, { isActive: false });
+            }
+        });
+    }
+
+    const sprintRef = doc(db, sprintsCollectionPath, sprintId);
+    batch.update(sprintRef, { isActive: newActiveState });
+
+    await batch.commit();
+  };
 
   const contextValue = useMemo(() => ({
     ...state,
@@ -93,7 +124,9 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     isAuthReady: authStatus.isAuthReady,
     isAdmin: authStatus.isAdmin,
     userId: authStatus.user?.uid || null,
-  }), [state, isDirty, authStatus]);
+    sprints,
+    toggleSprint,
+  }), [state, isDirty, authStatus, sprints]);
 
   return <AdminContext.Provider value={contextValue}>{children}</AdminContext.Provider>;
 };
