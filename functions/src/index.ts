@@ -165,15 +165,17 @@ export const createDailySprint = onCall(async (request) => {
 
     const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
     try {
-        const batch = db.batch();
-        const activeSprintsQuery = await sprintsRef.where('isActive', '==', true).get();
-        activeSprintsQuery.forEach(doc => batch.update(doc.ref, { isActive: false }));
-
-        const newSprintData = { title, sprintTiers, participantIds, isActive: true, createdAt: admin.firestore.FieldValue.serverTimestamp() };
-        batch.set(sprintsRef.doc(), newSprintData);
-        await batch.commit();
+        // A corridinha é criada como INATIVA. A ativação é feita manualmente pelo admin.
+        const newSprintData = { 
+            title, 
+            sprintTiers, 
+            participantIds, 
+            isActive: false, // <-- A MUDANÇA PRINCIPAL
+            createdAt: admin.firestore.FieldValue.serverTimestamp() 
+        };
+        await sprintsRef.add(newSprintData);
         
-        return { result: `Corridinha "${title}" criada com sucesso!` };
+        return { result: `Corridinha "${title}" criada com sucesso. Pode agora ativá-la na lista.` };
     } catch (error) {
         throw new HttpsError('internal', 'Ocorreu um erro ao criar a corridinha.');
     }
