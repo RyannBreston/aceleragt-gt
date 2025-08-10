@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
 import { auth } from '@/lib/firebase';
 import { useAdminContext } from '@/contexts/AdminContext';
-import { GamificationSettings } from '@/lib/types';
 
 const allMenuItems = [
     {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
@@ -30,26 +29,8 @@ export const AdminSidebar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { isDirty, setIsDirty, goals } = useAdminContext(); 
+  const { isDirty, setIsDirty } = useAdminContext(); 
   const [pendingPath, setPendingPath] = React.useState<string | null>(null);
-
-  const visibleMenuItems = React.useMemo(() => {
-    const settings = goals?.gamification as GamificationSettings | undefined;
-    if (!settings) return allMenuItems;
-
-    // Garante que 'dashboard', 'settings' e 'perfil' estejam sempre visíveis.
-    const alwaysVisibleKeys = ['dashboard', 'settings', 'perfil', 'pontos'];
-
-    return allMenuItems.filter(item => {
-        // Se a chave do item estiver na lista de chaves sempre visíveis, inclua-o.
-        if (alwaysVisibleKeys.includes(item.key)) {
-            return true;
-        }
-        // Para outros itens, verifique a configuração de gamificação.
-        const itemKey = item.key as keyof GamificationSettings;
-        return settings[itemKey];
-    });
-  }, [goals]);
 
   const handleNavigate = (path: string) => {
     if (pathname.includes('/admin/settings') && isDirty) {
@@ -86,7 +67,7 @@ export const AdminSidebar = () => {
       <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar hidden md:flex">
         <SidebarHeader className="p-4"><div className="flex items-center gap-3"><Logo /><h1 className="text-xl font-semibold text-white group-data-[collapsible=icon]:hidden">Acelera GT</h1></div></SidebarHeader>
         <SidebarContent><SidebarMenu>
-            {visibleMenuItems.map(item => (
+            {allMenuItems.map(item => (
                 <SidebarMenuItem key={item.label}>
                     <SidebarMenuButton onClick={() => handleNavigate(item.href)} isActive={pathname === item.href} className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" tooltip={{ children: item.label }}>
                         <item.icon className="size-5" />
