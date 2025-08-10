@@ -1,6 +1,5 @@
 import * as admin from "firebase-admin";
 
-
 // Inicializa o Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
@@ -14,7 +13,7 @@ const ARTIFACTS_PATH = `artifacts/${
 // ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
 // ##################################################
 
-export const createAdmin = async (request: any) => {
+export const createAdmin = async (request: { auth?: { token: { role: string } }; data: { email?: string; password?: string; name?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error(
         "permission-denied",
@@ -59,7 +58,7 @@ export const createAdmin = async (request: any) => {
   }
 };
 
-export const updateAdmin = async (request: any) => {
+export const updateAdmin = async (request: { auth?: { token: { role: string } }; data: { uid?: string; name?: string; email?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -89,7 +88,7 @@ export const updateAdmin = async (request: any) => {
   }
 };
 
-export const changeAdminPassword = async (request: any) => {
+export const changeAdminPassword = async (request: { auth?: { token: { role: string } }; data: { uid?: string; newPassword?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -111,7 +110,7 @@ export const changeAdminPassword = async (request: any) => {
 // ### FUNÇÕES DE GESTÃO DE VENDEDORES ###
 // ##################################################
 
-export const createSeller = async (request: any) => {
+export const createSeller = async (request: { auth?: { token: { role: string } }; data: { email?: string; password?: string; name?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -165,7 +164,7 @@ export const createSeller = async (request: any) => {
   }
 };
 
-export const updateSeller = async (request: any) => {
+export const updateSeller = async (request: { auth?: { token: { role: string } }; data: { uid?: string; name?: string; email?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -196,7 +195,7 @@ export const updateSeller = async (request: any) => {
   }
 };
 
-export const deleteSeller = async (request: any) => {
+export const deleteSeller = async (request: { auth?: { token: { role: string } }; data: { uid?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -221,7 +220,7 @@ export const deleteSeller = async (request: any) => {
   }
 };
 
-export const changeSellerPassword = async (request: any) => {
+export const changeSellerPassword = async (request: { auth?: { token: { role: string } }; data: { uid?: string; newPassword?: string } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -239,7 +238,7 @@ export const changeSellerPassword = async (request: any) => {
   }
 };
 
-export const updateSellerPoints = async (request: any) => {
+export const updateSellerPoints = async (request: { auth?: { token: { role: string } }; data: { uid?: string; points?: number } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
@@ -260,7 +259,7 @@ export const updateSellerPoints = async (request: any) => {
   }
 };
 
-export const createDailySprint = async (request: any) => {
+export const createDailySprint = async (request: { auth?: { token: { role: string } }; data: { title?: string; sprintTiers?: any[]; participantIds?: string[] } }) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error("permission-denied");
   }
