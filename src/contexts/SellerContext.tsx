@@ -32,65 +32,66 @@ const SellerContext = createContext<SellerContextType | undefined>(undefined);
 // 3. Criação do Provider
 export const SellerProvider = ({ children }: { children: ReactNode }) => {
   const state = useStore(s => s);
-  const [authStatus, setAuthStatus] = useState<{ isAuthReady: boolean; user: FirebaseUser | null; isSeller: boolean }>({ isAuthReady: false, user: null, isSeller: false });
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [activeSprint, setActiveSprint] = useState<DailySprint | null>(null);
-
+  
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
   useEffect(() => {
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'seller') {
-          setAuthStatus({ isAuthReady: true, user, isSeller: true });
-        } else {
-          setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
-        }
+      if (!user) {
+        setIsSeller(false);
+        setUserId(null);
+        setCurrentSeller(null);
+        setIsAuthReady(true);
+        return;
+      }
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists() && userDoc.data().role === 'seller') {
+        setUserId(user.uid);
+        setIsSeller(true);
+
+        // Subscrições para dados do vendedor
+        const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
+            const sellers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller);
+            dataStore.setSellers(() => sellers);
+            const current = sellers.find(s => s.id === user.uid);
+            if (current) setCurrentSeller(current);
+        });
+
+        const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
+        const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
+            setActiveSprint(snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
+        });
+        
+        const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
+        const goalsUnsubscribe = onSnapshot(goalsRef, (doc) => {
+            dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
+        });
+
+        setIsAuthReady(true); // Tudo pronto para o vendedor
+
+        return () => {
+          sellersUnsubscribe();
+          sprintUnsubscribe();
+          goalsUnsubscribe();
+        };
       } else {
-        setAuthStatus({ isAuthReady: true, user: null, isSeller: false });
+        // Se não é vendedor, apenas finaliza a autenticação
+        setIsSeller(false);
+        setCurrentSeller(null);
+        setIsAuthReady(true);
       }
     });
+
     return () => authUnsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!authStatus.isAuthReady || !authStatus.isSeller || !authStatus.user) return;
-
-    const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(1));
-    const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
-      if (!snapshot.empty) {
-        setActiveSprint({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
-      } else {
-        setActiveSprint(null);
-      }
-    });
-
-    const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
-    const goalsUnsubscribe = onSnapshot(goalsRef, (doc) => {
-        dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
-    });
-
-    const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
-      dataStore.setSellers(() => snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Seller)));
-    });
-
-    return () => {
-      sprintUnsubscribe();
-      goalsUnsubscribe();
-      sellersUnsubscribe();
-    };
-  }, [authStatus.isAuthReady, authStatus.isSeller, authStatus.user, sprintsCollectionPath]);
-
-  useEffect(() => {
-    if (authStatus.isSeller && authStatus.user) {
-      const sellerData = state.sellers.find(s => s.id === authStatus.user!.uid);
-      if (sellerData) setCurrentSeller(sellerData);
-    } else {
-      setCurrentSeller(null);
-    }
-  }, [authStatus, state.sellers]);
+  }, [sprintsCollectionPath]);
 
   const contextValue: SellerContextType = useMemo(() => ({
     ...state,
@@ -101,10 +102,10 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     setCycleHistory: dataStore.setCycleHistory,
     currentSeller,
     activeSprint,
-    userId: authStatus.user?.uid || null,
-    isAuthReady: authStatus.isAuthReady,
-    isSeller: authStatus.isSeller,
-  }), [state, currentSeller, authStatus, activeSprint]);
+    userId,
+    isAuthReady,
+    isSeller,
+  }), [state, currentSeller, activeSprint, userId, isAuthReady, isSeller]);
 
   return <SellerContext.Provider value={contextValue}>{children}</SellerContext.Provider>;
 };
