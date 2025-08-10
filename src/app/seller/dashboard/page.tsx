@@ -133,8 +133,6 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
             const incrementFunction = httpsCallable(functions, 'incrementAttendance');
             await incrementFunction();
             toast({ title: "Atendimento Registado!", description: "O seu contador de atendimentos foi atualizado." });
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível registar o atendimento." });
         } finally {
             setIsSubmitting(false);
         }

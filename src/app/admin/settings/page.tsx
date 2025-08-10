@@ -98,7 +98,8 @@ const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<ty
       const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
         const numericValue = parseFloat(e.target.value.replace(/[^0-9,]/g, '').replace(',', '.'));
         if (onChange) {
-            (onChange as any)(isNaN(numericValue) ? '' : numericValue);
+            const event = { target: { value: isNaN(numericValue) ? '' : numericValue } };
+            onChange(event as React.ChangeEvent<HTMLInputElement>);
         }
         if(onBlur) onBlur(e);
       };
@@ -146,7 +147,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         <FormField control={control} name="goals.teamGoalBonus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Bónus de Equipa</FormLabel>
-                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a "Metinha" de Vendas.</FormDescription>
+                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a &quot;Metinha&quot; de Vendas.</FormDescription>
                                 <FormControl><CurrencyInput {...field} /></FormControl>
                             </FormItem>
                         )} />
@@ -230,16 +231,20 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     </Card>
 );
 
-const cleanData = (data: any) => {
-    const cleanedData = { ...data };
-    for (const key in cleanedData) {
-        if (cleanedData[key] === undefined) {
-            delete cleanedData[key];
-        } else if (typeof cleanedData[key] === 'object' && cleanedData[key] !== null) {
-            cleanedData[key] = cleanData(cleanedData[key]);
-        }
+const cleanData = (data: any): any => {
+    if (Array.isArray(data)) {
+        return data.map(cleanData);
     }
-    return cleanedData;
+    if (typeof data === 'object' && data !== null) {
+        const cleaned: { [key: string]: any } = {};
+        for (const key in data) {
+            if (data[key] !== undefined) {
+                cleaned[key] = cleanData(data[key]);
+            }
+        }
+        return cleaned;
+    }
+    return data;
 };
 
 
