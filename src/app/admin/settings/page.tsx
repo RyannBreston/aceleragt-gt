@@ -135,7 +135,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         <FormField control={control} name="goals.teamGoalBonus" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Bónus de Equipa</FormLabel>
-                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a "Metinha" de Vendas.</FormDescription>
+                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a &quot;Metinha&quot; de Vendas.</FormDescription>
                                 <FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl>
                             </FormItem>
                         )} />
@@ -160,7 +160,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                                 <Card className="p-4">
                                     <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
                                     <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
-                                </Card>
+                                 </Card>
                                 <Card className="p-4">
                                     <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
                                 </Card>
