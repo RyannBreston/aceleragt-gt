@@ -72,6 +72,10 @@
   * {
     @apply border-border;
   }
+  html, body {
+    height: 100%;
+    overflow-y: auto;
+  }
   body {
     @apply bg-background text-foreground;
   }
