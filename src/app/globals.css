@@ -4,79 +4,103 @@
 
 @layer base {
   :root {
-    --background: 240 10% 99%; /* Um branco ligeiramente mais suave */
-    --foreground: 224 71% 4%; /* Um preto azulado profundo */
-
+    --background: 240 10% 99%;
+    --foreground: 224 71% 4%;
     --card: 0 0% 100%;
     --card-foreground: 224 71% 4%;
- 
     --popover: 0 0% 100%;
     --popover-foreground: 224 71% 4%;
- 
-    /* Azul corporativo, forte e confiante */
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
- 
     --secondary: 220 13% 91%;
     --secondary-foreground: 224 71% 4%;
- 
     --muted: 220 13% 91%;
     --muted-foreground: 220 9% 46%;
- 
     --accent: 220 13% 91%;
     --accent-foreground: 224 71% 4%;
- 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 217 91% 60%;
- 
-    --radius: 0.75rem; /* Um raio ligeiramente maior para um look mais moderno */
+    --radius: 0.75rem;
   }
  
   .dark {
-    --background: 224 71% 4%; /* Ardósia "quase preto" */
+    --background: 224 71% 4%;
     --foreground: 210 20% 98%;
- 
-    --card: 224 71% 8%; /* Card ligeiramente mais claro que o fundo */
+    --card: 224 71% 8%;
     --card-foreground: 210 20% 98%;
- 
     --popover: 224 71% 4%;
     --popover-foreground: 210 20% 98%;
- 
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
- 
     --secondary: 215 28% 17%;
     --secondary-foreground: 210 20% 98%;
- 
     --muted: 215 28% 17%;
     --muted-foreground: 215 20% 65%;
- 
     --accent: 215 28% 17%;
     --accent-foreground: 210 20% 98%;
- 
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 100%;
- 
     --border: 215 28% 17%;
     --input: 215 28% 17%;
     --ring: 217 91% 60%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
+
   html, body {
     height: 100%;
     overflow-y: auto;
   }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(
+        ellipse at 50% 0%,
+        hsl(var(--primary) / 0.15) 0%,
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse at 10% 100%,
+        hsl(var(--primary) / 0.1) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        ellipse at 90% 100%,
+        hsl(var(--primary) / 0.1) 0%,
+        transparent 40%
+      );
+    animation: aurora 20s linear infinite alternate;
+    z-index: -1;
+    pointer-events: none;
+    will-change: transform;
+  }
+}
+
+@keyframes aurora {
+  0% {
+    transform: translateY(0%) rotate(0deg);
+  }
+  50% {
+    transform: translateY(10%) rotate(180deg);
+  }
+  100% {
+    transform: translateY(0%) rotate(360deg);
   }
 }

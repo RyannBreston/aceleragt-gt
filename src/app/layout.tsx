@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { SellerProvider } from "@/contexts/SellerContext";
 import "./globals.css";
-import "./animated-background.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
