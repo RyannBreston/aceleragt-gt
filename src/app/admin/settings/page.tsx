@@ -23,11 +23,17 @@ import type { Seller } from '@/lib/types';
 const goalLevelSchema = z.object({
   threshold: z.coerce.number().min(0, "O valor deve ser >= 0.").optional(),
   prize: z.coerce.number().min(0, "O prémio deve ser >= 0.").optional(),
+}).refine(data => (data.threshold != null && data.prize != null) || (data.threshold == null && data.prize == null), {
+  message: "Preencha ambos os campos ou deixe-os em branco.",
+  path: ["prize"],
 });
 
 const performanceBonusSchema = z.object({
     per: z.coerce.number().min(0).optional(),
     prize: z.coerce.number().min(0).optional(),
+}).refine(data => (data.per != null && data.prize != null) || (data.per == null && data.prize == null), {
+    message: "Preencha ambos os campos ou deixe-os em branco.",
+    path: ["prize"],
 });
 
 const metricGoalsSchema = z.object({
