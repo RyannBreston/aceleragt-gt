@@ -37,7 +37,7 @@ export interface PerformanceBonus {
     prize: number;
 }
 
-export interface SalesValueGoals {
+export interface MetricGoals {
     metinha: GoalLevel;
     meta: GoalLevel;
     metona: GoalLevel;
@@ -57,10 +57,10 @@ export interface GamificationSettings {
 }
 
 export interface Goals {
-    salesValue: SalesValueGoals;
-    ticketAverage: SalesValueGoals;
-    pa: SalesValueGoals;
-    points: SalesValueGoals;
+    salesValue: MetricGoals;
+    ticketAverage: MetricGoals;
+    pa: MetricGoals;
+    points: MetricGoals;
     gamification: GamificationSettings;
 }
 

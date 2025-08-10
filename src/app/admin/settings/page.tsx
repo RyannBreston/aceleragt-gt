@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -23,6 +23,20 @@ import type { Seller } from '@/lib/types';
 const goalLevelSchema = z.object({
   threshold: z.coerce.number().min(0, "O valor deve ser >= 0."),
   prize: z.coerce.number().min(0, "O prémio deve ser >= 0."),
+});
+
+const performanceBonusSchema = z.object({
+    per: z.coerce.number().min(0),
+    prize: z.coerce.number().min(0),
+});
+
+const salesValueGoalsSchema = z.object({
+    metinha: goalLevelSchema,
+    meta: goalLevelSchema,
+    metona: goalLevelSchema,
+    lendaria: goalLevelSchema,
+    performanceBonus: performanceBonusSchema.optional(),
+    topScorerPrize: z.coerce.number().min(0).optional(),
 });
 
 const sellerPerformanceSchema = z.object({
@@ -47,10 +61,10 @@ const gamificationSchema = z.object({
 const formSchema = z.object({
   sellers: z.array(sellerPerformanceSchema),
   goals: z.object({
-    salesValue: z.object({ metinha: goalLevelSchema, meta: goalLevelSchema, metona: goalLevelSchema, lendaria: goalLevelSchema }),
-    ticketAverage: z.object({ metinha: goalLevelSchema, meta: goalLevelSchema, metona: goalLevelSchema, lendaria: goalLevelSchema }),
-    pa: z.object({ metinha: goalLevelSchema, meta: goalLevelSchema, metona: goalLevelSchema, lendaria: goalLevelSchema }),
-    points: z.object({ metinha: goalLevelSchema, meta: goalLevelSchema, metona: goalLevelSchema, lendaria: goalLevelSchema }),
+    salesValue: salesValueGoalsSchema,
+    ticketAverage: salesValueGoalsSchema,
+    pa: salesValueGoalsSchema,
+    points: salesValueGoalsSchema,
     gamification: gamificationSchema,
   }),
 });
@@ -124,6 +138,19 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                                     <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
+                        </div>
+
+                        <div className="pt-4 mt-4 border-t">
+                            <h4 className="text-md font-semibold mb-2">Prémios de Equipa</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Card className="p-4">
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
+                                </Card>
+                                <Card className="p-4">
+                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
+                                </Card>
+                            </div>
                         </div>
                     </div>
                 ))}
