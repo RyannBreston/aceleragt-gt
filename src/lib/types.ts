@@ -62,6 +62,7 @@ export interface Goals {
     pa: MetricGoals;
     points: MetricGoals;
     gamification: GamificationSettings;
+    teamGoalBonus?: number;
 }
 
 export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';

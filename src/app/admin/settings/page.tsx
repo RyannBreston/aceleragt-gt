@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -30,7 +30,7 @@ const performanceBonusSchema = z.object({
     prize: z.coerce.number().min(0),
 });
 
-const salesValueGoalsSchema = z.object({
+const metricGoalsSchema = z.object({
     metinha: goalLevelSchema,
     meta: goalLevelSchema,
     metona: goalLevelSchema,
@@ -61,17 +61,18 @@ const gamificationSchema = z.object({
 const formSchema = z.object({
   sellers: z.array(sellerPerformanceSchema),
   goals: z.object({
-    salesValue: salesValueGoalsSchema,
-    ticketAverage: salesValueGoalsSchema,
-    pa: salesValueGoalsSchema,
-    points: salesValueGoalsSchema,
+    salesValue: metricGoalsSchema,
+    ticketAverage: metricGoalsSchema,
+    pa: metricGoalsSchema,
+    points: metricGoalsSchema,
     gamification: gamificationSchema,
+    teamGoalBonus: z.coerce.number().min(0).optional(),
   }),
 });
 
 type FormData = z.infer<typeof formSchema>;
 type GoalLevels = 'metinha' | 'meta' | 'metona' | 'lendaria';
-type GoalMetric = Exclude<keyof FormData['goals'], 'gamification'>;
+type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBonus'>;
 
 // --- Sub-componentes Refatorados ---
 
@@ -120,7 +121,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
 );
 
 const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
-    const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification') as GoalMetric[];
+    const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification' && k !== 'teamGoalBonus') as GoalMetric[];
     const goalLevels: GoalLevels[] = ['metinha', 'meta', 'metona', 'lendaria'];
     const getMetricLabel = (metric: string) => ({ salesValue: 'Vendas', ticketAverage: 'Ticket Médio', pa: 'PA (Peças por Atendimento)', points: 'Pontos' }[metric] || metric);
     
@@ -128,6 +129,19 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
         <Card>
             <CardHeader><CardTitle>Metas de Performance e Prémios</CardTitle><CardDescription>Defina os objetivos para cada indicador e o prémio correspondente.</CardDescription></CardHeader>
             <CardContent className="space-y-6 pt-6">
+                <Card>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Group/> Meta Global de Equipa</CardTitle></CardHeader>
+                    <CardContent>
+                        <FormField control={control} name="goals.teamGoalBonus" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Bónus de Equipa</FormLabel>
+                                <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a "Metinha" de Vendas.</FormDescription>
+                                <FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl>
+                            </FormItem>
+                        )} />
+                    </CardContent>
+                </Card>
+
                 {goalMetrics.map((metric) => (
                     <div key={metric} className="space-y-3 pt-4 border-t first:border-t-0 first:pt-0">
                         <h3 className="text-lg font-semibold">{getMetricLabel(metric)}</h3>
@@ -141,7 +155,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                         </div>
 
                         <div className="pt-4 mt-4 border-t">
-                            <h4 className="text-md font-semibold mb-2">Prémios de Equipa</h4>
+                            <h4 className="text-md font-semibold mb-2">Prémios de Performance Individual</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Card className="p-4">
                                     <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput {...field} onValueChange={field.onChange}/></FormControl></FormItem>)} />
