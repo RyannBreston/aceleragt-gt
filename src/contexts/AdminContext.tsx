@@ -5,14 +5,14 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, getDoc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useStore, dataStore } from '@/lib/store';
-import type { Admin, Goals, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
+import type { Admin, Goals as GoalsType, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
 
 // 1. Definição da Interface
 interface AdminContextType {
   sellers: Seller[];
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
-  goals: Goals | null;
-  setGoals: (updater: (prev: Goals | null) => Goals | null) => void;
+  goals: GoalsType | null;
+  setGoals: (updater: (prev: GoalsType | null) => GoalsType | null) => void;
   missions: Mission[];
   setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
   sprints: DailySprint[];
@@ -27,6 +27,8 @@ interface AdminContextType {
   isAdmin: boolean;
   userId: string | null;
 }
+
+export type { GoalsType as Goals };
 
 // 2. Criação do Contexto
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -86,7 +88,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
     const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
     const unsubGoals = onSnapshot(goalsRef, (doc) => {
-        dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
+        dataStore.setGoals(() => (doc.exists() ? doc.data() as GoalsType : null));
     });
 
     const sprintsQuery = query(collection(db, sprintsCollectionPath), orderBy('createdAt', 'desc'));

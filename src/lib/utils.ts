@@ -10,25 +10,20 @@ const ARTIFACTS_PATH = `artifacts/${
   process.env.GCLOUD_PROJECT || "default-app-id"
 }/public/data`;
 
-// Opções de CORS para permitir qualquer origem (seguro para onCall)
-const corsOptions = {cors: true};
-
 // ##################################################
 // ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
 // ##################################################
 
-export const createAdmin = async (request) => {
+export const createAdmin = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
     throw new Error(
         "permission-denied",
-        "Apenas outros administradores podem executar esta ação."
     );
   }
   const {email, password, name} = request.data;
   if (!email || !password || !name || password.length < 6) {
     throw new Error(
         "invalid-argument",
-        "Email, nome e uma senha com no mínimo 6 caracteres são obrigatórios."
     );
   }
 
@@ -56,25 +51,22 @@ export const createAdmin = async (request) => {
     ) {
       throw new Error(
           "already-exists",
-          "Este email já está a ser utilizado."
       );
     }
     throw new Error(
         "internal",
-        "Ocorreu um erro inesperado ao criar o administrador."
     );
   }
 };
 
-export const updateAdmin = async (request) => {
+export const updateAdmin = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid, name, email} = request.data;
   if (!uid || !name || !email) {
     throw new Error(
         "invalid-argument",
-        "UID, nome e email são obrigatórios."
     );
   }
 
@@ -89,30 +81,29 @@ export const updateAdmin = async (request) => {
       "code" in error &&
       error.code === "auth/user-not-found"
     ) {
-      throw new Error("not-found", "Administrador não encontrado.");
+      throw new Error("not-found");
     }
     throw new Error(
         "internal",
-        "Ocorreu um erro inesperado ao atualizar o administrador."
     );
   }
 };
 
-export const changeAdminPassword = async (request) => {
+export const changeAdminPassword = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid, newPassword} = request.data;
   if (!uid || !newPassword || newPassword.length < 6) {
-    throw new Error("invalid-argument", "Dados inválidos.");
+    throw new Error("invalid-argument");
   }
 
   try {
     await admin.auth().updateUser(uid, {password: newPassword});
     await admin.auth().revokeRefreshTokens(uid);
     return {result: "Senha do administrador atualizada."};
-  } catch (error) {
-    throw new Error("internal", "Ocorreu um erro ao alterar a senha.");
+  } catch {
+    throw new Error("internal");
   }
 };
 
@@ -120,13 +111,13 @@ export const changeAdminPassword = async (request) => {
 // ### FUNÇÕES DE GESTÃO DE VENDEDORES ###
 // ##################################################
 
-export const createSeller = async (request) => {
+export const createSeller = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {email, password, name} = request.data;
   if (!email || !password || !name || password.length < 6) {
-    throw new Error("invalid-argument", "Argumentos inválidos.");
+    throw new Error("invalid-argument");
   }
 
   try {
@@ -168,19 +159,19 @@ export const createSeller = async (request) => {
       "code" in error &&
       error.code === "auth/email-already-exists"
     ) {
-      throw new Error("already-exists", "Este email já está em uso.");
+      throw new Error("already-exists");
     }
-    throw new Error("internal", "Ocorreu um erro ao criar o vendedor.");
+    throw new Error("internal");
   }
 };
 
-export const updateSeller = async (request) => {
+export const updateSeller = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid, name, email} = request.data;
   if (!uid || !name || !email) {
-    throw new Error("invalid-argument", "Argumentos inválidos.");
+    throw new Error("invalid-argument");
   }
 
   try {
@@ -197,24 +188,22 @@ export const updateSeller = async (request) => {
       "code" in error &&
       error.code === "auth/user-not-found"
     ) {
-      throw new Error("not-found", "Utilizador não encontrado.");
+      throw new Error("not-found");
     }
     throw new Error(
         "internal",
-        "Ocorreu um erro ao atualizar o vendedor."
     );
   }
 };
 
-export const deleteSeller = async (request) => {
+export const deleteSeller = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid} = request.data;
   if (!uid) {
     throw new Error(
         "invalid-argument",
-        "O ID do utilizador é necessário."
     );
   }
 
@@ -225,39 +214,38 @@ export const deleteSeller = async (request) => {
     await batch.commit();
     await admin.auth().deleteUser(uid);
     return {result: `Utilizador ${uid} apagado com sucesso.`};
-  } catch (error) {
+  } catch {
     throw new Error(
         "internal",
-        "Ocorreu um erro ao excluir o utilizador."
     );
   }
 };
 
-export const changeSellerPassword = async (request) => {
+export const changeSellerPassword = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid, newPassword} = request.data;
   if (!uid || !newPassword || newPassword.length < 6) {
-    throw new Error("invalid-argument", "Dados inválidos.");
+    throw new Error("invalid-argument");
   }
 
   try {
     await admin.auth().updateUser(uid, {password: newPassword});
     await admin.auth().revokeRefreshTokens(uid);
     return {result: "Senha do vendedor atualizada."};
-  } catch (error) {
-    throw new Error("internal", "Ocorreu um erro ao alterar a senha.");
+  } catch {
+    throw new Error("internal");
   }
 };
 
-export const updateSellerPoints = async (request) => {
+export const updateSellerPoints = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {uid, points} = request.data;
   if (!uid || points === undefined || typeof points !== "number" || points < 0) {
-    throw new Error("invalid-argument", "Argumentos inválidos.");
+    throw new Error("invalid-argument");
   }
 
   try {
@@ -265,21 +253,20 @@ export const updateSellerPoints = async (request) => {
         {points: Math.floor(points)}
     );
     return {result: "Pontos atualizados."};
-  } catch (error) {
+  } catch {
     throw new Error(
         "internal",
-        "Ocorreu um erro ao atualizar os pontos."
     );
   }
 };
 
-export const createDailySprint = async (request) => {
+export const createDailySprint = async (request: any) => {
   if (request.auth?.token.role !== "admin") {
-    throw new Error("permission-denied", "Ação não autorizada.");
+    throw new Error("permission-denied");
   }
   const {title, sprintTiers, participantIds} = request.data;
   if (!title || !sprintTiers || !participantIds || participantIds.length === 0) {
-    throw new Error("invalid-argument", "Argumentos inválidos.");
+    throw new Error("invalid-argument");
   }
 
   const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
@@ -298,7 +285,7 @@ export const createDailySprint = async (request) => {
         title
       }" criada com sucesso. Pode agora ativá-la na lista.`,
     };
-  } catch (error) {
-    throw new Error("internal", "Ocorreu um erro ao criar a corridinha.");
+  } catch {
+    throw new Error("internal");
   }
 };
