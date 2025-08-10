@@ -231,20 +231,17 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
     </Card>
 );
 
-const cleanData = (data: any): any => {
-    if (Array.isArray(data)) {
-        return data.map(cleanData);
-    }
-    if (typeof data === 'object' && data !== null) {
-        const cleaned: { [key: string]: any } = {};
-        for (const key in data) {
-            if (data[key] !== undefined) {
-                cleaned[key] = cleanData(data[key]);
+const cleanData = (obj: Record<string, any>): Record<string, any> => {
+    return Object.entries(obj).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                acc[key] = cleanData(value);
+            } else {
+                acc[key] = value;
             }
         }
-        return cleaned;
-    }
-    return data;
+        return acc;
+    }, {} as Record<string, any>);
 };
 
 
