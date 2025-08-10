@@ -1,12 +1,9 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import type {Seller, Goals, Mission, Admin, CycleSnapshot} from './types';
-import {
-  initialSellers,
-  initialGoals,
-  initialMissions,
-} from './data';
+import { createStore } from 'zustand/vanilla';
+import type { Seller, Goals, Mission, Admin, CycleSnapshot } from './types';
+import { initialSellers, initialGoals, initialMissions } from './data';
 
 type AppState = {
   sellers: Seller[];
@@ -14,6 +11,14 @@ type AppState = {
   missions: Mission[];
   admin: Admin | null;
   cycleHistory: CycleSnapshot[];
+};
+
+type AppStore = AppState & {
+  setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
+  setGoals: (updater: (prev: Goals | null) => Goals | null) => void;
+  setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
+  setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
+  setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => void;
 };
 
 const initialState: AppState = {
@@ -24,48 +29,25 @@ const initialState: AppState = {
   cycleHistory: [],
 };
 
-let state: AppState = { ...initialState };
+export const store = createStore<AppStore>((set) => ({
+  ...initialState,
+  setSellers: (updater) => set((state) => ({ sellers: updater(state.sellers) })),
+  setGoals: (updater) => set((state) => ({ goals: updater(state.goals) })),
+  setMissions: (updater) => set((state) => ({ missions: updater(state.missions) })),
+  setAdmin: (updater) => set((state) => ({ admin: updater(state.admin) })),
+  setCycleHistory: (updater) => set((state) => ({ cycleHistory: updater(state.cycleHistory) })),
+}));
 
-const listeners = new Set<() => void>();
-
-const subscribe = (listener: () => void) => {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-};
-
-const getSnapshot = () => state;
-
-const getServerSnapshot = () => initialState;
-
-const emitChange = () => {
-  for (const listener of listeners) {
-    listener();
-  }
-};
-
+// Expondo as ações para uso fora dos componentes React
 export const dataStore = {
-  setSellers: (updater: (prev: Seller[]) => Seller[]) => {
-    state = { ...state, sellers: updater(state.sellers) };
-    emitChange();
-  },
-  setGoals: (updater: (prev: Goals | null) => Goals | null) => {
-    state = { ...state, goals: updater(state.goals) };
-    emitChange();
-  },
-  setMissions: (updater: (prev: Mission[]) => Mission[]) => {
-    state = { ...state, missions: updater(state.missions) };
-    emitChange();
-  },
-  setAdmin: (updater: (prev: Admin | null) => Admin | null) => {
-    state = { ...state, admin: updater(state.admin) };
-    emitChange();
-  },
-  setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => {
-    state = { ...state, cycleHistory: updater(state.cycleHistory) };
-    emitChange();
-  },
+  setSellers: store.getState().setSellers,
+  setGoals: store.getState().setGoals,
+  setMissions: store.getState().setMissions,
+  setAdmin: store.getState().setAdmin,
+  setCycleHistory: store.getState().setCycleHistory,
 };
 
-export const useStore = <T>(selector: (state: AppState) => T): T => {
-  return useSyncExternalStore(subscribe, () => selector(getSnapshot()), () => selector(getServerSnapshot()));
+// Hook para consumir a store nos componentes
+export const useStore = <T>(selector: (state: AppStore) => T): T => {
+  return useSyncExternalStore(store.subscribe, () => selector(store.getState()), () => selector(initialState as AppStore));
 };

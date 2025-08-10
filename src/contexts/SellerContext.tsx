@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, ReactNo
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, onSnapshot, query, where, limit, orderBy } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import { useStore, dataStore } from '@/lib/store';
+import { store, useStore } from '@/lib/store';
 import { calculateSellerPrizes } from '@/lib/utils';
 import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin, SellerWithPrizes } from '@/lib/types';
 
@@ -64,7 +64,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setIsSeller(true);
 
         const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
-            dataStore.setSellers(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller));
+            store.getState().setSellers(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller));
         });
 
         const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', user.uid), orderBy('createdAt', 'desc'), limit(1));
@@ -74,7 +74,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         
         const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
         const goalsUnsubscribe = onSnapshot(goalsRef, (doc) => {
-            dataStore.setGoals(() => (doc.exists() ? doc.data() as Goals : null));
+            store.getState().setGoals(() => (doc.exists() ? doc.data() as Goals : null));
         });
 
         unsubscribers = [sellersUnsubscribe, sprintUnsubscribe, goalsUnsubscribe];
@@ -92,9 +92,8 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [sprintsCollectionPath]);
 
-  // Efeito para calcular os prémios, ouvindo diretamente a store
   useEffect(() => {
-    const unsub = dataStore.subscribe(({ sellers, goals }) => {
+    const unsub = store.subscribe(({ sellers, goals }) => {
         if (userId && sellers.length > 0 && goals) {
             const sellerData = sellers.find(s => s.id === userId);
             if (sellerData) {
@@ -108,11 +107,11 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
 
   const contextValue: SellerContextType = useMemo(() => ({
     ...state,
-    setSellers: dataStore.setSellers,
-    setGoals: dataStore.setGoals,
-    setMissions: dataStore.setMissions,
-    setAdmin: dataStore.setAdmin,
-    setCycleHistory: dataStore.setCycleHistory,
+    setSellers: store.getState().setSellers,
+    setGoals: store.getState().setGoals,
+    setMissions: store.getState().setMissions,
+    setAdmin: store.getState().setAdmin,
+    setCycleHistory: store.getState().setCycleHistory,
     currentSeller,
     activeSprint,
     userId,
