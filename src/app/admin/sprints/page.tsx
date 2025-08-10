@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useMemo, ChangeEvent } from 'react';
+import React, { useState, ChangeEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -12,26 +12,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, PlusCircle, Save, Zap, Power, PowerOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
-import { db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import type { Seller } from '@/lib/types';
+import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-// --- Tipos Corrigidos ---
-interface SprintTier {
-    goal: number;
-    points: number; 
-    label: string;
-}
-interface DailySprint {
-    id: string;
-    title: string;
-    sprintTiers: SprintTier[];
-    createdAt: { seconds: number, nanoseconds: number };
-    participantIds: string[];
-    isActive: boolean;
-}
 type NewSprintData = Omit<DailySprint, 'id' | 'createdAt' | 'isActive'>;
 
 // --- Sub-componente: Modal para Criar a Corridinha ---

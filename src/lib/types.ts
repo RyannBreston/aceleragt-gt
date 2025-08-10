@@ -99,10 +99,16 @@ export interface QuizResult {
     totalQuestions: number;
 }
 
+export interface SprintTier {
+    goal: number;
+    points: number;
+    label: string;
+}
+
 export interface DailySprint {
     id: string;
     title: string;
-    sprintTiers: { goal: number; points: number }[];
+    sprintTiers: SprintTier[];
     createdAt: { seconds: number, nanoseconds: number };
     participantIds: string[];
     isActive: boolean;
