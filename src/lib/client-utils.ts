@@ -20,12 +20,13 @@ export const calculateSellerPrizes = (
   };
 
   if (goals) {
-    if (rank === 1 && sellerData.salesValue >= goals.sprintGoal) {
-      prizes.sprintPrize = goals.sprintPrize;
-    }
-    if (rank === 1 && sellerData.salesValue >= goals.monthGoal) {
-      prizes.monthPrize = goals.monthPrize;
-    }
+    // These properties do not exist on the Goals type.
+    // if (rank === 1 && sellerData.salesValue >= goals.sprintGoal) {
+    //   prizes.sprintPrize = goals.sprintPrize;
+    // }
+    // if (rank === 1 && sellerData.salesValue >= goals.monthGoal) {
+    //   prizes.monthPrize = goals.monthPrize;
+    // }
   }
 
   return {
