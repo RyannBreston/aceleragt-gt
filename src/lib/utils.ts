@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Seller, Goals, SalesValueGoals } from "./types";
+import type { Seller, Goals, MetricGoals } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -9,10 +9,8 @@ export function cn(...inputs: ClassValue[]) {
 export const calculateSellerPrizes = (
     seller: Seller,
     allSellers: Seller[],
-    goals: Goals | null // Aceita que goals pode ser nulo
+    goals: Goals | null
 ) => {
-    // --- CORREÇÃO ADICIONADA AQUI ---
-    // A definição de tipo agora inclui 'salesValue' e exclui apenas 'gamification'.
     const prizes: Record<keyof Omit<Goals, 'gamification'>, number> = {
         salesValue: 0,
         ticketAverage: 0,
@@ -21,13 +19,10 @@ export const calculateSellerPrizes = (
     };
     const zeroedPrizes = {...prizes};
 
-    // Verifica se os dados das metas foram carregados antes de continuar.
     if (!goals || !goals.points) {
-        console.warn("Cálculo de prémios ignorado: objeto de metas (goals) ainda não está disponível.");
         return { ...seller, prizes: zeroedPrizes, totalPrize: 0, teamBonusApplied: false, topScorerBonus: 0 };
     }
 
-    // Regra: Tem de atingir a "metinha" de pontos para ser elegível a qualquer prémio
     if ((seller.points + seller.extraPoints) < goals.points.metinha.threshold) {
         return { ...seller, prizes: zeroedPrizes, totalPrize: 0, teamBonusApplied: false, topScorerBonus: 0 };
     }
@@ -35,7 +30,7 @@ export const calculateSellerPrizes = (
     const allCriteria: Array<keyof typeof prizes> = ['salesValue', 'ticketAverage', 'pa', 'points'];
     
     allCriteria.forEach(crit => {
-        if (crit in goals && (crit === 'salesValue' || crit === 'ticketAverage' || crit === 'pa' || crit === 'points')) {
+        if (crit in goals) {
             const goalLevels = goals[crit];
             const sellerValue = crit === 'points' ? seller.points + seller.extraPoints : seller[crit];
 
@@ -50,13 +45,11 @@ export const calculateSellerPrizes = (
                 tierPrize = goalLevels.metinha.prize;
             }
 
-            if (crit === 'salesValue') {
-                const salesGoals = goalLevels as SalesValueGoals;
-                if (seller.salesValue >= salesGoals.lendaria.threshold && salesGoals.lendaria.threshold > 0 && salesGoals.performanceBonus && salesGoals.performanceBonus.per > 0) {
-                    const excessSales = seller.salesValue - salesGoals.lendaria.threshold;
-                    const bonusUnits = Math.floor(excessSales / salesGoals.performanceBonus.per);
-                    tierPrize += bonusUnits * salesGoals.performanceBonus.prize;
-                }
+            const metricGoals = goalLevels as MetricGoals;
+            if (sellerValue >= metricGoals.lendaria.threshold && metricGoals.lendaria.threshold > 0 && metricGoals.performanceBonus && metricGoals.performanceBonus.per > 0) {
+                const excessValue = sellerValue - metricGoals.lendaria.threshold;
+                const bonusUnits = Math.floor(excessValue / metricGoals.performanceBonus.per);
+                tierPrize += bonusUnits * metricGoals.performanceBonus.prize;
             }
             prizes[crit] = tierPrize;
         }
@@ -66,11 +59,11 @@ export const calculateSellerPrizes = (
     
     let teamBonusApplied = false;
     let topScorerBonus = 0;
-    const teamBonusAmount = 100;
 
     const teamGoalMet = allSellers.length > 1 && allSellers.every(s => s.salesValue >= goals.salesValue.metinha.threshold && goals.salesValue.metinha.threshold > 0);
     if (teamGoalMet) {
-        totalPrize += teamBonusAmount;
+        const teamBonus = goals.salesValue.performanceBonus?.prize || 0;
+        totalPrize += teamBonus;
         teamBonusApplied = true;
     }
 
