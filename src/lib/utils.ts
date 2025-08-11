@@ -288,3 +288,41 @@ export const createDailySprint = async (request: { auth?: { token: { role: strin
     throw new Error("internal");
   }
 };
+
+export const incrementAttendance = async (request: { auth?: { uid: string } }) => {
+  if (!request.auth) {
+    throw new Error("unauthenticated");
+  }
+
+  const sellerId = request.auth.uid;
+  const sellerRef = db.collection('sellers').doc(sellerId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const sellerDoc = await transaction.get(sellerRef);
+      if (!sellerDoc.exists) {
+        throw new Error("not-found");
+      }
+
+      const sellerData = sellerDoc.data();
+      const lastUpdate = sellerData?.lastAttendanceUpdate?.toDate();
+      const now = new Date();
+      
+      const isToday = lastUpdate ? now.toDateString() === lastUpdate.toDateString() : false;
+
+      let newCount = 1;
+      if (isToday) {
+        newCount = (sellerData?.dailyAttendanceCount || 0) + 1;
+      }
+      
+      transaction.update(sellerRef, {
+        dailyAttendanceCount: newCount,
+        lastAttendanceUpdate: admin.firestore.Timestamp.now(),
+      });
+    });
+
+    return { result: 'Success' };
+  } catch (error) {
+    throw new Error("internal");
+  }
+};
