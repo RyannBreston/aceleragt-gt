@@ -35,8 +35,7 @@ const PrizeTooltip = memo(({ seller }: { seller: SellerWithPrize }) => (
             <TooltipContent>
                 <div className="p-2 text-sm text-left text-popover-foreground space-y-2 max-w-xs">
                     <h4 className="font-bold border-b pb-1 mb-1">Composição do Prémio: {formatCurrency(seller.totalPrize)}</h4>
-                    {/* --- CORRIGIDO AQUI --- */}
-                    <div className="flex justify-between gap-4"><span>Vendas:</span> <span className="font-bold">{formatCurrency((seller.prizes as any).salesValue)}</span></div>
+                    <div className="flex justify-between gap-4"><span>Vendas:</span> <span className="font-bold">{formatCurrency(seller.prizes.salesValue)}</span></div>
                     <div className="flex justify-between gap-4"><span>T. Médio:</span> <span className="font-bold">{formatCurrency(seller.prizes.ticketAverage)}</span></div>
                     <div className="flex justify-between gap-4"><span>PA:</span> <span className="font-bold">{formatCurrency(seller.prizes.pa)}</span></div>
                     <div className="flex justify-between gap-4"><span>Pontos:</span> <span className="font-bold">{formatCurrency(seller.prizes.points)}</span></div>
