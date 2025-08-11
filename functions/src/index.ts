@@ -323,7 +323,7 @@ export const incrementAttendance = onCall(corsOptions, async (request) => {
     }
 
     const sellerId = request.auth.uid;
-    const sellerRef = db.collection('sellers').doc(sellerId);
+    const sellerRef = db.collection("sellers").doc(sellerId);
 
     try {
         await db.runTransaction(async (transaction) => {
@@ -346,7 +346,7 @@ export const incrementAttendance = onCall(corsOptions, async (request) => {
             });
         });
 
-        return { result: 'Contador de atendimentos atualizado com sucesso.' };
+        return {result: "Contador de atendimentos atualizado com sucesso."};
     } catch (error) {
         if (error instanceof HttpsError) throw error;
         throw new HttpsError("internal", "Erro ao atualizar o contador de atendimentos.");
@@ -359,11 +359,11 @@ export const resetAttendance = onCall(corsOptions, async (request) => {
     }
 
     const sellerId = request.auth.uid;
-    const sellerRef = db.collection('sellers').doc(sellerId);
+    const sellerRef = db.collection("sellers").doc(sellerId);
 
     try {
-        await sellerRef.update({ dailyAttendanceCount: 0 });
-        return { result: 'Contador de atendimentos zerado com sucesso.' };
+        await sellerRef.update({dailyAttendanceCount: 0});
+        return {result: "Contador de atendimentos zerado com sucesso."};
     } catch (error) {
         throw new HttpsError("internal", "Erro ao zerar o contador de atendimentos.");
     }
