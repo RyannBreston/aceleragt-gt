@@ -1,6 +1,6 @@
 'use client';
 
-import React, 'useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2, RefreshCw } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
