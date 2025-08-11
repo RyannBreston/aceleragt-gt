@@ -352,3 +352,19 @@ export const incrementAttendance = onCall(corsOptions, async (request) => {
         throw new HttpsError("internal", "Erro ao atualizar o contador de atendimentos.");
     }
 });
+
+export const resetAttendance = onCall(corsOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Ação não autenticada.");
+    }
+
+    const sellerId = request.auth.uid;
+    const sellerRef = db.collection('sellers').doc(sellerId);
+
+    try {
+        await sellerRef.update({ dailyAttendanceCount: 0 });
+        return { result: 'Contador de atendimentos zerado com sucesso.' };
+    } catch (error) {
+        throw new HttpsError("internal", "Erro ao zerar o contador de atendimentos.");
+    }
+});

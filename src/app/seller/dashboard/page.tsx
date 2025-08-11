@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, 'useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2 } from "lucide-react";
+import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2, RefreshCw } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -137,6 +137,17 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
             setIsSubmitting(false);
         }
     };
+    
+    const handleReset = async () => {
+        setIsSubmitting(true);
+        try {
+            const resetFunction = httpsCallable(functions, 'resetAttendance');
+            await resetFunction();
+            toast({ title: "Atendimentos Zerados!", description: "O seu contador de atendimentos foi zerado." });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <Card>
@@ -146,9 +157,14 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
             </CardHeader>
             <CardContent className="flex items-center justify-between">
                 <div className="text-3xl font-bold">{attendanceCount}</div>
-                <Button onClick={handleIncrement} disabled={isSubmitting} size="lg">
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus />}
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={handleIncrement} disabled={isSubmitting} size="lg">
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus />}
+                    </Button>
+                    <Button onClick={handleReset} disabled={isSubmitting || attendanceCount === 0} size="lg" variant="destructive">
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );
