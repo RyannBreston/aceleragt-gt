@@ -220,6 +220,18 @@ const SellerPerformancePage = () => {
                         </CardContent>
                     </Card>
 
+                    {criterion === 'totalPrize' && (
+                        <Card>
+                            <CardHeader><CardTitle>Prêmio Total Acumulado</CardTitle><CardDescription>A soma de todos os seus prêmios no ciclo atual.</CardDescription></CardHeader>
+                            <CardContent>
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground">Valor Total do Prêmio</h3>
+                                    <p className="text-2xl font-bold text-green-400">{formatCurrency(sellerData.totalPrize)}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     {criterion !== 'totalPrize' && (
                         <Card>
                             <CardHeader><CardTitle>Detalhes por {criterionLabel}</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
