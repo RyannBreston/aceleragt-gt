@@ -316,3 +316,39 @@ export const createDailySprint = onCall(corsOptions, async (request) => {
     );
   }
 });
+
+export const incrementAttendance = onCall(corsOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Ação não autenticada.");
+    }
+
+    const sellerId = request.auth.uid;
+    const sellerRef = db.collection('sellers').doc(sellerId);
+
+    try {
+        await db.runTransaction(async (transaction) => {
+            const sellerDoc = await transaction.get(sellerRef);
+            if (!sellerDoc.exists) {
+                throw new HttpsError("not-found", "Vendedor não encontrado.");
+            }
+
+            const sellerData = sellerDoc.data();
+            const lastUpdate = sellerData?.lastAttendanceUpdate?.toDate();
+            const now = new Date();
+            
+            const isToday = lastUpdate ? now.toDateString() === lastUpdate.toDateString() : false;
+
+            const newCount = isToday ? (sellerData?.dailyAttendanceCount || 0) + 1 : 1;
+            
+            transaction.update(sellerRef, {
+                dailyAttendanceCount: newCount,
+                lastAttendanceUpdate: admin.firestore.Timestamp.now(),
+            });
+        });
+
+        return { result: 'Contador de atendimentos atualizado com sucesso.' };
+    } catch (error) {
+        if (error instanceof HttpsError) throw error;
+        throw new HttpsError("internal", "Erro ao atualizar o contador de atendimentos.");
+    }
+});
