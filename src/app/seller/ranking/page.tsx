@@ -215,7 +215,7 @@ const SellerPerformancePage = () => {
                                     {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
                                         <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
                                     ))}
-                                </TabsList>
+                                 </TabsList>
                             </Tabs>
                         </CardContent>
                     </Card>
@@ -266,7 +266,7 @@ const SellerPerformancePage = () => {
                             <CardContent className="space-y-6">
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">Prêmio Recebido (Neste Critério)</h3>
-                                    <p className="text-2xl font-bold text-green-400">{prizeForCriterion.toLocaleString('pt-BR')} Pts</p>
+                                    <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
                                 </div>
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-medium">Níveis de Meta Atingidos</h4>
