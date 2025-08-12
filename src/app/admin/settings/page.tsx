@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group, CalendarDays } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext, Goals } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -64,6 +64,7 @@ const gamificationSchema = z.object({
     loja: z.boolean().default(true),
     ranking: z.boolean().default(true),
     sprints: z.boolean().default(true),
+    escala: z.boolean().default(true),
 });
 
 const formSchema = z.object({
@@ -206,6 +207,7 @@ const GestaoDeModulos = ({ control }: { control: Control<FormData> }) => {
     const modulos: { name: keyof z.infer<typeof gamificationSchema>, label: string, icon: React.ElementType }[] = [
         { name: 'missions', label: 'Missões', icon: Target }, { name: 'sprints', label: 'Corridinha Diária', icon: Zap }, { name: 'academia', label: 'Academia', icon: GraduationCap },
         { name: 'quiz', label: 'Quiz', icon: Lightbulb }, { name: 'ofertas', label: 'Ofertas', icon: ShoppingBag }, { name: 'loja', label: 'Loja de Prémios', icon: Trophy }, { name: 'ranking', label: 'Meu Desempenho', icon: BarChart },
+        { name: 'escala', label: 'Escala de Trabalho', icon: CalendarDays },
     ];
     return (
         <Card>
