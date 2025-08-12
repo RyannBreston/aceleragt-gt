@@ -1,224 +1,199 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, PlusCircle, Save, Zap, Power, PowerOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import type { Seller, DailySprint, SprintTier } from '@/lib/types';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { EmptyState } from '@/components/EmptyState'; // Importa o novo componente
+import { EmptyState } from '@/components/EmptyState';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-type NewSprintData = Omit<DailySprint, 'id' | 'createdAt' | 'isActive'>;
+type SprintFormData = Omit<DailySprint, 'id' | 'createdAt'>;
 
-// --- Sub-componente: Modal para Criar a Corridinha ---
-const SprintFormModal = ({ isOpen, setIsOpen, onSave, sellers }: { isOpen: boolean; setIsOpen: (open: boolean) => void; onSave: (sprintData: NewSprintData) => Promise<void>; sellers: Seller[] }) => {
+const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: DailySprint | null; onSave: (data: SprintFormData) => Promise<void>; sellers: Seller[]; children: React.ReactNode; }) => {
     const { toast } = useToast();
+    const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
-    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>([
-        { goal: 200, points: 50, label: "Meta 1" }, 
-        { goal: 400, points: 100, label: "Meta 2" },
-        { goal: 600, points: 150, label: "Meta 3" }, 
-        { goal: 800, points: 250, label: "Meta 4" },
-    ]);
+    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>([{ goal: 0, points: 0, label: "Meta 1" }]);
     const [participantIds, setParticipantIds] = useState<string[]>([]);
+    const [isActive, setIsActive] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    React.useEffect(() => {
+        if (isOpen) {
+            setTitle(sprint?.title || '');
+            setSprintTiers(sprint?.sprintTiers || [{ goal: 200, points: 50, label: "Meta 1" }, { goal: 400, points: 100, label: "Meta 2" }, { goal: 600, points: 150, label: "Meta 3" }, { goal: 800, points: 250, label: "Meta 4" }]);
+            setParticipantIds(sprint?.participantIds || []);
+            setIsActive(sprint?.isActive || false);
+        }
+    }, [isOpen, sprint]);
+
     const handleTierChange = (index: number, field: 'goal' | 'points', value: string) => {
-        const numericValue = Number(value);
-        if (isNaN(numericValue)) return;
         const newTiers = [...sprintTiers];
-        const tierToUpdate = { ...newTiers[index], [field]: numericValue };
-        newTiers[index] = tierToUpdate;
+        newTiers[index] = { ...newTiers[index], [field]: Number(value) || 0 };
         setSprintTiers(newTiers);
     };
-    
-    React.useEffect(() => {
-        if (!isOpen) {
-            setTitle('');
-            setParticipantIds([]);
-            setIsSubmitting(false);
-        }
-    }, [isOpen]);
 
     const handleSave = async () => {
-        if (!title.trim()) {
-            toast({ variant: 'destructive', title: 'Erro de Validação', description: 'O título da corridinha é obrigatório.' });
+        if (!title.trim() || participantIds.length === 0) {
+            toast({ variant: 'destructive', title: 'Erro de Validação', description: 'Título e pelo menos um participante são obrigatórios.' });
             return;
         }
-        if (participantIds.length === 0) {
-            toast({ variant: 'destructive', title: 'Erro de Validação', description: 'Selecione pelo menos um participante.' });
-            return;
-        }
-
         setIsSubmitting(true);
-        const sprintData = { 
-            title, 
-            participantIds, 
-            sprintTiers: sprintTiers.map((tier, index) => ({ ...tier, label: `Meta ${index + 1}` }))
-        };
-        
-        await onSave(sprintData);
-        
+        await onSave({ title, sprintTiers, participantIds, isActive });
         setIsSubmitting(false);
         setIsOpen(false);
     };
-    
-    const handleSelectAll = (checked: boolean | 'indeterminate') => {
-        setParticipantIds(checked ? sellers.map(s => s.id) : []);
-    };
-
-    const checkedState: boolean | 'indeterminate' = 
-        participantIds.length === sellers.length && sellers.length > 0 ? true : 
-        participantIds.length > 0 ? 'indeterminate' : false;
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Criar Nova Corridinha</DialogTitle>
-                    <DialogDescription>Defina os níveis de metas e os pontos de prêmio para a sua equipe.</DialogDescription>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>{sprint ? 'Editar' : 'Criar'} Corridinha</DialogTitle><DialogDescription>Defina os detalhes e metas da corridinha.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <div className="space-y-2"><Label htmlFor="sprint-title">Título da Corridinha</Label><Input id="sprint-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Sprint de Vendas Relâmpago" /></div>
-                    <div className="space-y-4 rounded-md border p-4">
-                        <Label className="font-semibold">Níveis de Metas e Prêmios</Label>
+                    <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
+                    <div className="space-y-3">
+                        <Label>Níveis de Metas</Label>
                         {sprintTiers.map((tier, index) => (
-                            <div key={index} className="flex items-center gap-4">
-                                <Label className="w-20 text-sm text-muted-foreground">{tier.label}</Label>
-                                <Input type="number" placeholder="Meta (R$)" value={tier.goal} onChange={(e) => handleTierChange(index, 'goal', e.target.value)} />
-                                <Input type="number" placeholder="Prêmio (Pts)" value={tier.points} onChange={(e) => handleTierChange(index, 'points', e.target.value)} />
-                            </div>
+                            <div key={index} className="flex items-center gap-2"><Label className="w-16 text-sm">Meta {index + 1}</Label><Input type="number" value={tier.goal} onChange={e => handleTierChange(index, 'goal', e.target.value)} placeholder="Valor (R$)" /><Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', e.target.value)} placeholder="Prêmio (Pts)" /></div>
                         ))}
                     </div>
                     <div>
-                        <Label>Participantes</Label>
-                        <div className="flex items-center space-x-2 mt-2 border-b pb-2 mb-2">
-                            <Checkbox id="selectAll" onCheckedChange={handleSelectAll} checked={checkedState} />
-                            <Label htmlFor="selectAll" className="font-semibold">Selecionar Todos</Label>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                            {sellers.map(seller => (
-                                <div key={seller.id} className="flex items-center space-x-2">
-                                    <Checkbox id={seller.id} checked={participantIds.includes(seller.id)} onCheckedChange={(checked) => setParticipantIds(prev => checked ? [...prev, seller.id] : prev.filter(id => id !== seller.id))} />
-                                    <Label htmlFor={seller.id}>{seller.name}</Label>
-                                </div>
-                            ))}
+                        <Label>Participantes ({participantIds.length})</Label>
+                        <div className="mt-2 p-3 border rounded-md max-h-48 overflow-y-auto space-y-2">
+                            <div className="flex items-center"><Checkbox id="selectAll" checked={participantIds.length === sellers.length} onCheckedChange={checked => setParticipantIds(checked ? sellers.map(s => s.id) : [])} /><Label htmlFor="selectAll" className="ml-2 font-medium">Selecionar Todos</Label></div>
+                            <hr/>
+                            {sellers.map(s => <div key={s.id} className="flex items-center"><Checkbox id={s.id} checked={participantIds.includes(s.id)} onCheckedChange={checked => setParticipantIds(p => checked ? [...p, s.id] : p.filter(id => id !== s.id))} /><Label htmlFor={s.id} className="ml-2">{s.name}</Label></div>)}
                         </div>
                     </div>
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Criar Corridinha</Button>
+                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     );
 };
 
-
-// Página Principal
-export default function AdminSprintsPage() {
-    const { sellers, sprints, toggleSprint, isAuthReady } = useAdminContext();
-    const { toast } = useToast();
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isToggling, setIsToggling] = useState<string | null>(null);
-
-    const handleSaveSprint = async (sprintData: NewSprintData) => {
-        try {
-            const createSprintCallable = httpsCallable(functions, 'createDailySprint');
-            await createSprintCallable(sprintData);
-            toast({ title: 'Sucesso!', description: 'A corridinha diária foi criada. Ative-a para começar.' });
-        } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-            toast({ variant: 'destructive', title: 'Erro ao criar corridinha', description: errorMessage });
-        }
-    };
-    
-    const handleToggleSprint = async (sprint: DailySprint) => {
-        setIsToggling(sprint.id);
-        try {
-            await toggleSprint(sprint.id, sprint.isActive);
-            toast({ title: "Status alterado!", description: `A corridinha "${sprint.title}" foi ${sprint.isActive ? 'desativada' : 'ativada'}.`});
-        } catch {
-             toast({ variant: "destructive", title: "Erro ao alterar status", description: "Não foi possível alterar o status da corridinha."});
-        } finally {
-            setIsToggling(null);
-        }
-    }
-
-    const renderContent = () => {
-        if (!isAuthReady) {
-            return <EmptyState Icon={Loader2} title="A carregar..." description="Aguarde um momento." className="animate-spin"/>
-        }
-        if (sprints.length === 0) {
-            return <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>
-        }
-        return (
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader><TableRow><TableHead>Título</TableHead><TableHead>Meta Máxima</TableHead><TableHead>Participantes</TableHead><TableHead>Data</TableHead><TableHead className="text-center">Ações</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                        {sprints.map(sprint => (
-                            <TableRow key={sprint.id} className={sprint.isActive ? 'bg-primary/5' : ''}>
-                                <TableCell className="font-semibold">{sprint.title}</TableCell>
-                                <TableCell>
-                                    {sprint.sprintTiers && sprint.sprintTiers.length > 0 
-                                        ? `Até ${Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`
-                                        : 'N/A'
-                                    }
-                                </TableCell>
-                                <TableCell>{sprint.participantIds.length} / {sellers.length}</TableCell>
-                                <TableCell>{sprint.createdAt ? format(sprint.createdAt.seconds * 1000, 'dd/MM/yyyy HH:mm', { locale: ptBR }) : 'N/A'}</TableCell>
-                                <TableCell className="text-center">
-                                    <Button 
-                                        size="sm"
-                                        variant={sprint.isActive ? 'destructive' : 'outline'} 
-                                        onClick={() => handleToggleSprint(sprint)}
-                                        disabled={isToggling === sprint.id}
-                                    >
-                                        {isToggling === sprint.id 
-                                            ? <Loader2 className="mr-2 size-4 animate-spin" />
-                                            : sprint.isActive ? <PowerOff className="mr-2 size-4" /> : <Power className="mr-2 size-4" />
-                                        }
-                                        {sprint.isActive ? 'Desativar' : 'Ativar'}
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprint; onToggle: (id: string, state: boolean) => void; onEdit: (data: DailySprint) => void; onDelete: (id: string) => void; }) => (
+    <Card className={sprint.isActive ? "border-primary shadow-lg" : ""}>
+        <CardHeader>
+            <CardTitle className="flex justify-between items-start">
+                <span>{sprint.title}</span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => onEdit(sprint)}><Pencil className="mr-2 size-4" />Editar</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 size-4" />Excluir</DropdownMenuItem></AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(sprint.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </CardTitle>
+            <CardDescription><Users className="inline size-4 mr-1.5" />{sprint.participantIds.length} Participantes</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-between items-center p-6 bg-muted/40 rounded-b-lg">
+            <div className="flex items-center gap-3">
+                <Switch checked={sprint.isActive} onCheckedChange={(checked) => onToggle(sprint.id, checked)} id={`switch-${sprint.id}`} />
+                <Label htmlFor={`switch-${sprint.id}`} className="font-semibold">{sprint.isActive ? 'Ativa' : 'Inativa'}</Label>
             </div>
-        )
-    }
+            <div className="text-sm">
+                <p><strong>Meta Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                <p><strong>Prêmio Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.points))} pts</p>
+            </div>
+        </CardContent>
+    </Card>
+);
+
+
+export default function AdminSprintsPage() {
+    const { sellers, sprints, setSprints, isAuthReady } = useAdminContext();
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSave = useCallback(async (data: SprintFormData, id?: string) => {
+        setIsLoading(true);
+        try {
+            const callable = httpsCallable(functions, id ? 'updateDailySprint' : 'createDailySprint');
+            const result = await callable({ ...data, id });
+            const savedSprint = { ...data, id: (result.data as any).id || id, createdAt: new Date() }; // Simula o retorno
+            
+            setSprints(prev => id ? prev.map(s => s.id === id ? savedSprint : (data.isActive ? {...s, isActive: false} : s) ) : [...prev, savedSprint]);
+
+            if(data.isActive) {
+                setSprints(prev => prev.map(s => s.id === savedSprint.id ? {...s, isActive: true} : {...s, isActive: false}));
+            }
+
+            toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'}.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: String(error) });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [setSprints, toast]);
+
+    const handleToggle = useCallback(async (id: string, isActive: boolean) => {
+        const sprint = sprints.find(s => s.id === id);
+        if(!sprint) return;
+        
+        await handleSave({ ...sprint, isActive }, id);
+    }, [sprints, handleSave]);
+
+    const handleDelete = useCallback(async (id: string) => {
+        setIsLoading(true);
+        try {
+            const callable = httpsCallable(functions, 'deleteDailySprint');
+            await callable({ id });
+            setSprints(prev => prev.filter(s => s.id !== id));
+            toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro', description: String(error) });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [setSprints, toast]);
+
 
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4"><Zap className="size-8 text-primary" /><h1 className="text-3xl font-bold">Corridinhas Diárias</h1></div>
-                <Button onClick={() => setIsModalOpen(true)}><PlusCircle className="mr-2 size-4" /> Criar Nova Corridinha</Button>
+                <SprintFormModal onSave={(data) => handleSave(data)} sellers={sellers}>
+                    <Button><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
+                </SprintFormModal>
             </div>
+            
+            {isLoading && <EmptyState Icon={Loader2} title="A processar..." className="animate-spin" />}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Histórico de Corridinhas</CardTitle>
-                    <CardDescription>Lista de todas as corridinhas criadas. Apenas uma pode estar ativa por vez.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {renderContent()}
-                </CardContent>
-            </Card>
-
-            <SprintFormModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} onSave={handleSaveSprint} sellers={sellers} />
+            {!isLoading && !isAuthReady && <EmptyState Icon={Loader2} title="A carregar..." className="animate-spin" />}
+            
+            {!isLoading && isAuthReady && sprints.length === 0 && <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>}
+            
+            {!isLoading && isAuthReady && sprints.length > 0 &&
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {sprints.map(sprint => (
+                        <SprintFormModal key={sprint.id} sprint={sprint} onSave={(data) => handleSave(data, sprint.id)} sellers={sellers}>
+                           <SprintCard sprint={sprint} onToggle={handleToggle} onEdit={() => {}} onDelete={handleDelete} />
+                        </SprintFormModal>
+                    ))}
+                </div>
+            }
         </div>
     );
 }

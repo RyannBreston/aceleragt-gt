@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2, RefreshCw } from "lucide-react";
+import { Star, Ticket, Box, TrendingUp, Zap, Check, UserPlus, Loader2, RefreshCw, Pencil, Medal } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -13,21 +13,36 @@ import { cn } from '@/lib/client-utils';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Input } from '@/components/ui/input';
 
 type Metric = 'ticketAverage' | 'pa';
+type GoalLevel = 'metinha' | 'meta' | 'metona' | 'lendaria';
 
 const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) => {
     const sellerValue = seller[metric] || 0;
     const goalData = goals?.[metric];
+
     if (!goalData || !goalData.metinha?.threshold) {
-        return { percent: 0, label: "Meta não definida", details: "N/A" };
+        return { percent: 0, label: "Meta não definida", details: "N/A", achievedLevel: null };
     }
+
+    let achievedLevel: GoalLevel | null = null;
+    if (sellerValue >= goalData.lendaria.threshold) achievedLevel = 'lendaria';
+    else if (sellerValue >= goalData.metona.threshold) achievedLevel = 'metona';
+    else if (sellerValue >= goal.meta.threshold) achievedLevel = 'meta';
+    else if (sellerValue >= goalData.metinha.threshold) achievedLevel = 'metinha';
+
     let nextGoal, currentGoalBase, nextGoalLabel;
-    if (sellerValue >= goalData.lendaria.threshold) { return { percent: 100, label: `Nível Lendário Atingido!`, details: `${sellerValue.toLocaleString('pt-BR')}` }; }
-    if (sellerValue >= goalData.metona.threshold) { nextGoal = goalData.lendaria.threshold; currentGoalBase = goalData.metona.threshold; nextGoalLabel = 'Lendária'; }
-    else if (sellerValue >= goalData.meta.threshold) { nextGoal = goalData.metona.threshold; currentGoalBase = goalData.meta.threshold; nextGoalLabel = 'Metona'; }
-    else if (sellerValue >= goalData.metinha.threshold) { nextGoal = goalData.meta.threshold; currentGoalBase = goalData.metinha.threshold; nextGoalLabel = 'Meta'; }
+
+    if (achievedLevel === 'lendaria') {
+        return { percent: 100, label: `Nível Lendário Atingido!`, details: `${sellerValue.toLocaleString('pt-BR')}`, achievedLevel };
+    }
+    if (achievedLevel === 'metona') { nextGoal = goalData.lendaria.threshold; currentGoalBase = goalData.metona.threshold; nextGoalLabel = 'Lendária'; }
+    else if (achievedLevel === 'meta') { nextGoal = goalData.metona.threshold; currentGoalBase = goalData.meta.threshold; nextGoalLabel = 'Metona'; }
+    else if (achievedLevel === 'metinha') { nextGoal = goalData.meta.threshold; currentGoalBase = goalData.metinha.threshold; nextGoalLabel = 'Meta'; }
     else { nextGoal = goalData.metinha.threshold; currentGoalBase = 0; nextGoalLabel = 'Metinha'; }
+
     const range = nextGoal - currentGoalBase;
     const progress = range > 0 ? ((sellerValue - currentGoalBase) / range) * 100 : 0;
     
@@ -39,8 +54,31 @@ const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) =>
     return {
         percent: Math.min(100, progress),
         label: `Próximo Nível: ${nextGoalLabel}`,
-        details: `${valueFormatter(sellerValue)} / ${valueFormatter(nextGoal)}`
+        details: `${valueFormatter(sellerValue)} / ${valueFormatter(nextGoal)}`,
+        achievedLevel,
     };
+};
+
+const MedalIcon = ({ level, className }: { level: GoalLevel | null, className?: string }) => {
+    if (!level) return null;
+    const colors = {
+        metinha: 'text-yellow-600', // Bronze
+        meta: 'text-gray-400',    // Silver
+        metona: 'text-yellow-400', // Gold
+        lendaria: 'text-purple-500' // Legendary
+    };
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <Medal className={cn(colors[level], className)} />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Nível {level.charAt(0).toUpperCase() + level.slice(1)} alcançado!</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
 };
 
 const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: string; Icon: React.ElementType; seller: Seller; goals: Goals; metric: Metric }) => {
@@ -55,7 +93,10 @@ const GoalProgressCard = ({ title, Icon, seller, goals, metric }: { title: strin
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    {title}
+                    <MedalIcon level={progress.achievedLevel} />
+                </CardTitle>
                 <Icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -125,30 +166,23 @@ const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Sell
 const AttendanceCard = ({ seller }: { seller: Seller }) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editValue, setEditValue] = useState(seller.dailyAttendanceCount || 0);
     const attendanceCount = seller.dailyAttendanceCount || 0;
 
-    const handleIncrement = async () => {
+    const handleAction = async (action: 'increment' | 'reset' | 'update', value?: number) => {
         setIsSubmitting(true);
         try {
-            const incrementFunction = httpsCallable(functions, 'incrementAttendance');
-            await incrementFunction();
-            toast({ title: "Atendimento Registado!", description: "O seu contador de atendimentos foi atualizado." });
+            const functionName = action === 'update' ? 'updateAttendance' : (action === 'increment' ? 'incrementAttendance' : 'resetAttendance');
+            const actionFunction = httpsCallable(functions, functionName);
+            await actionFunction(action === 'update' ? { count: value } : {});
+            toast({ title: "Sucesso!", description: `Contador de atendimentos foi ${action === 'update' ? 'atualizado' : (action === 'increment' ? 'registado' : 'zerado')}.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro!', description: 'Não foi possível completar a ação.' });
         } finally {
             setIsSubmitting(false);
         }
     };
     
-    const handleReset = async () => {
-        setIsSubmitting(true);
-        try {
-            const resetFunction = httpsCallable(functions, 'resetAttendance');
-            await resetFunction();
-            toast({ title: "Atendimentos Zerados!", description: "O seu contador de atendimentos foi zerado." });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     return (
         <Card>
             <CardHeader>
@@ -158,18 +192,26 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
             <CardContent className="flex items-center justify-between">
                 <div className="text-3xl font-bold">{attendanceCount}</div>
                 <div className="flex gap-2">
-                    <Button onClick={handleIncrement} disabled={isSubmitting} size="lg">
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <UserPlus />}
-                    </Button>
-                    <Button onClick={handleReset} disabled={isSubmitting || attendanceCount === 0} size="lg" variant="destructive">
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-                    </Button>
+                    <Button onClick={() => handleAction('increment')} disabled={isSubmitting} size="lg"><UserPlus /></Button>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild><Button size="lg" variant="outline"><Pencil/></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Editar Atendimentos</AlertDialogTitle><AlertDialogDescription>Insira o novo valor de atendimentos do dia.</AlertDialogDescription></AlertDialogHeader>
+                            <Input type="number" value={editValue} onChange={(e) => setEditValue(Number(e.target.value))} />
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleAction('update', editValue)} disabled={isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar'}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <Button onClick={() => handleAction('reset')} disabled={isSubmitting || attendanceCount === 0} size="lg" variant="destructive"><RefreshCw /></Button>
                 </div>
             </CardContent>
         </Card>
     );
 };
-
 
 export default function SellerDashboardPage() {
     const { currentSeller, goals, isAuthReady, activeSprint } = useSellerContext();

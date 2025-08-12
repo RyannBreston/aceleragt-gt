@@ -83,28 +83,45 @@ type GoalLevels = 'metinha' | 'meta' | 'metona' | 'lendaria';
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBonus'>;
 
 // --- Sub-componentes Refatorados ---
+const formatCurrency = (value: string) => {
+    if (!value) return '';
+    let num = value.replace(/\D/g, '');
+    if (!num) return '';
+    num = (parseInt(num, 10) / 100).toFixed(2).toString();
+    num = num.replace('.', ',');
+    num = num.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+    return num;
+};
+
 const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
     ({ value, onChange, onBlur, ...props }, ref) => {
-      const [internalValue, setInternalValue] = useState(String(value || ''));
+        const [internalValue, setInternalValue] = useState(formatCurrency(String(value || '')));
 
-      useEffect(() => {
-        setInternalValue(String(value || ''));
-      }, [value]);
-      
-      const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInternalValue(e.target.value);
-      };
+        useEffect(() => {
+            setInternalValue(formatCurrency(String(value || '')));
+        }, [value]);
 
-      const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-        const numericValue = parseFloat(e.target.value.replace(/[^0-9,]/g, '').replace(',', '.'));
-        if (onChange) {
-            const event = { target: { value: isNaN(numericValue) ? '' : numericValue } };
-            onChange(event as React.ChangeEvent<HTMLInputElement>);
-        }
-        if(onBlur) onBlur(e);
-      };
+        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const formattedValue = formatCurrency(e.target.value);
+            setInternalValue(formattedValue);
+        };
 
-      return <Input ref={ref} value={internalValue} onChange={handleChange} onBlur={handleBlur} {...props} />;
+        const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+            const rawValue = e.target.value;
+            const numericValue = parseFloat(rawValue.replace(/\./g, '').replace(',', '.'));
+            
+            if (onChange) {
+                const event = {
+                    target: {
+                        value: isNaN(numericValue) ? '' : numericValue
+                    }
+                };
+                onChange(event as React.ChangeEvent<HTMLInputElement>);
+            }
+            if (onBlur) onBlur(e);
+        };
+
+        return <Input ref={ref} value={internalValue} onChange={handleChange} onBlur={handleBlur} {...props} />;
     }
 );
 CurrencyInput.displayName = 'CurrencyInput';
@@ -113,7 +130,7 @@ CurrencyInput.displayName = 'CurrencyInput';
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
-        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-a        <CardContent className="overflow-x-auto">
             <Table>
                 <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos Extras</TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -314,11 +331,24 @@ export default function SettingsPage() {
             });
 
             const batch = writeBatch(db);
-            contextSellers.forEach(seller => {
+            const updatedSellers = contextSellers.map(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 });
+                return { ...seller, salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 };
             });
+
             await batch.commit();
+
+            setSellers(updatedSellers);
+
+            const updatedFormData = {
+                sellers: updatedSellers.map(s => ({
+                    id: s.id, name: s.name, salesValue: 0, ticketAverage: 0, pa: 0, extraPoints: 0
+                })),
+                goals: contextGoals
+            };
+            
+            reset(updatedFormData as FormData);
             
             toast({ title: "Ciclo Finalizado!", description: "Dados de performance zerados." });
         } catch (error) {
@@ -326,7 +356,7 @@ export default function SettingsPage() {
         } finally {
             setIsSaving(false);
         }
-    }, [isDirty, contextSellers, contextGoals, toast]);
+    }, [isDirty, contextSellers, contextGoals, toast, setSellers, reset]);
 
     return (
         <div className="space-y-8">

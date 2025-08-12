@@ -16,7 +16,7 @@ const allMenuItems = [
   {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays, key: 'escala'},
   {href: '/seller/ofertas', label: 'Ofertas', icon: ShoppingBag, key: 'ofertas'},
   {href: '/seller/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
-  {href: '/seller/ranking', label: 'Meu Desempenho', icon: BarChart, key: 'ranking'},
+  {href: '/seller/ranking', label: 'Ranking', icon: BarChart, key: 'ranking'},
   {href: '/seller/missions', label: 'Missões', icon: Target, key: 'missions'},
   {href: '/seller/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
   {href: '/seller/historico', label: 'Histórico', icon: History, key: 'historico'},
@@ -31,15 +31,20 @@ const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
 
   const visibleMenuItems = React.useMemo(() => {
     if (!isAuthReady) return [];
-    
+
     const settings = goals?.gamification as GamificationSettings | undefined;
+    const defaultVisibleKeys = ['dashboard', 'perfil'];
+
     if (!settings) {
-      return allMenuItems.filter(item => ['/seller/dashboard', '/seller/perfil'].includes(item.href));
+      return allMenuItems.filter(item => defaultVisibleKeys.includes(item.key));
     }
 
     return allMenuItems.filter(item => {
-        const itemKey = item.key as keyof GamificationSettings;
-        return settings[itemKey];
+      if (defaultVisibleKeys.includes(item.key)) {
+        return true;
+      }
+      const itemKey = item.key as keyof GamificationSettings;
+      return settings[itemKey];
     });
   }, [goals, isAuthReady]);
 
