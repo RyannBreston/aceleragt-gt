@@ -14,16 +14,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Pencil } from 'lucide-react';
 import { Seller } from '@/lib/types';
 
-export default function EditPointsPage() {
+export default function EditExtraPointsPage() {
     const { sellers, setSellers } = useAdminContext();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
-    const [points, setPoints] = useState(0);
+    const [extraPoints, setExtraPoints] = useState(0);
 
     const handleEditClick = (seller: Seller) => {
         setSelectedSeller(seller);
-        setPoints(seller.points || 0);
+        setExtraPoints(seller.extraPoints || 0);
     };
 
     const handleSave = async () => {
@@ -31,28 +31,25 @@ export default function EditPointsPage() {
         setIsSaving(true);
         try {
             const batch = writeBatch(db);
-            // CORREÇÃO: O caminho para o documento do vendedor deve ser correto.
-            // Assumindo que a coleção se chama 'sellers'. Ajuste se for diferente.
             const sellerRef = doc(db, 'sellers', selectedSeller.id);
-            batch.update(sellerRef, { points });
+            batch.update(sellerRef, { extraPoints });
 
             await batch.commit();
 
-            // CORREÇÃO: Atualiza o contexto usando a forma de função segura.
             setSellers(prevSellers => 
                 prevSellers.map(s =>
-                    s.id === selectedSeller.id ? { ...s, points } : s
+                    s.id === selectedSeller.id ? { ...s, extraPoints } : s
                 )
             );
 
-            toast({ title: "Pontos atualizados com sucesso!" });
+            toast({ title: "Prémios de Corridinha atualizados com sucesso!" });
             setSelectedSeller(null);
         } catch (error) {
-            console.error("Error updating points: ", error);
+            console.error("Error updating extra points: ", error);
             toast({
                 variant: "destructive",
-                title: "Erro ao atualizar pontos",
-                description: "Ocorreu um erro ao tentar salvar os novos pontos.",
+                title: "Erro ao atualizar prémios",
+                description: "Ocorreu um erro ao tentar salvar os novos prémios.",
             });
         } finally {
             setIsSaving(false);
@@ -61,7 +58,7 @@ export default function EditPointsPage() {
 
     return (
         <div className="space-y-8">
-            <h1 className="text-3xl font-bold">Editar Pontos dos Vendedores</h1>
+            <h1 className="text-3xl font-bold">Editar Prêmios de Corridinha</h1>
             <Card>
                 <CardHeader>
                     <CardTitle>Vendedores</CardTitle>
@@ -71,7 +68,7 @@ export default function EditPointsPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Vendedor</TableHead>
-                                <TableHead>Pontos</TableHead>
+                                <TableHead>Prêmio de Corridinha</TableHead>
                                 <TableHead>Ações</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -79,7 +76,7 @@ export default function EditPointsPage() {
                             {sellers.map((seller) => (
                                 <TableRow key={seller.id}>
                                     <TableCell>{seller.name}</TableCell>
-                                    <TableCell>{seller.points || 0}</TableCell>
+                                    <TableCell>{seller.extraPoints || 0}</TableCell>
                                     <TableCell>
                                         <Dialog onOpenChange={(isOpen) => !isOpen && setSelectedSeller(null)}>
                                             <DialogTrigger asChild>
@@ -89,14 +86,13 @@ export default function EditPointsPage() {
                                             </DialogTrigger>
                                             <DialogContent>
                                                 <DialogHeader>
-                                                    <DialogTitle>Editar Pontos de {selectedSeller?.name}</DialogTitle>
+                                                    <DialogTitle>Editar Prêmios de {selectedSeller?.name}</DialogTitle>
                                                 </DialogHeader>
                                                 <div className="py-4">
                                                     <Input
                                                         type="number"
-                                                        value={points}
-                                                        // CORREÇÃO: Adiciona o (e.target as any) para evitar erros de build futuros.
-                                                        onChange={(e) => setPoints(Number((e.target as any).value))}
+                                                        value={extraPoints}
+                                                        onChange={(e) => setExtraPoints(Number((e.target as any).value))}
                                                     />
                                                 </div>
                                                 <DialogFooter>

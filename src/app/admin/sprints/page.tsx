@@ -153,8 +153,9 @@ export default function AdminSprintsPage() {
     const handleSave = useCallback(async (data: SprintFormData, id?: string) => {
         setIsLoading(true);
         try {
-            const callable = httpsCallable<SprintFormData & { id?: string }, CallableSprintResult>(functions, id ? 'updateDailySprint' : 'createDailySprint');
-            const result = await callable({ ...data, id });
+            const action = id ? 'updateDailySprint' : 'createDailySprint';
+            const callable = httpsCallable<object, CallableSprintResult>(functions, 'api');
+            const result = await callable({ action, ...data, id });
             const resultData = result.data;
 
             const newOrUpdatedId = resultData.id || id;
@@ -190,8 +191,8 @@ export default function AdminSprintsPage() {
     const handleDelete = useCallback(async (id: string) => {
         setIsLoading(true);
         try {
-            const callable = httpsCallable(functions, 'deleteDailySprint');
-            await callable({ id });
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action: 'deleteDailySprint', id });
             setSprints(prev => prev.filter(s => s.id !== id));
             toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
         } catch (error) {

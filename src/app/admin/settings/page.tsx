@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Input, InputProps } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group, CalendarDays } from "lucide-react";
@@ -84,45 +84,28 @@ type GoalLevels = 'metinha' | 'meta' | 'metona' | 'lendaria';
 type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBonus'>;
 
 // --- Sub-componentes Refatorados ---
-const formatCurrency = (value: string) => {
-    if (!value) return '';
-    let num = value.replace(/\D/g, '');
-    if (!num) return '';
-    num = (parseInt(num, 10) / 100).toFixed(2).toString();
-    num = num.replace('.', ',');
-    num = num.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-    return num;
-};
 
-const CurrencyInput = React.forwardRef<HTMLInputElement, React.ComponentProps<typeof Input>>(
-    ({ value, onChange, onBlur, ...props }, ref) => {
-        const [internalValue, setInternalValue] = useState(formatCurrency(String(value || '')));
-
-        useEffect(() => {
-            setInternalValue(formatCurrency(String(value || '')));
-        }, [value]);
-
-        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            const formattedValue = formatCurrency(e.target.value);
-            setInternalValue(formattedValue);
-        };
-
-        const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-            const rawValue = e.target.value;
-            const numericValue = parseFloat(rawValue.replace(/\./g, '').replace(',', '.'));
-            
+const CurrencyInput = React.forwardRef<HTMLInputElement, InputProps>(
+    ({ onChange, ...props }, ref) => {
+        const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            let value = e.target.value;
+            value = value.replace(/\D/g, "");
+            value = value.replace(/(\d)(\d{2})$/, "$1,$2");
+            value = value.replace(/(?=(\d{3})+(\D))\B/g, ".");
+            e.target.value = value;
             if (onChange) {
-                const event = {
-                    target: {
-                        value: isNaN(numericValue) ? '' : numericValue
-                    }
-                };
-                onChange(event as React.ChangeEvent<HTMLInputElement>);
+                onChange(e);
             }
-            if (onBlur) onBlur(e);
         };
 
-        return <Input ref={ref} value={internalValue} onChange={handleChange} onBlur={handleBlur} {...props} />;
+        return (
+            <Input
+                {...props}
+                ref={ref}
+                onChange={handleInputChange}
+                type="text"
+            />
+        );
     }
 );
 CurrencyInput.displayName = 'CurrencyInput';

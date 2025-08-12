@@ -39,8 +39,9 @@ export default function SellerProfilePage() {
 
         setIsUpdatingPassword(true);
         try {
-            const changePasswordFunction = httpsCallable(functions, 'changeSellerPassword');
+            const changePasswordFunction = httpsCallable(functions, 'api');
             await changePasswordFunction({
+                action: 'changeSellerPassword',
                 uid: currentSeller.id,
                 newPassword: newPassword
             });
@@ -108,7 +109,6 @@ export default function SellerProfilePage() {
                                         id="newPassword" 
                                         type="password" 
                                         value={newPassword} 
-                                        // --- CORRIGIDO ---
                                         onChange={(e) => setNewPassword((e.target as any).value)}
                                         placeholder="Mínimo 6 caracteres"
                                     />
@@ -119,7 +119,6 @@ export default function SellerProfilePage() {
                                         id="confirmPassword" 
                                         type="password" 
                                         value={confirmPassword} 
-                                        // --- CORRIGIDO ---
                                         onChange={(e) => setConfirmPassword((e.target as any).value)}
                                     />
                                 </div>

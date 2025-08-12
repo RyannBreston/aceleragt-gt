@@ -172,9 +172,8 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
     const handleAction = async (action: 'increment' | 'reset' | 'update', value?: number) => {
         setIsSubmitting(true);
         try {
-            const functionName = action === 'update' ? 'updateAttendance' : (action === 'increment' ? 'incrementAttendance' : 'resetAttendance');
-            const actionFunction = httpsCallable(functions, functionName);
-            await actionFunction(action === 'update' ? { count: value } : {});
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action: action === 'update' ? 'updateAttendance' : (action === 'increment' ? 'incrementAttendance' : 'resetAttendance'), count: value });
             toast({ title: "Sucesso!", description: `Contador de atendimentos foi ${action === 'update' ? 'atualizado' : (action === 'increment' ? 'registado' : 'zerado')}.` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro!', description: String(error) });

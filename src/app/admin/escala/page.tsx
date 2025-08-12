@@ -8,10 +8,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { addDays, startOfWeek, format, getISOWeek, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { doc, collection, writeBatch, onSnapshot, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, collection, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { httpsCallable } from 'firebase/functions';
 
 type Shift = { id: string; name: string; entryTime: string; exitTime: string; lunchTime: string; };
 type Schedule = { [sellerId: string]: { [dayIndex: number]: string | 'off'; } };
@@ -81,7 +82,6 @@ export default function EscalaPage() {
     const { toast } = useToast();
     
     const weekIdentifier = useMemo(() => `${getYear(currentDate)}-W${getISOWeek(currentDate)}`, [currentDate]);
-    const scheduleDocPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default'}/public/data/workSchedules/${weekIdentifier}`;
 
     const handleDateChange = (days: number) => setCurrentDate(prev => addDays(prev, days));
 
@@ -90,13 +90,23 @@ export default function EscalaPage() {
         const shiftsRef = collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default'}/public/data/shiftDefinitions`);
         const shiftsUnsub = onSnapshot(shiftsRef, snap => setShifts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Shift))));
         
-        const scheduleUnsub = onSnapshot(doc(db, scheduleDocPath), docSnap => {
-            setSchedule(docSnap.exists() ? docSnap.data() as Schedule : {});
-            setIsLoading(false);
-        });
+        const loadSchedule = async () => {
+            setIsLoading(true);
+            try {
+                const callable = httpsCallable(functions, 'api');
+                const result = await callable({ action: 'getWorkScheduleForWeek', weekIdentifier });
+                setSchedule(result.data as Schedule);
+            } catch (error) {
+                toast({ variant: 'destructive', title: 'Erro ao carregar escala', description: String(error) });
+            } finally {
+                setIsLoading(false);
+            }
+        };
 
-        return () => { shiftsUnsub(); scheduleUnsub(); };
-    }, [scheduleDocPath]);
+        loadSchedule();
+
+        return () => { shiftsUnsub(); };
+    }, [weekIdentifier, toast]);
 
     const handleScheduleChange = (sellerId: string, dayIndex: number, value: string) => {
         setSchedule(prev => ({
@@ -107,24 +117,34 @@ export default function EscalaPage() {
 
     const handleSaveChanges = useCallback(async () => {
         setIsSaving(true);
-        await setDoc(doc(db, scheduleDocPath), schedule, { merge: true });
-        setIsSaving(false);
-        toast({ title: 'Sucesso!', description: 'Escala salva com sucesso.' });
-    }, [schedule, scheduleDocPath, toast]);
+        try {
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action: 'setWorkSchedule', weekIdentifier, schedule });
+            toast({ title: 'Sucesso!', description: 'Escala salva com sucesso.' });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao salvar escala', description: String(error) });
+        } finally {
+            setIsSaving(false);
+        }
+    }, [schedule, weekIdentifier, toast]);
 
     const handleCopyWeek = useCallback(async () => {
         const lastWeekDate = addDays(currentDate, -7);
         const lastWeekIdentifier = `${getYear(lastWeekDate)}-W${getISOWeek(lastWeekDate)}`;
-        const lastWeekDocPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default'}/public/data/workSchedules/${lastWeekIdentifier}`;
         
-        const scheduleRef = doc(db, lastWeekDocPath);
-        const docSnap = await getDoc(scheduleRef);
+        try {
+            const callable = httpsCallable(functions, 'api');
+            const result = await callable({ action: 'getWorkScheduleForWeek', weekIdentifier: lastWeekIdentifier });
+            const lastWeekSchedule = result.data as Schedule;
 
-        if (docSnap.exists()) {
-            setSchedule(docSnap.data() as Schedule);
-            toast({ title: 'Escala Copiada', description: 'A escala da semana anterior foi carregada. Salve para confirmar.' });
-        } else {
-            toast({ variant: 'destructive', title: 'Nada a copiar', description: 'Não há escala definida para a semana anterior.' });
+            if (Object.keys(lastWeekSchedule).length > 0) {
+                setSchedule(lastWeekSchedule);
+                toast({ title: 'Escala Copiada', description: 'A escala da semana anterior foi carregada. Salve para confirmar.' });
+            } else {
+                toast({ variant: 'destructive', title: 'Nada a copiar', description: 'Não há escala definida para a semana anterior.' });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao copiar escala', description: String(error) });
         }
     }, [currentDate, toast]);
 

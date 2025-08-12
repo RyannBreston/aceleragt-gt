@@ -1,5 +1,5 @@
 import * as admin from "firebase-admin";
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError, CallableRequest} from "firebase-functions/v2/https";
 
 // Inicializa o Firebase Admin
 admin.initializeApp();
@@ -17,7 +17,7 @@ const corsOptions = {cors: true};
 // ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
 // ##################################################
 
-export const createAdmin = onCall(corsOptions, async (request) => {
+const createAdmin = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError(
       "permission-denied",
@@ -64,9 +64,9 @@ export const createAdmin = onCall(corsOptions, async (request) => {
       "Ocorreu um erro inesperado ao criar o administrador."
     );
   }
-});
+};
 
-export const updateAdmin = onCall(corsOptions, async (request) => {
+const updateAdmin = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -96,9 +96,9 @@ export const updateAdmin = onCall(corsOptions, async (request) => {
       "Ocorreu um erro inesperado ao atualizar o administrador."
     );
   }
-});
+};
 
-export const changeAdminPassword = onCall(corsOptions, async (request) => {
+const changeAdminPassword = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -114,13 +114,13 @@ export const changeAdminPassword = onCall(corsOptions, async (request) => {
   } catch (error) {
     throw new HttpsError("internal", "Ocorreu um erro ao alterar a senha.");
   }
-});
+};
 
 // ##################################################
 // ### FUNÇÕES DE GESTÃO DE VENDEDORES ###
 // ##################################################
 
-export const createSeller = onCall(corsOptions, async (request) => {
+const createSeller = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -172,9 +172,9 @@ export const createSeller = onCall(corsOptions, async (request) => {
     }
     throw new HttpsError("internal", "Ocorreu um erro ao criar o vendedor.");
   }
-});
+};
 
-export const updateSeller = onCall(corsOptions, async (request) => {
+const updateSeller = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -204,9 +204,9 @@ export const updateSeller = onCall(corsOptions, async (request) => {
       "Ocorreu um erro ao atualizar o vendedor."
     );
   }
-});
+};
 
-export const deleteSeller = onCall(corsOptions, async (request) => {
+const deleteSeller = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -231,16 +231,13 @@ export const deleteSeller = onCall(corsOptions, async (request) => {
       "Ocorreu um erro ao excluir o utilizador."
     );
   }
-});
+};
 
-export const changeSellerPassword = onCall(corsOptions, async (request) => {
+const changeSellerPassword = async (request: CallableRequest) => {
   const {uid, newPassword} = request.data;
   const {auth} = request;
 
-  const isAdmin = auth?.token.role === "admin";
-  const isSelf = auth?.uid === uid;
-
-  if (!auth || (!isAdmin && !isSelf)) {
+  if (auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
 
@@ -255,9 +252,9 @@ export const changeSellerPassword = onCall(corsOptions, async (request) => {
   } catch (error) {
     throw new HttpsError("internal", "Ocorreu um erro ao alterar a senha.");
   }
-});
+};
 
-export const updateSellerPoints = onCall(corsOptions, async (request) => {
+const updateSellerPoints = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -283,9 +280,9 @@ export const updateSellerPoints = onCall(corsOptions, async (request) => {
       "Ocorreu um erro ao atualizar os pontos."
     );
   }
-});
+};
 
-export const createDailySprint = onCall(corsOptions, async (request) => {
+const createDailySprint = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -321,9 +318,9 @@ export const createDailySprint = onCall(corsOptions, async (request) => {
       "Ocorreu um erro ao criar a corridinha."
     );
   }
-});
+};
 
-export const incrementAttendance = onCall(corsOptions, async (request) => {
+const incrementAttendance = async (request: CallableRequest) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Ação não autenticada.");
   }
@@ -358,9 +355,9 @@ export const incrementAttendance = onCall(corsOptions, async (request) => {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Erro ao atualizar o contador.");
   }
-});
+};
 
-export const resetAttendance = onCall(corsOptions, async (request) => {
+const resetAttendance = async (request: CallableRequest) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Ação não autenticada.");
   }
@@ -374,9 +371,9 @@ export const resetAttendance = onCall(corsOptions, async (request) => {
   } catch (error) {
     throw new HttpsError("internal", "Erro ao zerar o contador.");
   }
-});
+};
 
-export const updateAttendance = onCall(corsOptions, async (request) => {
+const updateAttendance = async (request: CallableRequest) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Ação não autenticada.");
   }
@@ -397,9 +394,9 @@ export const updateAttendance = onCall(corsOptions, async (request) => {
   } catch (error) {
     throw new HttpsError("internal", "Erro ao atualizar o contador.");
   }
-});
+};
 
-export const updateDailySprint = onCall(corsOptions, async (request) => {
+const updateDailySprint = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -410,9 +407,9 @@ export const updateDailySprint = onCall(corsOptions, async (request) => {
   const sprintRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id);
   await sprintRef.update(data);
   return {result: "Corridinha atualizada."};
-});
+};
 
-export const deleteDailySprint = onCall(corsOptions, async (request) => {
+const deleteDailySprint = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -422,9 +419,9 @@ export const deleteDailySprint = onCall(corsOptions, async (request) => {
   }
   await db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id).delete();
   return {result: "Corridinha excluída."};
-});
+};
 
-export const toggleDailySprint = onCall(corsOptions, async (request) => {
+const toggleDailySprint = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -448,9 +445,9 @@ export const toggleDailySprint = onCall(corsOptions, async (request) => {
 
   await batch.commit();
   return {result: `Corridinha ${isActive ? "ativada" : "desativada"}.`};
-});
+};
 
-export const setWorkSchedule = onCall(corsOptions, async (request) => {
+const setWorkSchedule = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
     throw new HttpsError("permission-denied", "Ação não autorizada.");
   }
@@ -465,9 +462,9 @@ export const setWorkSchedule = onCall(corsOptions, async (request) => {
   await scheduleRef.set(schedule, {merge: true});
 
   return {result: "Escala salva com sucesso."};
-});
+};
 
-export const getWorkScheduleForWeek = onCall(corsOptions, async (request) => {
+const getWorkScheduleForWeek = async (request: CallableRequest) => {
   const {weekIdentifier} = request.data;
   if (!weekIdentifier) {
     const msg = "Identificador da semana é obrigatório.";
@@ -481,4 +478,33 @@ export const getWorkScheduleForWeek = onCall(corsOptions, async (request) => {
     return docSnap.data();
   }
   return {};
+};
+
+const actions: { [key: string]: (request: CallableRequest) => unknown } = {
+  createAdmin,
+  updateAdmin,
+  changeAdminPassword,
+  createSeller,
+  updateSeller,
+  deleteSeller,
+  changeSellerPassword,
+  updateSellerPoints,
+  createDailySprint,
+  incrementAttendance,
+  resetAttendance,
+  updateAttendance,
+  updateDailySprint,
+  deleteDailySprint,
+  toggleDailySprint,
+  setWorkSchedule,
+  getWorkScheduleForWeek,
+};
+
+export const api = onCall(corsOptions, (request) => {
+  const {action} = request.data;
+  if (!action || !actions[action]) {
+    throw new HttpsError("not-found",
+      "A ação especificada não foi encontrada.");
+  }
+  return actions[action](request);
 });

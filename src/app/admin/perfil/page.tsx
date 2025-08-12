@@ -115,9 +115,9 @@ const ChangePasswordModal = ({ user, isOpen, setIsOpen, userType }: { user: Sell
 
         setIsUpdating(true);
         try {
-            const functionName = userType === 'Vendedor' ? 'changeSellerPassword' : 'changeAdminPassword';
-            const changePasswordFunction = httpsCallable(functions, functionName);
-            await changePasswordFunction({ uid: user.id, newPassword });
+            const action = userType === 'Vendedor' ? 'changeSellerPassword' : 'changeAdminPassword';
+            const changePasswordFunction = httpsCallable(functions, 'api');
+            await changePasswordFunction({ action, uid: user.id, newPassword });
             toast({ title: 'Senha atualizada com sucesso!', description: `A senha de ${user.name} foi alterada.` });
             setIsOpen(false);
         } catch (error: unknown) {
@@ -173,19 +173,13 @@ export default function PerfilPage() {
 
     const handleSaveAdmin = async (data: Partial<Admin>, password?: string) => {
         try {
-            if (data.id) {
-                const updateAdminFunction = httpsCallable(functions, 'updateAdmin');
-                await updateAdminFunction({ uid: data.id, name: data.name, email: data.email });
-                // --- CORRIGIDO ---
-                if(data.name && data.email) {
-                    setAdmin(prevAdmin => ({ ...prevAdmin, name: data.name, email: data.email } as Admin));
-                }
-                toast({ title: 'Administrador atualizado!' });
-            } else {
-                const createAdminFunction = httpsCallable(functions, 'createAdmin');
-                await createAdminFunction({ ...data, password });
-                toast({ title: 'Administrador adicionado!' });
+            const action = data.id ? 'updateAdmin' : 'createAdmin';
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action, uid: data.id, name: data.name, email: data.email, password });
+            if(data.id && data.name && data.email) {
+                setAdmin(prevAdmin => ({ ...prevAdmin, name: data.name, email: data.email } as Admin));
             }
+            toast({ title: `Administrador ${data.id ? 'atualizado' : 'adicionado'}!` });
             setIsAdminModalOpen(false);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
@@ -195,15 +189,10 @@ export default function PerfilPage() {
     
     const handleSaveSeller = async (data: Partial<Seller>, password?: string) => {
         try {
-            if (data.id) {
-                const updateSellerFunction = httpsCallable(functions, 'updateSeller');
-                await updateSellerFunction({ uid: data.id, name: data.name, email: data.email });
-                toast({ title: 'Vendedor atualizado!' });
-            } else {
-                const createSellerFunction = httpsCallable(functions, 'createSeller');
-                await createSellerFunction({ ...data, password });
-                toast({ title: 'Vendedor adicionado!' });
-            }
+            const action = data.id ? 'updateSeller' : 'createSeller';
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action, uid: data.id, name: data.name, email: data.email, password });
+            toast({ title: `Vendedor ${data.id ? 'atualizado' : 'adicionado'}!` });
             setIsSellerModalOpen(false);
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
@@ -213,8 +202,8 @@ export default function PerfilPage() {
     
     const handleDeleteSeller = async (seller: Seller) => {
         try {
-            const deleteSellerFunction = httpsCallable(functions, 'deleteSeller');
-            await deleteSellerFunction({ uid: seller.id });
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action: 'deleteSeller', uid: seller.id });
             toast({ title: 'Vendedor apagado!', description: `${seller.name} foi removido.` });
         } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";

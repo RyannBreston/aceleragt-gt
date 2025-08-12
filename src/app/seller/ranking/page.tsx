@@ -220,7 +220,7 @@ const SellerPerformancePage = () => {
                         </CardContent>
                     </Card>
 
-                    {criterion === 'totalPrize' && (
+                    {criterion === 'totalPrize' ? (
                         <Card>
                             <CardHeader><CardTitle>Prêmio Total Acumulado</CardTitle><CardDescription>A soma de todos os seus prêmios no ciclo atual.</CardDescription></CardHeader>
                             <CardContent>
@@ -230,9 +230,37 @@ const SellerPerformancePage = () => {
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
-
-                    {criterion !== 'totalPrize' && (
+                    ) : criterion === 'points' ? (
+                        <Card>
+                            <CardHeader><CardTitle>Detalhes por Pontos</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
+                            <CardContent className="space-y-6">
+                                <div>
+                                    <h3 className="text-sm font-medium text-muted-foreground">Pontos Totais (Metas + Corridinha)</h3>
+                                    <p className="text-2xl font-bold text-primary">{(sellerData.points + sellerData.extraPoints).toLocaleString('pt-BR')}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Pontos de Metas</h3>
+                                        <p className="text-lg font-bold">{sellerData.points.toLocaleString('pt-BR')}</p>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio de Corridinha</h3>
+                                        <p className="text-lg font-bold">{sellerData.extraPoints.toLocaleString('pt-BR')}</p>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium">Progresso para Próxima Meta</h4>
+                                    <div className="space-y-1.5">
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="font-medium">{goalProgress.label}</span>
+                                            <span className="font-bold">{goalProgress.percent.toFixed(0)}%</span>
+                                        </div>
+                                        <Progress value={goalProgress.percent} />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
                         <Card>
                             <CardHeader><CardTitle>Detalhes por {criterionLabel}</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
                             <CardContent className="space-y-6">
