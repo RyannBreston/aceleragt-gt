@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,6 @@ type CallableSprintResult = { id?: string; };
 
 const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: DailySprint | null; onSave: (data: SprintFormData) => Promise<void>; sellers: Seller[]; children: React.ReactNode; }) => {
     const { toast } = useToast();
-    const [isOpen, setIsOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [sprintTiers, setSprintTiers] = useState<SprintTier[]>([{ goal: 0, points: 0, label: "Meta 1" }]);
     const [participantIds, setParticipantIds] = useState<string[]>([]);
@@ -33,13 +32,18 @@ const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: Daily
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     React.useEffect(() => {
-        if (isOpen) {
-            setTitle(sprint?.title || '');
-            setSprintTiers(sprint?.sprintTiers || [{ goal: 200, points: 50, label: "Meta 1" }, { goal: 400, points: 100, label: "Meta 2" }, { goal: 600, points: 150, label: "Meta 3" }, { goal: 800, points: 250, label: "Meta 4" }]);
-            setParticipantIds(sprint?.participantIds || []);
-            setIsActive(sprint?.isActive || false);
+        if (sprint) {
+            setTitle(sprint.title);
+            setSprintTiers(sprint.sprintTiers);
+            setParticipantIds(sprint.participantIds);
+            setIsActive(sprint.isActive);
+        } else {
+            setTitle('');
+            setSprintTiers([{ goal: 200, points: 50, label: "Meta 1" }, { goal: 400, points: 100, label: "Meta 2" }, { goal: 600, points: 150, label: "Meta 3" }, { goal: 800, points: 250, label: "Meta 4" }]);
+            setParticipantIds([]);
+            setIsActive(false);
         }
-    }, [isOpen, sprint]);
+    }, [sprint]);
 
     const handleTierChange = (index: number, field: 'goal' | 'points', value: string) => {
         const newTiers = [...sprintTiers];
@@ -55,37 +59,48 @@ const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: Daily
         setIsSubmitting(true);
         await onSave({ title, sprintTiers, participantIds, isActive });
         setIsSubmitting(false);
-        setIsOpen(false);
     };
+    
+    const formContent = (
+        <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+            <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
+            <div className="space-y-3">
+                <Label>Níveis de Metas</Label>
+                {sprintTiers.map((tier, index) => (
+                    <div key={index} className="grid grid-cols-1 sm:grid-cols-[auto_1fr_1fr] items-center gap-2">
+                        <Label className="text-sm sm:text-right">Meta {index + 1}</Label>
+                        <Input type="number" value={tier.goal} onChange={e => handleTierChange(index, 'goal', e.target.value)} placeholder="Valor (R$)" />
+                        <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', e.target.value)} placeholder="Prêmio (Pts)" />
+                    </div>
+                ))}
+            </div>
+            <div>
+                <Label>Participantes ({participantIds.length})</Label>
+                <div className="mt-2 p-3 border rounded-md max-h-48 overflow-y-auto space-y-2">
+                    <div className="flex items-center"><Checkbox id="selectAll" checked={participantIds.length === sellers.length} onCheckedChange={checked => setParticipantIds(checked ? sellers.map(s => s.id) : [])} /><Label htmlFor="selectAll" className="ml-2 font-medium">Selecionar Todos</Label></div>
+                    <hr/>
+                    {sellers.map(s => <div key={s.id} className="flex items-center"><Checkbox id={s.id} checked={participantIds.includes(s.id)} onCheckedChange={checked => setParticipantIds(p => checked ? [...p, s.id] : p.filter(id => id !== s.id))} /><Label htmlFor={s.id} className="ml-2">{s.name}</Label></div>)}
+                </div>
+            </div>
+        </div>
+    );
+    
+    const formFooter = (
+        <div className="flex justify-end gap-2">
+            <Button variant="outline">Cancelar</Button>
+            <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button>
+        </div>
+    );
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
-            <DialogContent className="max-w-2xl">
-                <DialogHeader><DialogTitle>{sprint ? 'Editar' : 'Criar'} Corridinha</DialogTitle><DialogDescription>Defina os detalhes e metas da corridinha.</DialogDescription></DialogHeader>
-                <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
-                    <div className="space-y-3">
-                        <Label>Níveis de Metas</Label>
-                        {sprintTiers.map((tier, index) => (
-                            <div key={index} className="flex items-center gap-2"><Label className="w-16 text-sm">Meta {index + 1}</Label><Input type="number" value={tier.goal} onChange={e => handleTierChange(index, 'goal', e.target.value)} placeholder="Valor (R$)" /><Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', e.target.value)} placeholder="Prêmio (Pts)" /></div>
-                        ))}
-                    </div>
-                    <div>
-                        <Label>Participantes ({participantIds.length})</Label>
-                        <div className="mt-2 p-3 border rounded-md max-h-48 overflow-y-auto space-y-2">
-                            <div className="flex items-center"><Checkbox id="selectAll" checked={participantIds.length === sellers.length} onCheckedChange={checked => setParticipantIds(checked ? sellers.map(s => s.id) : [])} /><Label htmlFor="selectAll" className="ml-2 font-medium">Selecionar Todos</Label></div>
-                            <hr/>
-                            {sellers.map(s => <div key={s.id} className="flex items-center"><Checkbox id={s.id} checked={participantIds.includes(s.id)} onCheckedChange={checked => setParticipantIds(p => checked ? [...p, s.id] : p.filter(id => id !== s.id))} /><Label htmlFor={s.id} className="ml-2">{s.name}</Label></div>)}
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+        <ResponsiveDialog
+            title={sprint ? 'Editar Corridinha' : 'Criar Corridinha'}
+            description="Defina os detalhes e metas da corridinha."
+            content={formContent}
+            footer={formFooter}
+        >
+            {children}
+        </ResponsiveDialog>
     );
 };
 
