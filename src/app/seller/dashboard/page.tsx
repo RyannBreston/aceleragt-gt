@@ -30,7 +30,7 @@ const getGoalProgressDetails = (seller: Seller, goals: Goals, metric: Metric) =>
     let achievedLevel: GoalLevel | null = null;
     if (sellerValue >= goalData.lendaria.threshold) achievedLevel = 'lendaria';
     else if (sellerValue >= goalData.metona.threshold) achievedLevel = 'metona';
-    else if (sellerValue >= goal.meta.threshold) achievedLevel = 'meta';
+    else if (sellerValue >= goalData.meta.threshold) achievedLevel = 'meta';
     else if (sellerValue >= goalData.metinha.threshold) achievedLevel = 'metinha';
 
     let nextGoal, currentGoalBase, nextGoalLabel;
@@ -177,7 +177,7 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
             await actionFunction(action === 'update' ? { count: value } : {});
             toast({ title: "Sucesso!", description: `Contador de atendimentos foi ${action === 'update' ? 'atualizado' : (action === 'increment' ? 'registado' : 'zerado')}.` });
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro!', description: 'Não foi possível completar a ação.' });
+            toast({ variant: 'destructive', title: 'Erro!', description: String(error) });
         } finally {
             setIsSubmitting(false);
         }

@@ -130,7 +130,7 @@ CurrencyInput.displayName = 'CurrencyInput';
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
     <Card>
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
-        <CardContent className="overflow-x-a        <CardContent className="overflow-x-auto">
+        <CardContent className="overflow-x-auto">
             <Table>
                 <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos Extras</TableHead></TableRow></TableHeader>
                 <TableBody>
@@ -331,7 +331,7 @@ export default function SettingsPage() {
             });
 
             const batch = writeBatch(db);
-            const updatedSellers = contextSellers.map(seller => {
+            const updatedSellers: Seller[] = contextSellers.map(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 });
                 return { ...seller, salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 };
@@ -339,7 +339,7 @@ export default function SettingsPage() {
 
             await batch.commit();
 
-            setSellers(updatedSellers);
+            setSellers(() => updatedSellers);
 
             const updatedFormData = {
                 sellers: updatedSellers.map(s => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
@@ -9,16 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users, AlertTriangle } from "lucide-react";
+import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
+import { Timestamp } from 'firebase/firestore';
 import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { EmptyState } from '@/components/EmptyState';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type SprintFormData = Omit<DailySprint, 'id' | 'createdAt'>;
+type CallableSprintResult = { id?: string; };
+
 
 const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: DailySprint | null; onSave: (data: SprintFormData) => Promise<void>; sellers: Seller[]; children: React.ReactNode; }) => {
     const { toast } = useToast();
@@ -123,22 +126,36 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
 
 
 export default function AdminSprintsPage() {
-    const { sellers, sprints, setSprints, isAuthReady } = useAdminContext();
+    const { sellers, sprints: contextSprints, isAuthReady } = useAdminContext();
     const { toast } = useToast();
+    const [sprints, setSprints] = useState<DailySprint[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        setSprints(contextSprints);
+    }, [contextSprints]);
 
     const handleSave = useCallback(async (data: SprintFormData, id?: string) => {
         setIsLoading(true);
         try {
-            const callable = httpsCallable(functions, id ? 'updateDailySprint' : 'createDailySprint');
+            const callable = httpsCallable<SprintFormData & { id?: string }, CallableSprintResult>(functions, id ? 'updateDailySprint' : 'createDailySprint');
             const result = await callable({ ...data, id });
-            const savedSprint = { ...data, id: (result.data as any).id || id, createdAt: new Date() }; // Simula o retorno
-            
-            setSprints(prev => id ? prev.map(s => s.id === id ? savedSprint : (data.isActive ? {...s, isActive: false} : s) ) : [...prev, savedSprint]);
+            const resultData = result.data;
 
-            if(data.isActive) {
-                setSprints(prev => prev.map(s => s.id === savedSprint.id ? {...s, isActive: true} : {...s, isActive: false}));
+            const newOrUpdatedId = resultData.id || id;
+            if (!newOrUpdatedId) {
+                throw new Error("Não foi possível obter um ID para a corridinha.");
             }
+
+            const savedSprint: DailySprint = { ...data, id: newOrUpdatedId, createdAt: Timestamp.now() };
+            
+            setSprints(prev => {
+                const newSprints = id ? prev.map(s => (s.id === id ? savedSprint : s)) : [...prev, savedSprint];
+                if (data.isActive) {
+                    return newSprints.map(s => ({ ...s, isActive: s.id === savedSprint.id }));
+                }
+                return newSprints;
+            });
 
             toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'}.` });
         } catch (error) {
@@ -146,7 +163,7 @@ export default function AdminSprintsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [setSprints, toast]);
+    }, [toast]);
 
     const handleToggle = useCallback(async (id: string, isActive: boolean) => {
         const sprint = sprints.find(s => s.id === id);
@@ -167,7 +184,7 @@ export default function AdminSprintsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [setSprints, toast]);
+    }, [toast]);
 
 
     return (
@@ -179,9 +196,9 @@ export default function AdminSprintsPage() {
                 </SprintFormModal>
             </div>
             
-            {isLoading && <EmptyState Icon={Loader2} title="A processar..." className="animate-spin" />}
+            {isLoading && <EmptyState Icon={Loader2} title="A processar..." description="Aguarde um momento." className="animate-spin" />}
 
-            {!isLoading && !isAuthReady && <EmptyState Icon={Loader2} title="A carregar..." className="animate-spin" />}
+            {!isLoading && !isAuthReady && <EmptyState Icon={Loader2} title="A carregar..." description="A obter os dados mais recentes." className="animate-spin" />}
             
             {!isLoading && isAuthReady && sprints.length === 0 && <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>}
             

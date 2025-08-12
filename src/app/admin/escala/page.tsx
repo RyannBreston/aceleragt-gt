@@ -3,16 +3,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, PlusCircle, Copy, Loader2, Save, Settings, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { addDays, startOfWeek, format, getISOWeek, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { doc, collection, writeBatch, onSnapshot, addDoc, deleteDoc, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, onSnapshot, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 type Shift = { id: string; name: string; entryTime: string; exitTime: string; lunchTime: string; };
 type Schedule = { [sellerId: string]: { [dayIndex: number]: string | 'off'; } };
