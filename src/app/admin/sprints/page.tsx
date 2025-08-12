@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from '@/components/CurrencyInput';
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -45,9 +46,9 @@ const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: Daily
         }
     }, [sprint]);
 
-    const handleTierChange = (index: number, field: 'goal' | 'points', value: string) => {
+    const handleTierChange = (index: number, field: 'goal' | 'points', value?: number) => {
         const newTiers = [...sprintTiers];
-        newTiers[index] = { ...newTiers[index], [field]: Number(value) || 0 };
+        newTiers[index] = { ...newTiers[index], [field]: value || 0 };
         setSprintTiers(newTiers);
     };
 
@@ -69,8 +70,8 @@ const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: Daily
                 {sprintTiers.map((tier, index) => (
                     <div key={index} className="grid grid-cols-1 sm:grid-cols-[auto_1fr_1fr] items-center gap-2">
                         <Label className="text-sm sm:text-right">Meta {index + 1}</Label>
-                        <Input type="number" value={tier.goal} onChange={e => handleTierChange(index, 'goal', e.target.value)} placeholder="Valor (R$)" />
-                        <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', e.target.value)} placeholder="Prêmio (Pts)" />
+                        <CurrencyInput value={tier.goal} onValueChange={value => handleTierChange(index, 'goal', value)} placeholder="Valor (R$)" />
+                        <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', Number(e.target.value))} placeholder="Prêmio (Pts)" />
                     </div>
                 ))}
             </div>

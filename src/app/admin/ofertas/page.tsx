@@ -14,6 +14,7 @@ import type { Offer } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CurrencyInput } from '@/components/CurrencyInput';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,10 +55,8 @@ const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = (e.target as any);
-        const numericValue = parseFloat(value.replace(',', '.') || '0');
-        setFormData(prev => ({ ...prev, [name]: isNaN(numericValue) ? undefined : numericValue }));
+    const handlePriceChange = (field: 'originalPrice' | 'promotionalPrice', value?: number) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -100,8 +99,8 @@ const OfferFormModal = ({ isOpen, setIsOpen, offer, onSave }: { isOpen: boolean;
                     <div className="space-y-2"><Label>Ou cole a URL da Imagem</Label><Input name="imageUrl" value={formData.imageUrl || ''} onChange={handleChange} disabled={!!imageFile} /></div>
                     {formData.imageUrl && <div className="flex justify-center"><Image src={formData.imageUrl} alt="Pré-visualização" width={128} height={128} className="w-32 h-32 object-cover rounded-md border"/></div>}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2"><Label>Valor Original (R$)</Label><Input name="originalPrice" type="text" value={formData.originalPrice || ''} onChange={handlePriceChange} /></div>
-                        <div className="space-y-2"><Label>Preço Promocional (R$)</Label><Input name="promotionalPrice" type="text" value={formData.promotionalPrice || ''} onChange={handlePriceChange} required /></div>
+                        <div className="space-y-2"><Label>Valor Original (R$)</Label><CurrencyInput value={formData.originalPrice} onValueChange={value => handlePriceChange('originalPrice', value)} /></div>
+                        <div className="space-y-2"><Label>Preço Promocional (R$)</Label><CurrencyInput value={formData.promotionalPrice} onValueChange={value => handlePriceChange('promotionalPrice', value)} required /></div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Data de Início</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><CalendarIcon className="mr-2 h-4 w-4" />{formData.startDate ? format(formData.startDate, "PPP", { locale: ptBR }) : ''}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={formData.startDate} onSelect={(d) => setFormData(p => ({...p, startDate: d || new Date()}))} /></PopoverContent></Popover></div>
