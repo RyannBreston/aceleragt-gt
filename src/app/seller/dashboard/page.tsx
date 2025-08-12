@@ -189,12 +189,12 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
                 <CardTitle className="text-sm font-medium">Atendimentos do Dia</CardTitle>
                 <CardDescription className="text-xs">Clientes que atendeu hoje.</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-between">
+            <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-3xl font-bold">{attendanceCount}</div>
                 <div className="flex gap-2">
-                    <Button onClick={() => handleAction('increment')} disabled={isSubmitting} size="lg"><UserPlus /></Button>
+                    <Button onClick={() => handleAction('increment')} disabled={isSubmitting}><UserPlus /></Button>
                     <AlertDialog>
-                        <AlertDialogTrigger asChild><Button size="lg" variant="outline"><Pencil/></Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button variant="outline"><Pencil/></Button></AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Editar Atendimentos</AlertDialogTitle><AlertDialogDescription>Insira o novo valor de atendimentos do dia.</AlertDialogDescription></AlertDialogHeader>
                             <Input type="number" value={editValue} onChange={(e) => setEditValue(Number(e.target.value))} />
@@ -206,7 +206,7 @@ const AttendanceCard = ({ seller }: { seller: Seller }) => {
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Button onClick={() => handleAction('reset')} disabled={isSubmitting || attendanceCount === 0} size="lg" variant="destructive"><RefreshCw /></Button>
+                    <Button onClick={() => handleAction('reset')} disabled={isSubmitting || attendanceCount === 0} variant="destructive"><RefreshCw /></Button>
                 </div>
             </CardContent>
         </Card>
