@@ -124,7 +124,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             <FormItem>
                                 <FormLabel>Bónus de Equipa</FormLabel>
                                 <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a &quot;Metinha&quot; de Vendas.</FormDescription>
-                                <FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl>
+                                <FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl>
                             </FormItem>
                         )} />
                     </CardContent>
@@ -137,7 +137,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
                                     <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest}/></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Prémio (Pts)</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>)} />
                                 </div></Card>
                             ))}
                         </div>
@@ -146,11 +146,11 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             <h4 className="text-md font-semibold mb-2">Prémios de Performance Individual</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest}/></FormControl></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field: { onChange, ...rest } }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest}/></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field: { onChange, ...rest } }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl></FormItem>)} />
                                 </Card>
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest}/></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl></FormItem>)} />
                                 </Card>
                             </div>
                         </div>
