@@ -43,12 +43,18 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
 
   // Efeito para autenticação e dados globais
   useEffect(() => {
+    let dataUnsubscribers: (() => void)[] = [];
+
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Limpa listeners antigos ao mudar de usuário
+      dataUnsubscribers.forEach(unsub => unsub());
+      dataUnsubscribers = [];
+      
       if (!user) {
         setIsSeller(false);
         setUserId(null);
         setCurrentSeller(null);
-        setIsAuthReady(true);
+        setIsAuthReady(true); // Fim do processo para usuário deslogado
         return;
       }
 
@@ -68,19 +74,19 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
             store.getState().setGoals(() => (doc.exists() ? doc.data() as Goals : null));
         });
         
-        // Retorna a função de limpeza
-        return () => {
-          sellersUnsubscribe();
-          goalsUnsubscribe();
-        };
+        dataUnsubscribers.push(sellersUnsubscribe, goalsUnsubscribe);
       } else {
         setIsSeller(false);
         setCurrentSeller(null);
       }
+      // Garante que o estado de "pronto" seja definido para todos os caminhos de usuário logado
       setIsAuthReady(true);
     });
 
-    return () => authUnsubscribe();
+    return () => {
+      authUnsubscribe();
+      dataUnsubscribers.forEach(unsub => unsub());
+    };
   }, []);
   
   // Efeito para buscar a corridinha ativa do vendedor logado

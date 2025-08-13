@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { functions } from '@/lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { Timestamp } from 'firebase/firestore';
 import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { EmptyState } from '@/components/EmptyState';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -151,22 +150,15 @@ export default function AdminSprintsPage() {
             const callable = httpsCallable(functions, 'api');
             const result = await callable({ action, ...data, id });
             
-            const resultId = (result.data as { id: string }).id || id;
-            if (!resultId) throw new Error("ID da corridinha não foi retornado pelo backend.");
+            const resultData = result.data as { id?: string };
+            const resultId = resultData.id || id;
+
+            if (!resultId) {
+                throw new Error("ID da corridinha não foi retornado pelo backend.");
+            }
             
-            const savedSprint: DailySprint = { ...data, id: resultId, createdAt: id ? new Timestamp(Date.now() / 1000, 0) : Timestamp.now() };
-
-            setSprints(prev => {
-                const existing = prev.find(s => s.id === resultId);
-                let newSprints = existing ? prev.map(s => (s.id === resultId ? savedSprint : s)) : [...prev, savedSprint];
-                if (savedSprint.isActive) {
-                    newSprints = newSprints.map(s => ({ ...s, isActive: s.id === savedSprint.id }));
-                }
-                return newSprints;
-            });
-
             toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'}.` });
-            setSprintToEdit(null); // Fecha a modal
+            setSprintToEdit(null);
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao Salvar', description: String(error) });
         } finally {
@@ -179,7 +171,6 @@ export default function AdminSprintsPage() {
         try {
             const callable = httpsCallable(functions, 'api');
             await callable({ action: 'toggleDailySprint', id, isActive });
-            setSprints(prev => prev.map(s => ({...s, isActive: s.id === id ? isActive : (isActive ? false : s.isActive)})));
             toast({ title: 'Sucesso!', description: `Corridinha ${isActive ? 'ativada' : 'desativada'}.` });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao Ativar/Desativar', description: String(error) });
@@ -193,7 +184,6 @@ export default function AdminSprintsPage() {
         try {
             const callable = httpsCallable(functions, 'api');
             await callable({ action: 'deleteDailySprint', id });
-            setSprints(prev => prev.filter(s => s.id !== id));
             toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao Excluir', description: String(error) });
