@@ -14,8 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/icons/logo';
 import { useToast } from '@/hooks/use-toast';
-import { auth, db, functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
+import { auth, db } from '@/lib/firebase';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -33,24 +32,17 @@ export default function LoginPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // 2. Chamar a função de auto-correção de permissões (NOVO)
-            const verifyAndSetAdminClaim = httpsCallable(functions, 'api');
-            await verifyAndSetAdminClaim({ action: 'verifyAndSetAdminClaim' });
-
-            // 3. Forçar a atualização do token no cliente para garantir que as permissões sejam lidas
-            await user.getIdToken(true);
-
-            // 4. Obter o documento do utilizador no Firestore
+            // 2. Obter o documento do utilizador no Firestore
             const userDocRef = doc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
 
-            // 5. Validar se o perfil do utilizador existe
+            // 3. Validar se o perfil do utilizador existe
             if (!userDoc.exists()) {
                 await auth.signOut();
                 throw new Error('Perfil de utilizador não encontrado.');
             }
 
-            // 6. Determinar a função e redirecionar
+            // 4. Determinar a função e redirecionar
             const userData = userDoc.data();
             const role = userData?.role;
 
@@ -64,7 +56,7 @@ export default function LoginPage() {
             }
 
         } catch (error: unknown) {
-            // 7. Tratamento de erros
+            // 5. Tratamento de erros aprimorado
             let errorMessage = 'Ocorreu um erro ao tentar entrar.';
             
             if (error instanceof Error) {
