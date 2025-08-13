@@ -8,11 +8,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { addDays, startOfWeek, format, getISOWeek, getYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { doc, collection, writeBatch, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { doc, collection, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { httpsCallable } from 'firebase/functions';
+import { cn } from '@/lib/client-utils';
 
 type Shift = { id: string; name: string; entryTime: string; exitTime: string; lunchTime: string; };
 type Schedule = { [sellerId: string]: { [dayIndex: number]: string | 'off'; } };
@@ -32,7 +33,7 @@ const ShiftDefinitionsModal = ({ shifts, setShifts }: { shifts: Shift[], setShif
         toast({ title: "Sucesso", description: "Turnos atualizados." });
     };
 
-    const handleAdd = () => setShifts(prev => [...prev, { id: doc(collection(db, 'cities')).id, name: "Novo Turno", entryTime: "09:00", exitTime: "18:00", lunchTime: "12:00-13:00" }]);
+    const handleAdd = () => setShifts(prev => [...prev, { id: doc(collection(db, 'temp_ids')).id, name: "Novo Turno", entryTime: "09:00", exitTime: "18:00", lunchTime: "12:00-13:00" }]);
     
     const handleDelete = async (id: string) => {
         await deleteDoc(doc(db, shiftsCollectionPath, id));
@@ -49,7 +50,7 @@ const ShiftDefinitionsModal = ({ shifts, setShifts }: { shifts: Shift[], setShif
             <DialogTrigger asChild><Button variant="outline" size="sm"><Settings className="mr-2" />Gerir Turnos</Button></DialogTrigger>
             <DialogContent>
                 <DialogHeader><DialogTitle>Definições de Turnos</DialogTitle><DialogDescription>Crie e gira os turnos disponíveis.</DialogDescription></DialogHeader>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="space-y-3 max-h-96 overflow-y-auto p-1">
                     {shifts.map(shift => (
                         <div key={shift.id} className="grid grid-cols-4 gap-2 items-center">
                             <Input value={shift.name} onChange={e => handleUpdate(shift.id, 'name', e.target.value)} placeholder="Nome" />
@@ -77,6 +78,7 @@ export default function EscalaPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [schedule, setSchedule] = useState<Schedule>({});
+    const [savedSchedule, setSavedSchedule] = useState<Schedule>({}); // Estado para comparar alterações
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
@@ -85,28 +87,28 @@ export default function EscalaPage() {
 
     const handleDateChange = (days: number) => setCurrentDate(prev => addDays(prev, days));
 
-    // Carregar turnos e escala
+    // Carrega dados da página (escala e turnos) de forma unificada
     useEffect(() => {
-        const shiftsRef = collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default'}/public/data/shiftDefinitions`);
-        const shiftsUnsub = onSnapshot(shiftsRef, snap => setShifts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Shift))));
-        
-        const loadSchedule = async () => {
+        const loadPageData = async () => {
             setIsLoading(true);
             try {
                 const callable = httpsCallable(functions, 'api');
-                const result = await callable({ action: 'getWorkScheduleForWeek', weekIdentifier });
-                setSchedule(result.data as Schedule);
+                const result = await callable({ action: 'getSchedulePageData', weekIdentifier });
+                const { schedule: loadedSchedule, shifts: loadedShifts } = result.data as { schedule: Schedule, shifts: Shift[] };
+                setSchedule(loadedSchedule || {});
+                setSavedSchedule(loadedSchedule || {}); // Guarda o estado original
+                setShifts(loadedShifts || []);
             } catch (error) {
-                toast({ variant: 'destructive', title: 'Erro ao carregar escala', description: String(error) });
+                toast({ variant: 'destructive', title: 'Erro ao carregar dados da escala', description: String(error) });
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadSchedule();
-
-        return () => { shiftsUnsub(); };
-    }, [weekIdentifier, toast]);
+        if (isAuthReady) {
+            loadPageData();
+        }
+    }, [weekIdentifier, toast, isAuthReady]);
 
     const handleScheduleChange = (sellerId: string, dayIndex: number, value: string) => {
         setSchedule(prev => ({
@@ -120,6 +122,7 @@ export default function EscalaPage() {
         try {
             const callable = httpsCallable(functions, 'api');
             await callable({ action: 'setWorkSchedule', weekIdentifier, schedule });
+            setSavedSchedule(schedule); // Atualiza o estado original após salvar
             toast({ title: 'Sucesso!', description: 'Escala salva com sucesso.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao salvar escala', description: String(error) });
@@ -134,20 +137,25 @@ export default function EscalaPage() {
         
         try {
             const callable = httpsCallable(functions, 'api');
-            const result = await callable({ action: 'getWorkScheduleForWeek', weekIdentifier: lastWeekIdentifier });
-            const lastWeekSchedule = result.data as Schedule;
+            const result = await callable({ action: 'getSchedulePageData', weekIdentifier: lastWeekIdentifier });
+            const { schedule: lastWeekSchedule } = result.data as { schedule: Schedule, shifts: Shift[] };
 
             if (Object.keys(lastWeekSchedule).length > 0) {
                 setSchedule(lastWeekSchedule);
                 toast({ title: 'Escala Copiada', description: 'A escala da semana anterior foi carregada. Salve para confirmar.' });
             } else {
-                toast({ variant: 'destructive', title: 'Nada a copiar', description: 'Não há escala definida para a semana anterior.' });
+                toast({ variant: 'default', title: 'Nada a copiar', description: 'Não há escala definida para a semana anterior.' });
             }
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao copiar escala', description: String(error) });
         }
     }, [currentDate, toast]);
 
+    const isCellDirty = (sellerId: string, dayIndex: number): boolean => {
+        const originalValue = savedSchedule[sellerId]?.[dayIndex] || 'off';
+        const currentValue = schedule[sellerId]?.[dayIndex] || 'off';
+        return originalValue !== currentValue;
+    };
 
     const weekDays = useMemo(() => {
         const start = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -179,9 +187,9 @@ export default function EscalaPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {!isAuthReady || isLoading ? (
-                            <tr><td colSpan={8} className="text-center p-8"><Loader2 className="mx-auto animate-spin" /></td></tr>
-                        ) : (
+                        {isLoading ? (
+                            <tr><td colSpan={8} className="text-center p-8"><Loader2 className="mx-auto animate-spin text-primary" size={32} /></td></tr>
+                        ) : sellers.length > 0 ? (
                             sellers.map(seller => (
                                 <tr key={seller.id} className="border-b">
                                     <td className="p-3 font-medium">{seller.name}</td>
@@ -191,12 +199,12 @@ export default function EscalaPage() {
                                                 value={schedule[seller.id]?.[dayIndex] || 'off'}
                                                 onValueChange={(value) => handleScheduleChange(seller.id, dayIndex, value)}
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger className={cn(isCellDirty(seller.id, dayIndex) && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
                                                     <SelectValue placeholder="Definir..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value="off">Folga</SelectItem>
-                                                    <SelectSeparator />
+                                                    {shifts.length > 0 && <SelectSeparator />}
                                                     {shifts.map(shift => <SelectItem key={shift.id} value={shift.id}>{shift.name} ({shift.entryTime} - {shift.exitTime})</SelectItem>)}
                                                 </SelectContent>
                                             </Select>
@@ -204,6 +212,8 @@ export default function EscalaPage() {
                                     ))}
                                 </tr>
                             ))
+                        ) : (
+                            <tr><td colSpan={8} className="text-center p-8 text-muted-foreground">Nenhum vendedor encontrado.</td></tr>
                         )}
                     </tbody>
                 </table>

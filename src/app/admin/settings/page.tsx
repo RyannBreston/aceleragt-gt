@@ -23,11 +23,13 @@ import type { Seller } from '@/lib/types';
 // --- Esquema de Validação com Zod ---
 const optionalNumber = z.union([z.string(), z.number()]).optional().transform(v => v === '' ? undefined : Number(v) || undefined);
 
+// NOVO: goalLevelSchema agora inclui 'points' opcional
 const goalLevelSchema = z.object({
   threshold: optionalNumber,
   prize: optionalNumber,
+  points: optionalNumber, 
 }).refine(data => (data.threshold != null && data.prize != null) || (data.threshold == null && data.prize == null), {
-  message: "Preencha ambos os campos ou deixe-os em branco.",
+  message: "Preencha a Meta e o Prémio, ou deixe ambos em branco.",
   path: ["prize"],
 });
 
@@ -124,7 +126,7 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             <FormItem>
                                 <FormLabel>Bónus de Equipa</FormLabel>
                                 <FormDescription>Prémio que cada vendedor ganha se TODOS atingirem a &quot;Metinha&quot; de Vendas.</FormDescription>
-                                <FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl>
+                                <FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl>
                             </FormItem>
                         )} />
                     </CardContent>
@@ -137,20 +139,24 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                             {goalLevels.map(level => (
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
                                     <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Prémio (Pts)</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl><FormMessage /></FormItem>)} />
+                                    {/* Campo Condicional para Bónus em Pontos */}
+                                    {metric === 'points' && (
+                                        <FormField control={control} name={`goals.${metric}.${level}.points`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Bónus em Pontos</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>)} />
+                                    )}
                                 </div></Card>
                             ))}
                         </div>
 
-                        <div className="pt-4 mt-4 border-t">
+                         <div className="pt-4 mt-4 border-t">
                             <h4 className="text-md font-semibold mb-2">Prémios de Performance Individual</h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl></FormItem>)} />
-                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field: { onChange, ...rest } }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (R$)</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Users className="size-4"/> Bónus de Performance (Prémio)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.performanceBonus.per`} render={({ field: { onChange, ...rest } }) => (<FormItem className="mt-2"><FormLabel className="text-xs">A cada (unidade)</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl></FormItem>)} />
                                 </Card>
                                 <Card className="p-4">
-                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl></FormItem>)} />
+                                    <FormField control={control} name={`goals.${metric}.topScorerPrize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel className="flex items-center gap-2"><Award className="size-4"/> Prémio Melhor Vendedor</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl></FormItem>)} />
                                 </Card>
                             </div>
                         </div>
@@ -210,9 +216,12 @@ const GestaoDeCiclo = ({ onEndCycle, isDirty }: { onEndCycle: () => void; isDirt
 
 const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
     return Object.entries(obj).reduce((acc, [key, value]) => {
-        if (value !== undefined) {
-            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                acc[key as keyof T] = cleanData(value as Record<string, unknown>) as T[keyof T];
+        if (value !== undefined && value !== null && value !== '') {
+            if (typeof value === 'object' && !Array.isArray(value)) {
+                const cleanedValue = cleanData(value as Record<string, unknown>);
+                if (Object.keys(cleanedValue).length > 0) {
+                    acc[key as keyof T] = cleanedValue as T[keyof T];
+                }
             } else {
                 acc[key as keyof T] = value as T[keyof T];
             }
@@ -220,7 +229,6 @@ const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
         return acc;
     }, {} as T);
 };
-
 
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
@@ -258,7 +266,7 @@ export default function SettingsPage() {
                     pa: seller.pa, extraPoints: seller.extraPoints,
                 });
             });
-
+            
             const cleanedGoals = cleanData(data.goals);
 
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
@@ -333,7 +341,7 @@ export default function SettingsPage() {
             </div>
             <Form {...form}>
                 <form onSubmit={handleSubmit(onSubmit)}>
-                    <Tabs defaultValue="lancamentos" className="w-full">
+                    <Tabs defaultValue="metas" className="w-full">
                         <TabsList>
                             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
                             <TabsTrigger value="metas">Metas e Prémios</TabsTrigger>

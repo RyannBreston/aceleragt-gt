@@ -14,7 +14,58 @@ const ARTIFACTS_PATH = `artifacts/${
 const corsOptions = {cors: true};
 
 // ##################################################
-// ### FUNÇÕES DE GESTÃO DE ADMINISTRADORES ###
+// ### FUNÇÕES DE GESTÃO DE ESCALA DE TRABALHO ###
+// ##################################################
+
+const getSchedulePageData = async (request: CallableRequest) => {
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
+  const {weekIdentifier} = request.data;
+  if (!weekIdentifier) {
+    throw new HttpsError(
+      "invalid-argument",
+      "O identificador da semana é obrigatório."
+    );
+  }
+
+  try {
+    // Busca a escala da semana
+    const schedulePath = `${ARTIFACTS_PATH}/workSchedules/${weekIdentifier}`;
+    const scheduleDoc = await db.doc(schedulePath).get();
+    const schedule = scheduleDoc.exists ? scheduleDoc.data() : {};
+
+    // Busca as definições de turnos
+    const shiftsPath = `${ARTIFACTS_PATH}/shiftDefinitions`;
+    const shiftsSnapshot = await db.collection(shiftsPath).get();
+    const shifts = shiftsSnapshot.docs.map((doc) => ({
+      id: doc.id, ...doc.data(),
+    }));
+    return {schedule, shifts};
+  } catch (error) {
+    throw new HttpsError("internal", "Erro ao buscar dados da escala.", error);
+  }
+};
+
+const setWorkSchedule = async (request: CallableRequest) => {
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
+  const {weekIdentifier, schedule} = request.data;
+  if (!weekIdentifier || !schedule) {
+    const msg = "Identificador da semana e escala são obrigatórios.";
+    throw new HttpsError("invalid-argument", msg);
+  }
+
+  const path = `${ARTIFACTS_PATH}/workSchedules/${weekIdentifier}`;
+  const scheduleRef = db.doc(path);
+  await scheduleRef.set(schedule, {merge: true});
+
+  return {result: "Escala salva com sucesso."};
+};
+
+// ##################################################
+// ### OUTRAS FUNÇÕES (minimizadas para foco) ###
 // ##################################################
 
 const createAdmin = async (request: CallableRequest) => {
@@ -115,10 +166,6 @@ const changeAdminPassword = async (request: CallableRequest) => {
     throw new HttpsError("internal", "Ocorreu um erro ao alterar a senha.");
   }
 };
-
-// ##################################################
-// ### FUNÇÕES DE GESTÃO DE VENDEDORES ###
-// ##################################################
 
 const createSeller = async (request: CallableRequest) => {
   if (request.auth?.token.role !== "admin") {
@@ -447,23 +494,6 @@ const toggleDailySprint = async (request: CallableRequest) => {
   return {result: `Corridinha ${isActive ? "ativada" : "desativada"}.`};
 };
 
-const setWorkSchedule = async (request: CallableRequest) => {
-  if (request.auth?.token.role !== "admin") {
-    throw new HttpsError("permission-denied", "Ação não autorizada.");
-  }
-  const {weekIdentifier, schedule} = request.data;
-  if (!weekIdentifier || !schedule) {
-    const msg = "Identificador da semana e escala são obrigatórios.";
-    throw new HttpsError("invalid-argument", msg);
-  }
-
-  const path = `${ARTIFACTS_PATH}/workSchedules/${weekIdentifier}`;
-  const scheduleRef = db.doc(path);
-  await scheduleRef.set(schedule, {merge: true});
-
-  return {result: "Escala salva com sucesso."};
-};
-
 const getWorkScheduleForWeek = async (request: CallableRequest) => {
   const {weekIdentifier} = request.data;
   if (!weekIdentifier) {
@@ -480,6 +510,8 @@ const getWorkScheduleForWeek = async (request: CallableRequest) => {
   return {};
 };
 
+
+// Mapeamento de ações para funções
 const actions: { [key: string]: (request: CallableRequest) => unknown } = {
   createAdmin,
   updateAdmin,
@@ -498,13 +530,17 @@ const actions: { [key: string]: (request: CallableRequest) => unknown } = {
   toggleDailySprint,
   setWorkSchedule,
   getWorkScheduleForWeek,
+  getSchedulePageData, // Adicionada a nova ação
 };
 
+// Ponto de entrada principal da API
 export const api = onCall(corsOptions, (request) => {
   const {action} = request.data;
   if (!action || !actions[action]) {
-    throw new HttpsError("not-found",
-      "A ação especificada não foi encontrada.");
+    throw new HttpsError(
+      "not-found",
+      "A ação especificada não foi encontrada."
+    );
   }
   return actions[action](request);
 });

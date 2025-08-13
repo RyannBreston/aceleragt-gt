@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, LogOut, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap, Pencil, GraduationCap } from 'lucide-react';
+import { LayoutGrid, LogOut, Shield, Target, Trophy, ShoppingBag, History, User, CalendarDays, Zap, GraduationCap } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,6 @@ import { MobileSidebar } from './MobileSidebar';
 
 const allMenuItems = [
     {href: '/admin/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
-    {href: '/admin/pontos', label: 'Editar Pontos', icon: Pencil, key: 'pontos'},
     {href: '/admin/ranking', label: 'Ranking', icon: Trophy, key: 'ranking'},
     {href: '/admin/escala', label: 'Escala de Trabalho', icon: CalendarDays, key: 'escala'},
     {href: '/admin/sprints', label: 'Corridinhas Diárias', icon: Zap, key: 'sprints'}, 

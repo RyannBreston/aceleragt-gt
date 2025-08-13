@@ -40,5 +40,6 @@ export const initialGoals: Goals = {
     loja: true,
     ranking: true,
     sprints: true,
+    escala: true,
   },
 };

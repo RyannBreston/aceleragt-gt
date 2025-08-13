@@ -17,6 +17,7 @@ import {
   Box,
   Star,
   Users,
+  Zap,
 } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import type { Goals, Seller, MetricGoals } from '@/lib/types';
@@ -58,29 +59,34 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
     const sellersWithPrizes = useMemo(() => {
-        if (!goals) return [];
-        return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
-    }, [sellers, goals]);
+        if (!goals || !currentSeller) return [];
+        // Apenas o vendedor atual precisa ser processado para esta página
+        return [calculateSellerPrizes(currentSeller, sellers, goals)];
+    }, [currentSeller, sellers, goals]);
 
-    const sortedSellers = useMemo(() => {
-        return [...sellersWithPrizes].sort((a, b) => {
+    const sellerData = useMemo(() => {
+         if (!currentSeller) return null;
+        // Recalcula prémios para o vendedor atual para ter os dados mais recentes
+        const data = goals ? calculateSellerPrizes(currentSeller, sellers, goals) : null;
+        return data;
+    }, [currentSeller, sellers, goals]);
+
+
+    const sortedSellersForRank = useMemo(() => {
+        if(!goals) return [];
+        return sellers.map(s => calculateSellerPrizes(s, sellers, goals)).sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
             if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
             const valueA = (a as any)[criterion as keyof Seller] || 0;
             const valueB = (b as any)[criterion as keyof Seller] || 0;
             return valueB - valueA;
         });
-    }, [sellersWithPrizes, criterion]);
-
-    const sellerData = useMemo(() => {
-        if (!currentSeller) return null;
-        return sortedSellers.find(s => s.id === currentSeller.id);
-    }, [currentSeller, sortedSellers]);
+    }, [sellers, goals, criterion]);
     
     const currentUserRank = useMemo(() => {
         if (!sellerData) return -1;
-        return sortedSellers.findIndex(s => s.id === sellerData.id);
-    }, [sortedSellers, sellerData]);
+        return sortedSellersForRank.findIndex(s => s.id === sellerData.id);
+    }, [sortedSellersForRank, sellerData]);
 
     const goalProgress = useMemo(() => {
         if (!sellerData || !goals || criterion === 'totalPrize') {
@@ -93,9 +99,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
-        const sellerValue = metric === 'points' 
-            ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
-            : (sellerData[metric as keyof Seller] as number) || 0;
+        const sellerValue = sellerData.points; // `points` já inclui `extraPoints` do `calculateSellerPrizes`
 
         if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
@@ -134,7 +138,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
         };
     }, [sellerData, goals, criterion]);
 
-    return { sellerData, currentUserRank, totalSellers: sortedSellers.length, goalProgress, sellersWithPrizes };
+    return { sellerData, currentUserRank, totalSellers: sortedSellersForRank.length, goalProgress, sellersWithPrizes };
 };
 
 // ####################################################################
@@ -173,6 +177,27 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: G
         </Card>
     );
 };
+
+const SprintPrizesSummaryCard = ({ sellerData }: { sellerData: SellerWithPrize }) => {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Zap className="text-yellow-400"/> Prémios da Corridinha</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="p-4 bg-muted/50 rounded-lg">
+                    <h3 className="text-sm font-medium text-muted-foreground">Pontos Extras Ganhos</h3>
+                    <p className="text-2xl font-bold text-primary">{sellerData.extraPoints.toLocaleString('pt-BR')}</p>
+                </div>
+                <div className="p-4 bg-muted/50 rounded-lg">
+                    <h3 className="text-sm font-medium text-muted-foreground">Impacto no Prémio de Pontos</h3>
+                    <p className="text-2xl font-bold text-green-400">{formatCurrency(sellerData.prizes.points)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Este é o seu prémio total na categoria de Pontos (metas + corridinhas).</p>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 // ####################################################################
 // ### 4. COMPONENTE PRINCIPAL ###
@@ -230,9 +255,9 @@ const SellerPerformancePage = () => {
                                 </div>
                             </CardContent>
                         </Card>
-                    ) : criterion === 'points' ? (
-                        <Card>
-                            <CardHeader><CardTitle>Detalhes por Pontos</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
+                    ) : (
+                         <Card>
+                            <CardHeader><CardTitle>Detalhes por {criterionLabel}</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
                             <CardContent className="space-y-8">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
@@ -241,7 +266,11 @@ const SellerPerformancePage = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-sm font-medium text-muted-foreground">Seu Resultado</h3>
-                                        <p className="text-2xl font-bold">{(sellerData.points + sellerData.extraPoints).toLocaleString('pt-BR')}</p>
+                                        <p className="text-2xl font-bold">{
+                                            criterion === 'points' ? sellerData.points.toLocaleString('pt-BR') :
+                                            criterion === 'pa' ? sellerData.pa.toLocaleString('pt-BR') :
+                                            formatCurrency(sellerData[criterion as keyof Seller] as number)
+                                        }</p>
                                     </div>
                                 </div>
                                 
@@ -269,48 +298,12 @@ const SellerPerformancePage = () => {
                                 </div>
                             </CardContent>
                         </Card>
-                    ) : (
-                        <Card>
-                            <CardHeader><CardTitle>Detalhes por {criterionLabel}</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio Recebido (Neste Critério)</h3>
-                                        <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
-                                    </div>
-                                     <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Seu Resultado</h3>
-                                        <p className="text-2xl font-bold">{ (sellerData[criterion as keyof Seller] as number).toLocaleString('pt-BR')}</p>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <h4 className="text-sm font-medium">Níveis de Meta Atingidos</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                        {(goalProgress.achievedLevels.length > 0) ?
-                                            goalProgress.achievedLevels.map(level => {
-                                                const config = goalLevelConfig[level as GoalLevelName];
-                                                return <Badge key={level} variant="outline" className={cn("font-semibold", config.className)}>{config.label}</Badge>;
-                                            }) : <Badge variant="secondary">Nenhuma meta atingida</Badge>
-                                        }
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <h4 className="text-sm font-medium">Progresso para Próxima Meta</h4>
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between items-center text-xs">
-                                            <span className="font-medium">{goalProgress.label}</span>
-                                            <span className="font-bold">{goalProgress.percent.toFixed(0)}%</span>
-                                        </div>
-                                        <Progress value={goalProgress.percent} />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
                     )}
                 </div>
                 
                 <div className="space-y-8">
                     <TeamGoalCard sellers={sellersWithPrizes} goals={goals} />
+                    <SprintPrizesSummaryCard sellerData={sellerData} />
                 </div>
             </div>
         </div>

@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ResponsiveDialog } from "@/components/ui/responsive-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from '@/components/CurrencyInput';
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
+import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users, X, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { functions } from '@/lib/firebase';
@@ -20,37 +20,27 @@ import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { EmptyState } from '@/components/EmptyState';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-type SprintFormData = Omit<DailySprint, 'id' | 'createdAt'>;
-type CallableSprintResult = { id?: string; };
-
-
-const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: DailySprint | null; onSave: (data: SprintFormData) => Promise<void>; sellers: Seller[]; children: React.ReactNode; }) => {
+// --- Componente do Formulário (dentro da Modal) ---
+const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: Partial<DailySprint>; sellers: Seller[]; onSave: (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => Promise<void>; onCancel: () => void; }) => {
     const { toast } = useToast();
-    const [title, setTitle] = useState('');
-    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>([{ goal: 0, points: 0, label: "Meta 1" }]);
-    const [participantIds, setParticipantIds] = useState<string[]>([]);
-    const [isActive, setIsActive] = useState(false);
+    const [title, setTitle] = useState(initialData.title || '');
+    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>(initialData.sprintTiers || [{ goal: 200, points: 50, label: ""}, { goal: 400, points: 100, label: "" }, { goal: 600, points: 150, label: "" }]);
+    const [participantIds, setParticipantIds] = useState<string[]>(initialData.participantIds || []);
+    const [searchTerm, setSearchTerm] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    React.useEffect(() => {
-        if (sprint) {
-            setTitle(sprint.title);
-            setSprintTiers(sprint.sprintTiers);
-            setParticipantIds(sprint.participantIds);
-            setIsActive(sprint.isActive);
-        } else {
-            setTitle('');
-            setSprintTiers([{ goal: 200, points: 50, label: "Meta 1" }, { goal: 400, points: 100, label: "Meta 2" }, { goal: 600, points: 150, label: "Meta 3" }, { goal: 800, points: 250, label: "Meta 4" }]);
-            setParticipantIds([]);
-            setIsActive(false);
-        }
-    }, [sprint]);
+    const filteredSellers = useMemo(() => {
+        return sellers.filter(seller => seller.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    }, [sellers, searchTerm]);
 
     const handleTierChange = (index: number, field: 'goal' | 'points', value?: number) => {
         const newTiers = [...sprintTiers];
-        newTiers[index] = { ...newTiers[index], [field]: value || 0 };
+        newTiers[index] = { ...newTiers[index], [field]: value || 0, label: newTiers[index].label || "" };
         setSprintTiers(newTiers);
     };
+
+    const handleAddTier = () => setSprintTiers(prev => [...prev, { goal: 0, points: 0, label: "" }]);
+    const handleRemoveTier = (index: number) => setSprintTiers(prev => prev.filter((_, i) => i !== index));
 
     const handleSave = async () => {
         if (!title.trim() || participantIds.length === 0) {
@@ -58,54 +48,55 @@ const SprintFormModal = ({ sprint, onSave, sellers, children }: { sprint?: Daily
             return;
         }
         setIsSubmitting(true);
-        await onSave({ title, sprintTiers, participantIds, isActive });
+        const sortedTiers = [...sprintTiers].sort((a, b) => a.goal - b.goal);
+        await onSave({ title, sprintTiers: sortedTiers, participantIds, isActive: initialData.isActive || false }, initialData.id);
         setIsSubmitting(false);
     };
-    
-    const formContent = (
-        <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
-            <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
-            <div className="space-y-3">
-                <Label>Níveis de Metas</Label>
-                {sprintTiers.map((tier, index) => (
-                    <div key={index} className="grid grid-cols-1 sm:grid-cols-[auto_1fr_1fr] items-center gap-2">
-                        <Label className="text-sm sm:text-right">Meta {index + 1}</Label>
-                        <CurrencyInput value={tier.goal} onValueChange={value => handleTierChange(index, 'goal', value)} placeholder="Valor (R$)" />
-                        <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', Number(e.target.value))} placeholder="Prêmio (Pts)" />
-                    </div>
-                ))}
-            </div>
-            <div>
-                <Label>Participantes ({participantIds.length})</Label>
-                <div className="mt-2 p-3 border rounded-md max-h-48 overflow-y-auto space-y-2">
-                    <div className="flex items-center"><Checkbox id="selectAll" checked={participantIds.length === sellers.length} onCheckedChange={checked => setParticipantIds(checked ? sellers.map(s => s.id) : [])} /><Label htmlFor="selectAll" className="ml-2 font-medium">Selecionar Todos</Label></div>
-                    <hr/>
-                    {sellers.map(s => <div key={s.id} className="flex items-center"><Checkbox id={s.id} checked={participantIds.includes(s.id)} onCheckedChange={checked => setParticipantIds(p => checked ? [...p, s.id] : p.filter(id => id !== s.id))} /><Label htmlFor={s.id} className="ml-2">{s.name}</Label></div>)}
-                </div>
-            </div>
-        </div>
-    );
-    
-    const formFooter = (
-        <div className="flex justify-end gap-2">
-            <Button variant="outline">Cancelar</Button>
-            <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />} Salvar</Button>
-        </div>
-    );
 
     return (
-        <ResponsiveDialog
-            title={sprint ? 'Editar Corridinha' : 'Criar Corridinha'}
-            description="Defina os detalhes e metas da corridinha."
-            content={formContent}
-            footer={formFooter}
-        >
-            {children}
-        </ResponsiveDialog>
+        <>
+            <DialogContent className="max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>{initialData.id ? 'Editar Corridinha' : 'Criar Corridinha'}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4 flex-grow overflow-y-auto pr-4">
+                    <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
+                    <div className="space-y-3">
+                        <Label>Níveis de Metas</Label>
+                        {sprintTiers.map((tier, index) => (
+                            <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
+                                <CurrencyInput value={tier.goal} onValueChange={value => handleTierChange(index, 'goal', value)} placeholder="Valor da Meta (R$)" />
+                                <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', Number(e.target.value))} placeholder="Prémio (Pts)" />
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveTier(index)} disabled={sprintTiers.length <= 1}><X className="size-4 text-muted-foreground" /></Button>
+                            </div>
+                        ))}
+                        <Button variant="outline" size="sm" onClick={handleAddTier}><PlusCircle className="mr-2" /> Adicionar Nível</Button>
+                    </div>
+                    <div>
+                        <Label>Participantes ({participantIds.length})</Label>
+                        <div className="relative my-2">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Buscar vendedor..." className="pl-8" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                        </div>
+                        <div className="mt-2 p-3 border rounded-md max-h-40 overflow-y-auto space-y-2">
+                            <div className="flex items-center"><Checkbox id="selectAll" checked={participantIds.length === sellers.length} onCheckedChange={checked => setParticipantIds(checked ? sellers.map(s => s.id) : [])} /><Label htmlFor="selectAll" className="ml-2 font-medium">Selecionar Todos</Label></div>
+                            <hr />
+                            {filteredSellers.map(s => <div key={s.id} className="flex items-center"><Checkbox id={s.id} checked={participantIds.includes(s.id)} onCheckedChange={checked => setParticipantIds(p => checked ? [...p, s.id] : p.filter(id => id !== s.id))} /><Label htmlFor={s.id} className="ml-2">{s.name}</Label></div>)}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+                    <Button onClick={handleSave} disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 animate-spin" /> : <Save className="mr-2" />} Salvar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </>
     );
 };
 
-const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprint; onToggle: (id: string, state: boolean) => void; onEdit: (data: DailySprint) => void; onDelete: (id: string) => void; }) => (
+
+// --- Componente do Card de Visualização ---
+const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprint; onToggle: (id: string, state: boolean) => void; onEdit: (sprint: DailySprint) => void; onDelete: (id: string) => void; }) => (
     <Card className={sprint.isActive ? "border-primary shadow-lg" : ""}>
         <CardHeader>
             <CardTitle className="flex justify-between items-start">
@@ -119,7 +110,7 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
                             <AlertDialogTrigger asChild><DropdownMenuItem onSelect={e => e.preventDefault()} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 size-4" />Excluir</DropdownMenuItem></AlertDialogTrigger>
                             <AlertDialogContent>
                                 <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Esta ação é irreversível.</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(sprint.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
+                                <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => onDelete(sprint.id)} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction></AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
                     </DropdownMenuContent>
@@ -132,7 +123,7 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
                 <Switch checked={sprint.isActive} onCheckedChange={(checked) => onToggle(sprint.id, checked)} id={`switch-${sprint.id}`} />
                 <Label htmlFor={`switch-${sprint.id}`} className="font-semibold">{sprint.isActive ? 'Ativa' : 'Inativa'}</Label>
             </div>
-            <div className="text-sm">
+            <div className="text-sm text-right">
                 <p><strong>Meta Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 <p><strong>Prêmio Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.points))} pts</p>
             </div>
@@ -140,56 +131,63 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
     </Card>
 );
 
-
+// --- Componente Principal da Página ---
 export default function AdminSprintsPage() {
     const { sellers, sprints: contextSprints, isAuthReady } = useAdminContext();
     const { toast } = useToast();
     const [sprints, setSprints] = useState<DailySprint[]>([]);
+    const [sprintToEdit, setSprintToEdit] = useState<Partial<DailySprint> | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        setSprints(contextSprints);
+        setSprints(contextSprints || []);
     }, [contextSprints]);
 
-    const handleSave = useCallback(async (data: SprintFormData, id?: string) => {
+    const handleSave = async (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => {
         setIsLoading(true);
         try {
             const action = id ? 'updateDailySprint' : 'createDailySprint';
-            const callable = httpsCallable<object, CallableSprintResult>(functions, 'api');
+            const callable = httpsCallable(functions, 'api');
             const result = await callable({ action, ...data, id });
-            const resultData = result.data;
-
-            const newOrUpdatedId = resultData.id || id;
-            if (!newOrUpdatedId) {
-                throw new Error("Não foi possível obter um ID para a corridinha.");
-            }
-
-            const savedSprint: DailySprint = { ...data, id: newOrUpdatedId, createdAt: Timestamp.now() };
             
+            const resultId = (result.data as { id: string }).id || id;
+            if (!resultId) throw new Error("ID da corridinha não foi retornado pelo backend.");
+            
+            const savedSprint: DailySprint = { ...data, id: resultId, createdAt: id ? new Timestamp(Date.now() / 1000, 0) : Timestamp.now() };
+
             setSprints(prev => {
-                const newSprints = id ? prev.map(s => (s.id === id ? savedSprint : s)) : [...prev, savedSprint];
-                if (data.isActive) {
-                    return newSprints.map(s => ({ ...s, isActive: s.id === savedSprint.id }));
+                const existing = prev.find(s => s.id === resultId);
+                let newSprints = existing ? prev.map(s => (s.id === resultId ? savedSprint : s)) : [...prev, savedSprint];
+                if (savedSprint.isActive) {
+                    newSprints = newSprints.map(s => ({ ...s, isActive: s.id === savedSprint.id }));
                 }
                 return newSprints;
             });
 
             toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'}.` });
+            setSprintToEdit(null); // Fecha a modal
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro', description: String(error) });
+            toast({ variant: 'destructive', title: 'Erro ao Salvar', description: String(error) });
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    };
 
-    const handleToggle = useCallback(async (id: string, isActive: boolean) => {
-        const sprint = sprints.find(s => s.id === id);
-        if(!sprint) return;
-        
-        await handleSave({ ...sprint, isActive }, id);
-    }, [sprints, handleSave]);
+    const handleToggle = async (id: string, isActive: boolean) => {
+        setIsLoading(true);
+        try {
+            const callable = httpsCallable(functions, 'api');
+            await callable({ action: 'toggleDailySprint', id, isActive });
+            setSprints(prev => prev.map(s => ({...s, isActive: s.id === id ? isActive : (isActive ? false : s.isActive)})));
+            toast({ title: 'Sucesso!', description: `Corridinha ${isActive ? 'ativada' : 'desativada'}.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro ao Ativar/Desativar', description: String(error) });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-    const handleDelete = useCallback(async (id: string) => {
+    const handleDelete = async (id: string) => {
         setIsLoading(true);
         try {
             const callable = httpsCallable(functions, 'api');
@@ -197,37 +195,36 @@ export default function AdminSprintsPage() {
             setSprints(prev => prev.filter(s => s.id !== id));
             toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro', description: String(error) });
+            toast({ variant: 'destructive', title: 'Erro ao Excluir', description: String(error) });
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
-
+    };
 
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4"><Zap className="size-8 text-primary" /><h1 className="text-3xl font-bold">Corridinhas Diárias</h1></div>
-                <SprintFormModal onSave={(data) => handleSave(data)} sellers={sellers}>
-                    <Button><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
-                </SprintFormModal>
+                <Button onClick={() => setSprintToEdit({})}><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
             </div>
             
-            {isLoading && <EmptyState Icon={Loader2} title="A processar..." description="Aguarde um momento." className="animate-spin" />}
-
-            {!isLoading && !isAuthReady && <EmptyState Icon={Loader2} title="A carregar..." description="A obter os dados mais recentes." className="animate-spin" />}
+            {isLoading && <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>}
+            
+            {!isLoading && !isAuthReady && <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>}
             
             {!isLoading && isAuthReady && sprints.length === 0 && <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>}
             
             {!isLoading && isAuthReady && sprints.length > 0 &&
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sprints.map(sprint => (
-                        <SprintFormModal key={sprint.id} sprint={sprint} onSave={(data) => handleSave(data, sprint.id)} sellers={sellers}>
-                           <SprintCard sprint={sprint} onToggle={handleToggle} onEdit={() => {}} onDelete={handleDelete} />
-                        </SprintFormModal>
+                        <SprintCard key={sprint.id} sprint={sprint} onToggle={handleToggle} onEdit={setSprintToEdit} onDelete={handleDelete} />
                     ))}
                 </div>
             }
+
+            <Dialog open={!!sprintToEdit} onOpenChange={(isOpen) => !isOpen && setSprintToEdit(null)}>
+                {sprintToEdit && <SprintForm initialData={sprintToEdit} sellers={sellers} onSave={handleSave} onCancel={() => setSprintToEdit(null)} />}
+            </Dialog>
         </div>
     );
 }
