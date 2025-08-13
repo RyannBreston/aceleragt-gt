@@ -13,6 +13,37 @@ const ARTIFACTS_PATH = `artifacts/${
 // Opções de CORS para permitir qualquer origem (seguro para onCall)
 const corsOptions = {cors: true};
 
+
+// ##################################################
+// ### FUNÇÃO DE AUTO-CORREÇÃO DE PERMISSÕES ###
+// ##################################################
+
+const verifyAndSetAdminClaim = async (request: CallableRequest) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Ação não autenticada.");
+  }
+  const uid = request.auth.uid;
+  const userDocRef = db.collection("users").doc(uid);
+
+  try {
+    const userDoc = await userDocRef.get();
+    if (userDoc.exists && userDoc.data()?.role === "admin") {
+      const currentUser = await admin.auth().getUser(uid);
+      if (!currentUser.customClaims?.role) {
+        await admin.auth().setCustomUserClaims(uid, {role: "admin"});
+        return {result: "Permissão de administrador corrigida com sucesso."};
+      }
+      return {result: "Permissão já está correta."};
+    }
+    return {result: "Usuário não é administrador."};
+  } catch (error) {
+    throw new HttpsError(
+      "internal", "Erro ao verificar e definir permissão.", error
+    );
+  }
+};
+
+
 // ##################################################
 // ### FUNÇÕES DE GESTÃO DE ESCALA DE TRABALHO ###
 // ##################################################
@@ -531,6 +562,7 @@ const actions: { [key: string]: (request: CallableRequest) => unknown } = {
   setWorkSchedule,
   getWorkScheduleForWeek,
   getSchedulePageData,
+  verifyAndSetAdminClaim,
 };
 
 // Ponto de entrada principal da API
