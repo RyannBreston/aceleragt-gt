@@ -178,7 +178,7 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: G
 // ### 4. COMPONENTE PRINCIPAL ###
 // ####################################################################
 const SellerPerformancePage = () => {
-    const [criterion, setCriterion] = useState<RankingCriterion>('salesValue');
+    const [criterion, setCriterion] = useState<RankingCriterion>('points');
     const { sellerData, currentUserRank, goalProgress, sellersWithPrizes } = useSellerPerformance(criterion);
     const { goals, isAuthReady } = useSellerContext();
 
@@ -233,22 +233,31 @@ const SellerPerformancePage = () => {
                     ) : criterion === 'points' ? (
                         <Card>
                             <CardHeader><CardTitle>Detalhes por Pontos</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
-                            <CardContent className="space-y-6">
-                                <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Pontos Totais (Metas + Corridinha)</h3>
-                                    <p className="text-2xl font-bold text-primary">{(sellerData.points + sellerData.extraPoints).toLocaleString('pt-BR')}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
+                            <CardContent className="space-y-8">
+                                <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Pontos de Metas</h3>
-                                        <p className="text-lg font-bold">{sellerData.points.toLocaleString('pt-BR')}</p>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio Recebido (Neste Critério)</h3>
+                                        <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio de Corridinha</h3>
-                                        <p className="text-lg font-bold">{sellerData.extraPoints.toLocaleString('pt-BR')}</p>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Seu Resultado</h3>
+                                        <p className="text-2xl font-bold">{(sellerData.points + sellerData.extraPoints).toLocaleString('pt-BR')}</p>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
+                                
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-medium">Níveis de Meta Atingidos</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(goalProgress.achievedLevels.length > 0) ?
+                                            goalProgress.achievedLevels.map(level => {
+                                                const config = goalLevelConfig[level as GoalLevelName];
+                                                return <Badge key={level} variant="outline" className={cn("font-semibold", config.className)}>{config.label}</Badge>;
+                                            }) : <Badge variant="secondary">Nenhuma meta atingida</Badge>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
                                     <h4 className="text-sm font-medium">Progresso para Próxima Meta</h4>
                                     <div className="space-y-1.5">
                                         <div className="flex justify-between items-center text-xs">
@@ -264,9 +273,15 @@ const SellerPerformancePage = () => {
                         <Card>
                             <CardHeader><CardTitle>Detalhes por {criterionLabel}</CardTitle><CardDescription>Seu resultado detalhado para o critério selecionado.</CardDescription></CardHeader>
                             <CardContent className="space-y-6">
-                                <div>
-                                    <h3 className="text-sm font-medium text-muted-foreground">Prêmio Recebido (Neste Critério)</h3>
-                                    <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio Recebido (Neste Critério)</h3>
+                                        <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
+                                    </div>
+                                     <div>
+                                        <h3 className="text-sm font-medium text-muted-foreground">Seu Resultado</h3>
+                                        <p className="text-2xl font-bold">{ (sellerData[criterion as keyof Seller] as number).toLocaleString('pt-BR')}</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-medium">Níveis de Meta Atingidos</h4>

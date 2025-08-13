@@ -4,182 +4,276 @@
 import React, { useState, useMemo, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star, Info } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star } from 'lucide-react';
 import { useAdminContext } from '@/contexts/AdminContext';
-import type { Goals, Seller } from '@/lib/types';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { calculateSellerPrizes } from '@/lib/client-utils';
+import type { Goals, Seller, MetricGoals } from '@/lib/types';
+import { cn, calculateSellerPrizes } from '@/lib/client-utils';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
-// Tipos e Constantes
+// ####################################################################
+// ### 1. TIPOS, CONSTANTES E FORMATAÇÃO ###
+// ####################################################################
+
 type RankingCriterion = 'totalPrize' | 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+type GoalLevelName = 'Metinha' | 'Meta' | 'Metona' | 'Lendária';
 type SellerWithPrize = ReturnType<typeof calculateSellerPrizes>;
 
-// ####################################################################
-// ### 1. COMPONENTES VISUAIS PEQUENOS E REUTILIZÁVEIS ###
-// ####################################################################
+const TABS_CONFIG: { value: RankingCriterion; label: string; icon: React.ElementType }[] = [
+    { value: 'totalPrize', label: 'Prémio Total', icon: Trophy },
+    { value: 'salesValue', label: 'Vendas', icon: DollarSign },
+    { value: 'points', label: 'Pontos', icon: Star },
+    { value: 'ticketAverage', label: 'Ticket Médio', icon: Ticket },
+    { value: 'pa', label: 'PA', icon: Box },
+];
 
-const PodiumIcon = memo(({ rank }: { rank: number }) => {
-    if (rank === 0) return <Trophy className="h-6 w-6 text-yellow-400" />;
-    if (rank === 1) return <Medal className="h-6 w-6 text-gray-400" />;
-    if (rank === 2) return <Award className="h-6 w-6 text-orange-400" />;
-    return <span className="font-bold text-lg text-muted-foreground">{rank + 1}</span>;
-});
-PodiumIcon.displayName = 'PodiumIcon';
+const goalLevelConfig: Record<GoalLevelName, { label: string; className: string; }> = {
+    'Metinha': { label: 'Metinha', className: 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10' },
+    'Meta': { label: 'Meta', className: 'border-green-500/50 text-green-500 bg-green-500/10' },
+    'Metona': { label: 'Metona', className: 'border-blue-500/50 text-blue-400 bg-blue-500/10' },
+    'Lendária': { label: 'Lendária', className: 'border-purple-500/50 text-purple-400 bg-purple-500/10' },
+};
 
-const PrizeTooltip = memo(({ seller }: { seller: SellerWithPrize }) => (
-    <TooltipProvider>
-        <Tooltip>
-            <TooltipTrigger asChild><Info className="size-3.5 text-muted-foreground cursor-pointer" /></TooltipTrigger>
-            <TooltipContent>
-                <div className="p-2 text-sm text-left text-popover-foreground space-y-2 max-w-xs">
-                    <h4 className="font-bold border-b pb-1 mb-1">Composição do Prémio: {formatCurrency(seller.totalPrize)}</h4>
-                    <div className="flex justify-between gap-4"><span>Vendas:</span> <span className="font-bold">{formatCurrency(seller.prizes.salesValue)}</span></div>
-                    <div className="flex justify-between gap-4"><span>T. Médio:</span> <span className="font-bold">{formatCurrency(seller.prizes.ticketAverage)}</span></div>
-                    <div className="flex justify-between gap-4"><span>PA:</span> <span className="font-bold">{formatCurrency(seller.prizes.pa)}</span></div>
-                    <div className="flex justify-between gap-4"><span>Pontos:</span> <span className="font-bold">{formatCurrency(seller.prizes.points)}</span></div>
-                    {seller.teamBonusApplied && <div className="flex justify-between gap-4 pt-1 border-t mt-1"><span>Bónus Equipa:</span> <span className="font-bold">{formatCurrency(100)}</span></div>}
-                    {seller.topScorerBonus > 0 && <div className="flex justify-between gap-4 pt-1 border-t mt-1 text-yellow-400"><span>Top Pontos:</span> <span className="font-bold">{formatCurrency(seller.topScorerBonus)}</span></div>}
-                </div>
-            </TooltipContent>
-        </Tooltip>
-    </TooltipProvider>
-));
-PrizeTooltip.displayName = 'PrizeTooltip';
+const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 
 // ####################################################################
-// ### 2. CUSTOM HOOK PARA A LÓGICA DE DADOS ###
+// ### 2. HOOKS DE DADOS ###
 // ####################################################################
 
-const useRankingData = (sellers: Seller[], goals: Goals | null, criterion: RankingCriterion) => {
-    return useMemo(() => {
+const useRankingData = (criterion: RankingCriterion) => {
+    const { sellers, goals } = useAdminContext();
+    
+    const sellersWithPrizes = useMemo(() => {
         if (!goals) return [];
-        const sellersWithPrizes = sellers.map(seller => calculateSellerPrizes(seller, sellers, goals));
-        
+        return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
+    }, [sellers, goals]);
+
+    const sortedSellers = useMemo(() => {
         return [...sellersWithPrizes].sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
             if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
-            // --- CORRIGIDO PARA SER MAIS SEGURO ---
             const valueA = (a as any)[criterion] || 0;
             const valueB = (b as any)[criterion] || 0;
             return valueB - valueA;
         });
-    }, [sellers, goals, criterion]);
+    }, [sellersWithPrizes, criterion]);
+
+    return sortedSellers;
 };
 
-// Funções de formatação
-const formatCurrency = (value: number) => {
-    if (isNaN(value)) return 'R$ 0,00';
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
-const formatValue = (value: number, criterion: RankingCriterion) => {
-    if (isNaN(value)) return '0';
-    if (criterion === 'pa') return value.toFixed(1);
-    if (criterion === 'points') return value.toLocaleString('pt-BR');
-    return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
+const useGoalProgress = (sellerData: SellerWithPrize | null, criterion: RankingCriterion, goals: Goals | null) => {
+    return useMemo(() => {
+        if (!sellerData || !goals || criterion === 'totalPrize') {
+            return { percent: 0, label: '', achievedLevels: [] };
+        }
+        
+        const metric = criterion as keyof Omit<Goals, 'gamification' | 'teamGoalBonus'>;
+        const goalData = goals[metric];
+        
+        if (typeof goalData !== 'object' || goalData === null) {
+            return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
+        }
 
+        const sellerValue = metric === 'points' 
+            ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
+            : (sellerData[metric as keyof Seller] as number) || 0;
+
+        if (!goalData.metinha?.threshold) {
+            return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
+        }
+
+        const levels: GoalLevelName[] = ['Metinha', 'Meta', 'Metona', 'Lendária'];
+        const allGoals = levels.map(level => {
+            const levelKey = level.toLowerCase() as keyof MetricGoals;
+            const goalLevel = goalData[levelKey] as { threshold: number } | undefined;
+            return { name: level, threshold: goalLevel?.threshold || 0 };
+        });
+
+        const achievedLevels = allGoals.filter(g => g.threshold > 0 && sellerValue >= g.threshold);
+
+        let nextGoal, currentGoalBase, nextGoalLabel;
+        if (sellerValue >= (goalData.lendaria?.threshold || Infinity)) {
+            return { percent: 100, label: 'Nível Lendário Atingido!', achievedLevels: achievedLevels.map(g => g.name) };
+        }
+        if (sellerValue >= (goalData.metona?.threshold || Infinity)) {
+            nextGoal = goalData.lendaria?.threshold; currentGoalBase = goalData.metona?.threshold; nextGoalLabel = 'Lendária';
+        } else if (sellerValue >= (goalData.meta?.threshold || Infinity)) {
+            nextGoal = goalData.metona?.threshold; currentGoalBase = goalData.meta?.threshold; nextGoalLabel = 'Metona';
+        } else if (sellerValue >= (goalData.metinha?.threshold || Infinity)) {
+            nextGoal = goalData.meta?.threshold; currentGoalBase = goalData.metinha?.threshold; nextGoalLabel = 'Meta';
+        } else {
+            nextGoal = goalData.metinha?.threshold; currentGoalBase = 0; nextGoalLabel = 'Metinha';
+        }
+
+        const range = (nextGoal || 0) - (currentGoalBase || 0);
+        const progressInLevel = range > 0 ? (sellerValue - (currentGoalBase || 0)) / range * 100 : 0;
+        
+        return {
+            percent: Math.min(100, progressInLevel),
+            label: `Próximo Nível: ${nextGoalLabel || ''}`,
+            achievedLevels: achievedLevels.map(g => g.name),
+        };
+    }, [sellerData, goals, criterion]);
+};
 
 // ####################################################################
-// ### 3. COMPONENTE DA LINHA DA TABELA (ROW) ###
+// ### 3. SUB-COMPONENTES DE UI ###
 // ####################################################################
 
-const RankingRow = memo(({ seller, rank, criterion }: { seller: SellerWithPrize, rank: number, criterion: RankingCriterion }) => {
-    // --- CORRIGIDO PARA SER MAIS SEGURO ---
-    const sellerValue = criterion === 'totalPrize' ? seller.totalPrize : (criterion === 'points' ? seller.points + seller.extraPoints : (seller as any)[criterion]);
-    const prizeToDisplay = criterion === 'totalPrize' ? seller.totalPrize : (seller.prizes as any)[criterion] || 0;
+const PodiumIcon = memo(({ rank }: { rank: number }) => {
+    if (rank === 0) return <Trophy className="h-5 w-5 text-yellow-400" />;
+    if (rank === 1) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (rank === 2) return <Award className="h-5 w-5 text-orange-400" />;
+    return <span className="font-semibold text-sm w-5 text-center">{rank + 1}</span>;
+});
+PodiumIcon.displayName = 'PodiumIcon';
+
+const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize | null, criterion: RankingCriterion }) => {
+    const { goals } = useAdminContext();
+    const goalProgress = useGoalProgress(seller, criterion, goals);
+
+    if (!seller) {
+        return (
+            <Card className="sticky top-24">
+                <CardHeader><CardTitle>Detalhes do Vendedor</CardTitle><CardDescription>Selecione um vendedor da lista para ver seus detalhes.</CardDescription></CardHeader>
+                <CardContent className="flex items-center justify-center h-48"><p className="text-muted-foreground">Nenhum vendedor selecionado</p></CardContent>
+            </Card>
+        );
+    }
+    
+    const criterionLabel = TABS_CONFIG.find(t => t.value === criterion)?.label || '';
+    const prizeForCriterion = criterion === 'totalPrize'
+        ? seller.totalPrize
+        : (seller.prizes as any)[criterion] || 0;
+    const sellerResult = criterion === 'totalPrize'
+        ? seller.totalPrize
+        : criterion === 'points'
+            ? seller.points + seller.extraPoints
+            : (seller as any)[criterion] || 0;
+            
+    const isCurrency = criterion !== 'points' && criterion !== 'pa';
 
     return (
-        <TableRow className={rank < 3 ? 'bg-card-foreground/5' : ''}>
-            <TableCell className="font-bold text-lg flex justify-center items-center h-full py-4"><PodiumIcon rank={rank} /></TableCell>
-            <TableCell className="font-medium">{seller.name}</TableCell>
-            {criterion !== 'totalPrize' && <TableCell className="text-right font-semibold">{formatValue(sellerValue as number, criterion)}</TableCell>}
-            <TableCell className="text-right font-semibold text-green-400">
-                <div className="flex items-center justify-end gap-1.5">
-                    <span>{formatCurrency(prizeToDisplay)}</span>
-                    <PrizeTooltip seller={seller} />
+        <Card className="sticky top-24">
+            <CardHeader>
+                <CardTitle>{seller.name}</CardTitle>
+                <CardDescription>Desempenho detalhado para o critério <span className="font-bold text-primary">{criterionLabel}</span>.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-8">
+                 <div className="grid grid-cols-2 gap-6">
+                    <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio (Critério)</h3>
+                        <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-medium text-muted-foreground">Resultado</h3>
+                        <p className="text-2xl font-bold">{isCurrency ? formatCurrency(sellerResult) : sellerResult.toLocaleString('pt-BR')}</p>
+                    </div>
                 </div>
-            </TableCell>
-        </TableRow>
+                
+                <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Níveis de Meta Atingidos</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {(goalProgress.achievedLevels.length > 0) ?
+                            goalProgress.achievedLevels.map(level => {
+                                const config = goalLevelConfig[level as GoalLevelName];
+                                return <Badge key={level} variant="outline" className={cn("font-semibold", config.className)}>{config.label}</Badge>;
+                            }) : <Badge variant="secondary">Nenhuma meta atingida</Badge>
+                        }
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Progresso para Próxima Meta</h4>
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                            <span className="font-medium">{goalProgress.label}</span>
+                            <span className="font-bold">{goalProgress.percent.toFixed(0)}%</span>
+                        </div>
+                        <Progress value={goalProgress.percent} />
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
     );
-});
-RankingRow.displayName = 'RankingRow';
+};
 
 
 // ####################################################################
-// ### 4. COMPONENTE PRINCIPAL DA PÁGINA ###
+// ### 4. COMPONENTE PRINCIPAL ###
 // ####################################################################
 
 export default function RankingPage() {
     const [criterion, setCriterion] = useState<RankingCriterion>('totalPrize');
-    const { sellers, goals } = useAdminContext();
-    const sortedSellers = useRankingData(sellers, goals, criterion);
+    const [selectedSeller, setSelectedSeller] = useState<SellerWithPrize | null>(null);
+    const sortedSellers = useRankingData(criterion);
+    
+    // Auto-seleciona o primeiro vendedor da lista quando o critério ou a lista mudam
+    React.useEffect(() => {
+        if (sortedSellers.length > 0) {
+            setSelectedSeller(sortedSellers[0]);
+        } else {
+            setSelectedSeller(null);
+        }
+    }, [sortedSellers]);
 
-    const criterionConfig = {
-        totalPrize: { label: 'Prémio Total', Icon: Trophy },
-        salesValue: { label: 'Vendas', Icon: DollarSign },
-        ticketAverage: { label: 'Ticket Médio', Icon: Ticket },
-        pa: { label: 'PA', Icon: Box },
-        points: { label: 'Pontos', Icon: Star },
+    const handleSellerSelect = (seller: SellerWithPrize) => {
+        setSelectedSeller(seller);
+    };
+    
+    const getResultForSeller = (seller: SellerWithPrize) => {
+        const result = criterion === 'totalPrize'
+            ? seller.totalPrize
+            : criterion === 'points'
+                ? seller.points + seller.extraPoints
+                : (seller as any)[criterion] || 0;
+        return criterion === 'pa' || criterion === 'points' ? result.toLocaleString('pt-BR') : formatCurrency(result);
     };
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <Trophy className="size-8 text-primary" />
-                <h1 className="text-3xl font-bold">Ranking de Vendedores</h1>
+            <div className="flex items-center gap-4"><Trophy className="size-8 text-primary" /><h1 className="text-3xl font-bold">Ranking de Vendedores</h1></div>
+
+            <Card>
+                <CardHeader><CardTitle>Análise por Critério</CardTitle><CardDescription>Selecione um critério para classificar e analisar os vendedores.</CardDescription></CardHeader>
+                <CardContent>
+                    <Tabs value={criterion} onValueChange={(value) => setCriterion(value as RankingCriterion)}>
+                        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-input p-1 h-auto">
+                            {TABS_CONFIG.map(({ value, label, icon: Icon }) => (
+                                <TabsTrigger key={value} value={value}><Icon className="mr-2 size-4" />{label}</TabsTrigger>
+                            ))}
+                        </TabsList>
+                    </Tabs>
+                </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-1 space-y-4">
+                     <Card>
+                        <CardHeader className='pb-4'><CardTitle>Classificação</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                            {sortedSellers.map((seller, index) => (
+                                <button key={seller.id} onClick={() => handleSellerSelect(seller)} className={cn(
+                                    "w-full text-left p-3 rounded-lg transition-colors flex items-center gap-4",
+                                    selectedSeller?.id === seller.id ? 'bg-primary/10 ring-2 ring-primary/80' : 'hover:bg-muted/50'
+                                )}>
+                                    <PodiumIcon rank={index} />
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-sm">{seller.name}</p>
+                                        <p className="text-xs text-muted-foreground">{TABS_CONFIG.find(t => t.value === criterion)?.label}</p>
+                                    </div>
+                                    <p className="text-sm font-bold">{getResultForSeller(seller)}</p>
+                                </button>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </div>
+                
+                <div className="lg:col-span-2">
+                   <PerformanceDetailCard seller={selectedSeller} criterion={criterion} />
+                </div>
             </div>
-            
-            <Card className="bg-card border-border">
-                <CardHeader>
-                    <CardTitle>Filtros do Ranking</CardTitle>
-                    <CardDescription>Selecione o critério para visualizar a classificação.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div>
-                        <Label className="text-sm font-medium mb-2 block">Critério de Classificação</Label>
-                        <Tabs value={criterion} onValueChange={(value) => setCriterion(value as RankingCriterion)}>
-                            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 bg-input p-1 h-auto">
-                                {Object.entries(criterionConfig).map(([key, { label, Icon }]) => (
-                                    <TabsTrigger key={key} value={key} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md">
-                                        <Icon className="mr-2 size-4" /> {label}
-                                    </TabsTrigger>
-                                ))}
-                            </TabsList>
-                        </Tabs>
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card className="bg-card border-border">
-                <CardHeader>
-                    <CardTitle>Classificação por {criterionConfig[criterion].label}</CardTitle>
-                    <CardDescription>Visualizando a classificação dos vendedores com base nos dados mais recentes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border border-border overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[80px] text-center">Posição</TableHead>
-                                    <TableHead>Vendedor</TableHead>
-                                    {criterion !== 'totalPrize' && <TableHead className="text-right">{criterionConfig[criterion].label}</TableHead>}
-                                    <TableHead className="text-right">
-                                        <div className="flex items-center justify-end gap-2"><span>Prémio</span><Award className="size-4 text-green-400" /></div>
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sortedSellers.map((seller, index) => (
-                                    <RankingRow key={seller.id} seller={seller} rank={index} criterion={criterion} />
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }

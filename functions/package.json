@@ -20,7 +20,8 @@
     "@types/node": "^20.4.2",
     "cors": "^2.8.5",
     "firebase-admin": "^13.4.0",
-    "firebase-functions": "^6.4.0"
+    "firebase-functions": "^6.4.0",
+    "json-diff": "^1.0.6"
   },
   "devDependencies": {
     "@types/glob": "^7.2.0",
