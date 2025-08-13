@@ -14,7 +14,7 @@ const ARTIFACTS_PATH = `artifacts/${
 const corsOptions = {cors: true};
 
 // ##################################################
-// ### FUNÇÃO DE VERIFICAÇÃO DE PERMISSÃO ROBUSTA ###
+// ### FUNÇÃO DE VERIFICAÇÃO E AUTO-CORREÇÃO DE PERMISSÃO ###
 // ##################################################
 
 const ensureIsAdmin = async (request: CallableRequest) => {
@@ -24,41 +24,29 @@ const ensureIsAdmin = async (request: CallableRequest) => {
   const uid = request.auth.uid;
   try {
     const user = await admin.auth().getUser(uid);
-    if (user.customClaims?.role !== "admin") {
-      throw new HttpsError("permission-denied", "Ação não autorizada.");
+    // Se a permissão já estiver no token, permite a passagem.
+    if (user.customClaims?.role === "admin") {
+      return;
     }
+
+    // Se a permissão não estiver no token, verifica o banco de dados.
+    const userDocRef = db.collection("users").doc(uid);
+    const userDoc = await userDocRef.get();
+
+    // Se o banco de dados confirmar que é admin, corrige e permite a passagem.
+    if (userDoc.exists && userDoc.data()?.role === "admin") {
+      await admin.auth().setCustomUserClaims(uid, {role: "admin"});
+      return;
+    }
+
+    // Se não for admin em nenhum dos locais, nega o acesso.
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
   } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
     throw new HttpsError(
       "permission-denied", "Falha ao verificar permissões de administrador."
-    );
-  }
-};
-
-// ##################################################
-// ### FUNÇÃO DE AUTO-CORREÇÃO DE PERMISSÕES ###
-// ##################################################
-
-const verifyAndSetAdminClaim = async (request: CallableRequest) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Ação não autenticada.");
-  }
-  const uid = request.auth.uid;
-  const userDocRef = db.collection("users").doc(uid);
-
-  try {
-    const userDoc = await userDocRef.get();
-    if (userDoc.exists && userDoc.data()?.role === "admin") {
-      const currentUser = await admin.auth().getUser(uid);
-      if (!currentUser.customClaims?.role) {
-        await admin.auth().setCustomUserClaims(uid, {role: "admin"});
-        return {result: "Permissão de administrador corrigida com sucesso."};
-      }
-      return {result: "Permissão já está correta."};
-    }
-    return {result: "Usuário não é administrador."};
-  } catch (error) {
-    throw new HttpsError(
-      "internal", "Erro ao verificar e definir permissão.", error
     );
   }
 };
@@ -475,7 +463,6 @@ const actions: { [key: string]: (request: CallableRequest) => unknown } = {
   createDailySprint, updateDailySprint, deleteDailySprint, toggleDailySprint,
   incrementAttendance, resetAttendance, updateAttendance,
   setWorkSchedule, getWorkScheduleForWeek, getSchedulePageData,
-  verifyAndSetAdminClaim,
 };
 
 // Ponto de entrada principal da API
