@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from '@/components/CurrencyInput';
@@ -58,6 +58,7 @@ const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: P
             <DialogContent className="max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{initialData.id ? 'Editar Corridinha' : 'Criar Corridinha'}</DialogTitle>
+                    <DialogDescription>Defina os detalhes e metas da corridinha.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 flex-grow overflow-y-auto pr-4">
                     <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>

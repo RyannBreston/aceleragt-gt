@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star } from 'lucide-react';
 import { useAdminContext } from '@/contexts/AdminContext';
-import type { Goals, Seller, MetricGoals } from '@/lib/types';
+import type { Goals, MetricGoals } from '@/lib/types';
 import { cn, calculateSellerPrizes } from '@/lib/client-utils';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -52,7 +52,7 @@ const useRankingData = (criterion: RankingCriterion) => {
     const sortedSellers = useMemo(() => {
         return [...sellersWithPrizes].sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
-            if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
+            if (criterion === 'points') return b.points - a.points; // CORRIGIDO
             const valueA = (a as any)[criterion] || 0;
             const valueB = (b as any)[criterion] || 0;
             return valueB - valueA;
@@ -75,9 +75,7 @@ const useGoalProgress = (sellerData: SellerWithPrize | null, criterion: RankingC
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
-        const sellerValue = metric === 'points' 
-            ? (sellerData.points || 0) + (sellerData.extraPoints || 0) 
-            : (sellerData[metric as keyof Seller] as number) || 0;
+        const sellerValue = sellerData[metric as keyof SellerWithPrize] as number || 0;
 
         if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
@@ -146,11 +144,7 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
     const prizeForCriterion = criterion === 'totalPrize'
         ? seller.totalPrize
         : (seller.prizes as any)[criterion] || 0;
-    const sellerResult = criterion === 'totalPrize'
-        ? seller.totalPrize
-        : criterion === 'points'
-            ? seller.points + seller.extraPoints
-            : (seller as any)[criterion] || 0;
+    const sellerResult = seller[criterion as keyof SellerWithPrize] as number || 0; // CORRIGIDO
             
     const isCurrency = criterion !== 'points' && criterion !== 'pa';
 
@@ -223,11 +217,7 @@ export default function RankingPage() {
     };
     
     const getResultForSeller = (seller: SellerWithPrize) => {
-        const result = criterion === 'totalPrize'
-            ? seller.totalPrize
-            : criterion === 'points'
-                ? seller.points + seller.extraPoints
-                : (seller as any)[criterion] || 0;
+        const result = seller[criterion as keyof SellerWithPrize] as number || 0; // CORRIGIDO
         return criterion === 'pa' || criterion === 'points' ? result.toLocaleString('pt-BR') : formatCurrency(result);
     };
 

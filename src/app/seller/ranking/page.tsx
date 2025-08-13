@@ -58,25 +58,18 @@ const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style:
 const useSellerPerformance = (criterion: RankingCriterion) => {
     const { sellers, goals, currentSeller } = useSellerContext();
 
-    const sellersWithPrizes = useMemo(() => {
-        if (!goals || !currentSeller) return [];
-        // Apenas o vendedor atual precisa ser processado para esta página
-        return [calculateSellerPrizes(currentSeller, sellers, goals)];
-    }, [currentSeller, sellers, goals]);
-
     const sellerData = useMemo(() => {
-         if (!currentSeller) return null;
-        // Recalcula prémios para o vendedor atual para ter os dados mais recentes
-        const data = goals ? calculateSellerPrizes(currentSeller, sellers, goals) : null;
-        return data;
+         if (!currentSeller || !goals) return null;
+        return calculateSellerPrizes(currentSeller, sellers, goals);
     }, [currentSeller, sellers, goals]);
-
 
     const sortedSellersForRank = useMemo(() => {
         if(!goals) return [];
-        return sellers.map(s => calculateSellerPrizes(s, sellers, goals)).sort((a, b) => {
+        const allSellersWithPrizes = sellers.map(s => calculateSellerPrizes(s, sellers, goals));
+        
+        return allSellersWithPrizes.sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
-            if (criterion === 'points') return (b.points + b.extraPoints) - (a.points + a.extraPoints);
+            if (criterion === 'points') return b.points - a.points;
             const valueA = (a as any)[criterion as keyof Seller] || 0;
             const valueB = (b as any)[criterion as keyof Seller] || 0;
             return valueB - valueA;
@@ -99,7 +92,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
-        const sellerValue = sellerData.points; // `points` já inclui `extraPoints` do `calculateSellerPrizes`
+        const sellerValue = sellerData[metric as keyof SellerWithPrize] as number || 0;
 
         if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
@@ -138,20 +131,20 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
         };
     }, [sellerData, goals, criterion]);
 
-    return { sellerData, currentUserRank, totalSellers: sortedSellersForRank.length, goalProgress, sellersWithPrizes };
+    return { sellerData, currentUserRank, goalProgress };
 };
 
 // ####################################################################
 // ### 3. SUB-COMPONENTES DE UI ###
 // ####################################################################
 
-const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: Goals | null }) => {
+const TeamGoalCard = ({ sellers, goals }: { sellers: Seller[], goals: Goals | null }) => {
     const { metinhaThreshold, bonus } = useMemo(() => ({
         metinhaThreshold: goals?.salesValue?.metinha?.threshold || 0,
         bonus: goals?.teamGoalBonus || 0,
     }), [goals]);
 
-    if (metinhaThreshold === 0) return null;
+    if (!bonus || bonus === 0) return null;
 
     const sellersWhoReachedMetinha = sellers.filter(s => (s.salesValue || 0) >= metinhaThreshold).length;
     const totalSellers = sellers.length;
@@ -179,6 +172,7 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: SellerWithPrize[], goals: G
 };
 
 const SprintPrizesSummaryCard = ({ sellerData }: { sellerData: SellerWithPrize }) => {
+    if (!sellerData.extraPoints || sellerData.extraPoints === 0) return null;
     return (
         <Card>
             <CardHeader>
@@ -204,8 +198,9 @@ const SprintPrizesSummaryCard = ({ sellerData }: { sellerData: SellerWithPrize }
 // ####################################################################
 const SellerPerformancePage = () => {
     const [criterion, setCriterion] = useState<RankingCriterion>('points');
-    const { sellerData, currentUserRank, goalProgress, sellersWithPrizes } = useSellerPerformance(criterion);
-    const { goals, isAuthReady } = useSellerContext();
+    const { sellerData, currentUserRank, goalProgress } = useSellerPerformance(criterion);
+    const { sellers, goals, isAuthReady } = useSellerContext();
+
 
     if (!isAuthReady || !sellerData) {
         return <DashboardSkeleton />;
@@ -302,7 +297,7 @@ const SellerPerformancePage = () => {
                 </div>
                 
                 <div className="space-y-8">
-                    <TeamGoalCard sellers={sellersWithPrizes} goals={goals} />
+                    <TeamGoalCard sellers={sellers} goals={goals} />
                     <SprintPrizesSummaryCard sellerData={sellerData} />
                 </div>
             </div>

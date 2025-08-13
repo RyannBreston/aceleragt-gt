@@ -530,7 +530,7 @@ const actions: { [key: string]: (request: CallableRequest) => unknown } = {
   toggleDailySprint,
   setWorkSchedule,
   getWorkScheduleForWeek,
-  getSchedulePageData, // Adicionada a nova ação
+  getSchedulePageData,
 };
 
 // Ponto de entrada principal da API
