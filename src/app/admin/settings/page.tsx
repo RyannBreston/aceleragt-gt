@@ -23,13 +23,11 @@ import type { Seller } from '@/lib/types';
 // --- Esquema de Validação com Zod ---
 const optionalNumber = z.union([z.string(), z.number()]).optional().transform(v => v === '' ? undefined : Number(v) || undefined);
 
-// NOVO: goalLevelSchema agora inclui 'points' opcional
 const goalLevelSchema = z.object({
   threshold: optionalNumber,
   prize: optionalNumber,
-  points: optionalNumber, 
 }).refine(data => (data.threshold != null && data.prize != null) || (data.threshold == null && data.prize == null), {
-  message: "Preencha a Meta e o Prémio, ou deixe ambos em branco.",
+  message: "Preencha ambos os campos ou deixe-os em branco.",
   path: ["prize"],
 });
 
@@ -140,10 +138,6 @@ const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>,
                                 <Card key={level} className="p-4"><h4 className="font-medium capitalize mb-2">{level}</h4><div className="space-y-2">
                                     <FormField control={control} name={`goals.${metric}.${level}.threshold`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Meta</FormLabel><FormControl>{metric === 'salesValue' || metric === 'ticketAverage' ? <CurrencyInput onValueChange={onChange} {...rest}/> : <Input type="number" {...rest} value={rest.value || ''} onChange={e => onChange(parseFloat(e.target.value) || 0)} />}</FormControl><FormMessage /></FormItem>)} />
                                     <FormField control={control} name={`goals.${metric}.${level}.prize`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Prémio (R$)</FormLabel><FormControl><CurrencyInput onValueChange={onChange} {...rest} /></FormControl><FormMessage /></FormItem>)} />
-                                    {/* Campo Condicional para Bónus em Pontos */}
-                                    {metric === 'points' && (
-                                        <FormField control={control} name={`goals.${metric}.${level}.points`} render={({ field: { onChange, ...rest } }) => (<FormItem><FormLabel>Bónus em Pontos</FormLabel><FormControl><Input type="number" {...rest} onChange={e => onChange(parseInt(e.target.value, 10) || 0)} /></FormControl><FormMessage /></FormItem>)} />
-                                    )}
                                 </div></Card>
                             ))}
                         </div>

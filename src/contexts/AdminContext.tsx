@@ -16,6 +16,7 @@ interface AdminContextType {
   missions: Mission[];
   setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
   sprints: DailySprint[];
+  setSprints: (updater: (prev: DailySprint[]) => DailySprint[]) => void;
   toggleSprint: (sprintId: string, currentState: boolean) => Promise<void>;
   admin: Admin | null;
   setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
@@ -45,16 +46,23 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          dataStore.setAdmin(() => ({ id: user.uid, ...userDoc.data() } as Admin));
+        // Força a atualização do token para obter as custom claims mais recentes.
+        const idTokenResult = await user.getIdTokenResult(true);
+        if (idTokenResult.claims.role === 'admin') {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            dataStore.setAdmin(() => ({ id: user.uid, ...userDoc.data() } as Admin));
+          } else {
+             dataStore.setAdmin(() => null);
+          }
         } else {
           dataStore.setAdmin(() => null);
         }
       } else {
         dataStore.setAdmin(() => null);
       }
+      // Só considera a autenticação pronta DEPOIS de verificar o token.
       setIsAuthReady(true);
     });
     return () => unsubscribe();
@@ -124,6 +132,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     isAdmin: !!state.admin,
     userId: state.admin?.id || null,
     sprints,
+    setSprints,
     toggleSprint,
   }), [state, isDirty, isAuthReady, sprints, toggleSprint]);
 

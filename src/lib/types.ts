@@ -32,7 +32,6 @@ export interface Seller {
 export interface GoalLevel {
     threshold: number;
     prize: number;
-    points?: number; // Pontos de bónus, aplicável principalmente para metas de pontos
 }
 
 export interface PerformanceBonus {
