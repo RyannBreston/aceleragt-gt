@@ -41,13 +41,9 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
   
   const sprintsCollectionPath = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data/dailySprints`;
 
+  // Efeito para autenticação e dados globais
   useEffect(() => {
-    let unsubscribers: (() => void)[] = [];
-    
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      unsubscribers.forEach(unsub => unsub());
-      unsubscribers = [];
-
       if (!user) {
         setIsSeller(false);
         setUserId(null);
@@ -66,32 +62,43 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         const sellersUnsubscribe = onSnapshot(query(collection(db, 'sellers')), (snapshot) => {
             store.getState().setSellers(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() }) as Seller));
         });
-
-        const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', user.uid), orderBy('createdAt', 'desc'), limit(1));
-        const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
-            setActiveSprint(snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
-        });
         
         const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
         const goalsUnsubscribe = onSnapshot(goalsRef, (doc) => {
             store.getState().setGoals(() => (doc.exists() ? doc.data() as Goals : null));
         });
-
-        unsubscribers = [sellersUnsubscribe, sprintUnsubscribe, goalsUnsubscribe];
-        setIsAuthReady(true);
+        
+        // Retorna a função de limpeza
+        return () => {
+          sellersUnsubscribe();
+          goalsUnsubscribe();
+        };
       } else {
         setIsSeller(false);
         setCurrentSeller(null);
-        setIsAuthReady(true);
       }
+      setIsAuthReady(true);
     });
 
-    return () => {
-        authUnsubscribe();
-        unsubscribers.forEach(unsub => unsub());
-    };
-  }, [sprintsCollectionPath]);
+    return () => authUnsubscribe();
+  }, []);
+  
+  // Efeito para buscar a corridinha ativa do vendedor logado
+  useEffect(() => {
+    if (!userId) {
+        setActiveSprint(null);
+        return;
+    }
+    const sprintsQuery = query(collection(db, sprintsCollectionPath), where('isActive', '==', true), where('participantIds', 'array-contains', userId), orderBy('createdAt', 'desc'), limit(1));
+    const sprintUnsubscribe = onSnapshot(sprintsQuery, (snapshot) => {
+        setActiveSprint(snapshot.empty ? null : { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as DailySprint);
+    });
 
+    return () => sprintUnsubscribe();
+  }, [userId, sprintsCollectionPath]);
+
+
+  // Efeito para calcular os dados do vendedor atual
   useEffect(() => {
     const unsub = store.subscribe(({ sellers, goals }) => {
         if (userId && sellers.length > 0 && goals) {
@@ -100,6 +107,8 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
                 const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
                 setCurrentSeller(sellerWithPrizes);
             }
+        } else {
+            setCurrentSeller(null);
         }
     });
     return () => unsub();
