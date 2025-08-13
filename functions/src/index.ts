@@ -110,6 +110,76 @@ const setWorkSchedule = async (request: CallableRequest) => {
 };
 
 // ##################################################
+// ### FUNÇÕES DE CORRIDINHA DIÁRIA ###
+// ##################################################
+
+const createDailySprint = async (request: CallableRequest) => {
+  await ensureIsAdmin(request);
+  const {title, sprintTiers, participantIds} = request.data;
+  if (!title || !sprintTiers || !participantIds ||
+      participantIds.length === 0) {
+    throw new HttpsError("invalid-argument", "Argumentos inválidos.");
+  }
+
+  const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
+  try {
+    const newSprintData = {
+      title, sprintTiers, participantIds, isActive: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    const docRef = await sprintsRef.add(newSprintData);
+    return {
+      result: `Corridinha "${title}" criada.`,
+      id: docRef.id,
+    };
+  } catch (error) {
+    throw new HttpsError("internal", "Ocorreu um erro ao criar a corridinha.");
+  }
+};
+
+const updateDailySprint = async (request: CallableRequest) => {
+  await ensureIsAdmin(request);
+  const {id, ...data} = request.data;
+  if (!id || !data.title) {
+    throw new HttpsError("invalid-argument", "ID e título são obrigatórios.");
+  }
+  const sprintRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id);
+  await sprintRef.update(data);
+  return {result: "Corridinha atualizada.", id};
+};
+
+const deleteDailySprint = async (request: CallableRequest) => {
+  await ensureIsAdmin(request);
+  const {id} = request.data;
+  if (!id) {
+    throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
+  }
+  await db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id).delete();
+  return {result: "Corridinha excluída."};
+};
+
+const toggleDailySprint = async (request: CallableRequest) => {
+  await ensureIsAdmin(request);
+  const {id, isActive} = request.data;
+  if (!id) {
+    throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
+  }
+  const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
+  const batch = db.batch();
+  if (isActive) {
+    const otherSprints = await sprintsRef.where("isActive", "==", true).get();
+    otherSprints.forEach((doc) => {
+      batch.update(doc.ref, {isActive: false});
+    });
+  }
+  const sprintRef = sprintsRef.doc(id);
+  batch.update(sprintRef, {isActive});
+  await batch.commit();
+  return {result: `Corridinha ${isActive ? "ativada" : "desativada"}.`};
+};
+
+
+// ##################################################
 // ### OUTRAS FUNÇÕES ###
 // ##################################################
 
@@ -318,31 +388,6 @@ const updateSellerPoints = async (request: CallableRequest) => {
   }
 };
 
-const createDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
-  const {title, sprintTiers, participantIds} = request.data;
-  if (!title || !sprintTiers || !participantIds ||
-      participantIds.length === 0) {
-    throw new HttpsError("invalid-argument", "Argumentos inválidos.");
-  }
-
-  const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
-  try {
-    const newSprintData = {
-      title, sprintTiers, participantIds, isActive: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    const docRef = await sprintsRef.add(newSprintData);
-
-    return {
-      result: `Corridinha "${title}" criada.`,
-      id: docRef.id,
-    };
-  } catch (error) {
-    throw new HttpsError("internal", "Ocorreu um erro ao criar a corridinha.");
-  }
-};
-
 const incrementAttendance = async (request: CallableRequest) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Ação não autenticada.");
@@ -405,47 +450,6 @@ const updateAttendance = async (request: CallableRequest) => {
   } catch (error) {
     throw new HttpsError("internal", "Erro ao atualizar o contador.");
   }
-};
-
-const updateDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
-  const {id, ...data} = request.data;
-  if (!id || !data.title) {
-    throw new HttpsError("invalid-argument", "ID e título são obrigatórios.");
-  }
-  const sprintRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id);
-  await sprintRef.update(data);
-  return {result: "Corridinha atualizada."};
-};
-
-const deleteDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
-  const {id} = request.data;
-  if (!id) {
-    throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
-  }
-  await db.collection(`${ARTIFACTS_PATH}/dailySprints`).doc(id).delete();
-  return {result: "Corridinha excluída."};
-};
-
-const toggleDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
-  const {id, isActive} = request.data;
-  if (!id) {
-    throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
-  }
-  const sprintsRef = db.collection(`${ARTIFACTS_PATH}/dailySprints`);
-  const batch = db.batch();
-  if (isActive) {
-    const otherSprints = await sprintsRef.where("isActive", "==", true).get();
-    otherSprints.forEach((doc) => {
-      batch.update(doc.ref, {isActive: false});
-    });
-  }
-  const sprintRef = sprintsRef.doc(id);
-  batch.update(sprintRef, {isActive});
-  await batch.commit();
-  return {result: `Corridinha ${isActive ? "ativada" : "desativada"}.`};
 };
 
 const getWorkScheduleForWeek = async (request: CallableRequest) => {
