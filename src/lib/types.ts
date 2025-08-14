@@ -77,6 +77,8 @@ export interface Course {
     quiz: QuizQuestion[];
     points: number;
     dificuldade: CourseDifficulty;
+    pdfUrl?: string;
+    pdfFileName?: string;
 }
 
 export interface QuizQuestion {
