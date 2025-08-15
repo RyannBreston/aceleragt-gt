@@ -78,25 +78,16 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   // Gerenciamento de dados
   useEffect(() => {
     if (!admin) {
-        if (!auth.currentUser) setIsLoading(false);
-        return;
-    }
-    
-    // Assegura que a variável de ambiente está disponível antes de fazer a query
-    const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-    if (!appId) {
-        console.error("A variável de ambiente NEXT_PUBLIC_FIREBASE_APP_ID não está definida!");
-        setIsLoading(false);
-        return;
+      if (!auth.currentUser) setIsLoading(false);
+      return;
     }
 
-    const dataPathPrefix = `artifacts/${appId}/public/data`;
-
+    // CORREÇÃO FINAL: As coleções estão na raiz. O caminho complexo 'artifacts' foi removido.
     const listeners = [
-      { path: `${dataPathPrefix}/sellers`, setter: setSellers },
-      { path: `${dataPathPrefix}/missions`, setter: setMissions },
-      { path: `${dataPathPrefix}/dailySprints`, setter: setSprints },
-      { path: `${dataPathPrefix}/cycle_history`, setter: setCycleHistory },
+      { path: 'sellers', setter: setSellers },
+      { path: 'missions', setter: setMissions },
+      { path: 'dailySprints', setter: setSprints },
+      { path: 'cycle_history', setter: setCycleHistory },
     ];
     let loadedCount = 0;
 
@@ -118,7 +109,8 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       });
     });
 
-    const goalsRef = doc(db, `${dataPathPrefix}/goals/main`);
+    // A coleção 'goals' também pode estar na raiz, vamos simplificar para consistência.
+    const goalsRef = doc(db, 'goals', 'main');
     const unsubGoals = onSnapshot(goalsRef, (doc) => {
       setGoals(doc.exists() ? doc.data() as GoalsType : null);
       onDataLoaded();
