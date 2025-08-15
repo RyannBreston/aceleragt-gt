@@ -14,6 +14,69 @@ const ARTIFACTS_PATH = `artifacts/${
 const corsOptions = {cors: true};
 
 // ##################################################
+// ### FUNÇÃO PARA LISTAR TODOS OS UTILIZADORES ###
+// ##################################################
+const listAllUsers = async (request: CallableRequest) => {
+  // Apenas administradores podem chamar esta função
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
+
+  try {
+    const listUsersResult = await admin.auth().listUsers();
+    const users = listUsersResult.users.map((userRecord) => {
+      return {
+        uid: userRecord.uid,
+        email: userRecord.email,
+        name: userRecord.displayName,
+        role: userRecord.customClaims?.role || "unknown", // Pega a role das custom claims
+      };
+    });
+    return users;
+  } catch (error) {
+    console.error("Erro ao listar utilizadores:", error);
+    throw new HttpsError("internal", "Ocorreu um erro ao listar os utilizadores.");
+  }
+};
+
+
+// ##################################################
+// ### FUNÇÃO PARA DEFINIR FUNÇÃO DE UTILIZADOR ###
+// ##################################################
+
+const setUserRole = async (request: CallableRequest) => {
+  // Apenas administradores podem chamar esta função
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
+
+  const {uid, newRole} = request.data;
+  if (!uid || !newRole || !["admin", "seller"].includes(newRole)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "UID do utilizador e uma função válida ('admin' ou 'seller') são obrigatórios."
+    );
+  }
+
+  try {
+    // Define a reivindicação personalizada no Firebase Auth
+    await admin.auth().setCustomUserClaims(uid, {role: newRole});
+
+    // Atualiza o documento do utilizador no Firestore
+    await db.collection("users").doc(uid).update({role: newRole});
+
+    // Revoga os tokens de atualização para forçar o cliente a obter um novo token de ID
+    await admin.auth().revokeRefreshTokens(uid);
+
+    return {result: `Função de ${uid} definida como ${newRole} com sucesso.`};
+  } catch (error) {
+    console.error("Erro ao definir a função do utilizador:", error);
+    throw new HttpsError("internal", "Ocorreu um erro ao definir a função do utilizador.");
+  }
+};
+
+
+// ##################################################
 // ### FUNÇÕES DE GESTÃO DE ESCALA DE TRABALHO ###
 // ##################################################
 
@@ -446,12 +509,14 @@ const getWorkScheduleForWeek = async (request: CallableRequest) => {
 
 // Mapeamento de ações para funções
 const actions: { [key: string]: (request: CallableRequest) => unknown } = {
+  listAllUsers, // Adicionada a nova função
   createAdmin, updateAdmin, changeAdminPassword,
   createSeller, updateSeller, deleteSeller, changeSellerPassword,
   updateSellerPoints,
   createDailySprint, updateDailySprint, deleteDailySprint, toggleDailySprint,
   incrementAttendance, resetAttendance, updateAttendance,
   setWorkSchedule, getWorkScheduleForWeek, getSchedulePageData,
+  setUserRole,
 };
 
 // Ponto de entrada principal da API
