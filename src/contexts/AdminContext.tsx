@@ -38,53 +38,54 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthReady, setIsAuthReady] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribers: (() => void)[] = [];
+
+    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
+      // Limpa listeners antigos ao mudar de usuário ou ao deslogar
+      unsubscribers.forEach(unsub => unsub());
+      unsubscribers = [];
+      dataStore.setAdmin(() => null); // Reseta o admin
+
       if (user) {
         const idTokenResult = await user.getIdTokenResult(true);
         if (idTokenResult.claims.role === 'admin') {
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
+
           if (userDoc.exists()) {
             dataStore.setAdmin(() => ({ id: user.uid, ...userDoc.data() } as Admin));
-          } else {
-             dataStore.setAdmin(() => null);
+
+            // Configura os listeners DEPOIS de confirmar que o usuário é um admin
+            const createListener = <T,>(path: string, setter: (updater: (prev: T[]) => T[]) => void, orderField = 'name', orderDir: 'asc' | 'desc' = 'asc') => {
+                const q = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/${path}`), orderBy(orderField, orderDir));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    setter(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() } as T)));
+                });
+                unsubscribers.push(unsubscribe);
+            };
+
+            createListener<Seller>('sellers', dataStore.setSellers);
+            createListener<DailySprint>('dailySprints', dataStore.setSprints, 'createdAt', 'desc');
+            createListener<Mission>('missions', dataStore.setMissions);
+            createListener<CycleSnapshot>('cycle_history', dataStore.setCycleHistory, 'endDate');
+
+            const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
+            const unsubGoals = onSnapshot(goalsRef, (doc) => {
+                dataStore.setGoals(() => (doc.exists() ? doc.data() as GoalsType : null));
+            });
+            unsubscribers.push(unsubGoals);
           }
-        } else {
-          dataStore.setAdmin(() => null);
         }
-      } else {
-        dataStore.setAdmin(() => null);
       }
+      // Marca como pronto apenas no final do processo
       setIsAuthReady(true);
     });
-    return () => unsubscribe();
-  }, []);
 
-  useEffect(() => {
-    if (!isAuthReady || !admin) return;
-
-    const unsubscribers: (() => void)[] = [];
-    const createListener = <T,>(path: string, setter: (updater: (prev: T[]) => T[]) => void, orderField = 'name', orderDir: 'asc' | 'desc' = 'asc') => {
-        const q = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/${path}`), orderBy(orderField, orderDir));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setter(() => snapshot.docs.map(d => ({ id: d.id, ...d.data() } as T)));
-        });
-        unsubscribers.push(unsubscribe);
+    return () => {
+      authUnsubscribe();
+      unsubscribers.forEach(unsub => unsub());
     };
-    
-    createListener<Seller>('sellers', dataStore.setSellers);
-    createListener<DailySprint>('dailySprints', dataStore.setSprints, 'createdAt', 'desc');
-    createListener<Mission>('missions', dataStore.setMissions);
-    createListener<CycleSnapshot>('cycle_history', dataStore.setCycleHistory, 'endDate');
-
-    const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
-    const unsubGoals = onSnapshot(goalsRef, (doc) => {
-        dataStore.setGoals(() => (doc.exists() ? doc.data() as GoalsType : null));
-    });
-    unsubscribers.push(unsubGoals);
-
-    return () => { unsubscribers.forEach(unsub => unsub()); };
-  }, [isAuthReady, admin]);
+  }, []);
 
   const callApi = useCallback(async (action: string, data: object) => {
     const callable = httpsCallable(functions, 'api');
