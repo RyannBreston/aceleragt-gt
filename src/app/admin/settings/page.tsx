@@ -226,7 +226,7 @@ const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
 
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
-    const { sellers: contextSellers, goals: contextGoals } = useAdminContext();
+    const { sellers: contextSellers, goals: contextGoals, setIsDirty } = useAdminContext();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -235,7 +235,11 @@ export default function SettingsPage() {
         defaultValues: { sellers: [], goals: contextGoals || undefined },
     });
 
-    const { control, handleSubmit, reset, formState: { isDirty } } = form;
+    const { control, handleSubmit, reset, formState: { isDirty: isFormDirty } } = form;
+
+    useEffect(() => {
+        setIsDirty(isFormDirty);
+    }, [isFormDirty, setIsDirty]);
     
     useEffect(() => {
         if (contextSellers.length > 0) {
@@ -278,7 +282,7 @@ export default function SettingsPage() {
     };
 
     const handleEndCycle = useCallback(async () => {
-        if (isDirty) {
+        if (isFormDirty) {
             toast({ variant: "destructive", title: "Alterações Pendentes", description: "Salve as suas alterações antes de finalizar o ciclo."});
             return;
         }
@@ -308,13 +312,13 @@ export default function SettingsPage() {
         } finally {
             setIsSaving(false);
         }
-    }, [isDirty, contextSellers, contextGoals, toast]);
+    }, [isFormDirty, contextSellers, contextGoals, toast]);
 
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4"><Shield className="size-8 text-primary" /><h1 className="text-3xl font-bold">Configurações Gerais</h1></div>
-                {isDirty && (
+                {isFormDirty && (
                     <div className="flex items-center gap-2">
                         <span className="text-yellow-400 font-semibold hidden sm:inline">Alterações não salvas</span>
                         <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
@@ -335,7 +339,7 @@ export default function SettingsPage() {
                         <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={control} fields={contextSellers} /></TabsContent>
                         <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={control} /></TabsContent>
                         <TabsContent value="modulos" className="mt-6"><GestaoDeModulos control={control} /></TabsContent>
-                        <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={isDirty} /></TabsContent>
+                        <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={isFormDirty} /></TabsContent>
                     </Tabs>
                 </form>
             </Form>
