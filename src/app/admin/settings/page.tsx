@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useForm, Control, UseFormGetValues } from "react-hook-form";
+import { useForm, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group, CalendarDays } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useAdminContext, Goals } from '@/contexts/AdminContext';
+import { useAdminContext } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
+import { db } from '@/lib/firebase';
 import { doc, addDoc, collection, writeBatch } from "firebase/firestore";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import type { Seller } from '@/lib/types';
@@ -54,7 +54,7 @@ const sellerPerformanceSchema = z.object({
   salesValue: z.coerce.number().min(0, "Deve ser positivo."),
   ticketAverage: z.coerce.number().min(0, "Deve ser positivo."),
   pa: z.coerce.number().min(0, "Deve ser positivo."),
-  extraPoints: z.coerce.number().min(0, "Deve ser positivo."),
+  points: z.coerce.number().min(0, "Deve ser positivo."),
 });
 
 const gamificationSchema = z.object({
@@ -91,7 +91,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
         <CardHeader><CardTitle>Lançamento de Performance</CardTitle><CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription></CardHeader>
         <CardContent className="overflow-x-auto">
             <Table>
-                <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos Extras</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos (Performance)</TableHead></TableRow></TableHeader>
                 <TableBody>
                     {fields.map((field, index) => (
                         <TableRow key={field.id}>
@@ -99,7 +99,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
                             <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.extraPoints`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.points`} render={({ field }) => <Input type="number" {...field} value={field.value || ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} />} /></TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
@@ -108,8 +108,8 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
     </Card>
 );
 
-const FormularioDeMetas = ({ control, getValues }: { control: Control<FormData>, getValues: UseFormGetValues<FormData> }) => {
-    const goalMetrics = Object.keys(getValues('goals')).filter(k => k !== 'gamification' && k !== 'teamGoalBonus') as GoalMetric[];
+const FormularioDeMetas = ({ control }: { control: Control<FormData> }) => {
+    const goalMetrics: GoalMetric[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
     const goalLevels: GoalLevels[] = ['metinha', 'meta', 'metona', 'lendaria'];
     const getMetricLabel = (metric: string) => ({ salesValue: 'Vendas', ticketAverage: 'Ticket Médio', pa: 'PA (Peças por Atendimento)', points: 'Pontos' }[metric] || metric);
     
@@ -226,7 +226,7 @@ const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
 
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
-    const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals } = useAdminContext();
+    const { sellers: contextSellers, goals: contextGoals } = useAdminContext();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -242,7 +242,7 @@ export default function SettingsPage() {
             reset({
                 sellers: contextSellers.map(s => ({
                     id: s.id, name: s.name, salesValue: s.salesValue || 0,
-                    ticketAverage: s.ticketAverage || 0, pa: s.pa || 0, extraPoints: s.extraPoints || 0,
+                    ticketAverage: s.ticketAverage || 0, pa: s.pa || 0, points: s.points || 0,
                 })),
                 goals: contextGoals || undefined,
             });
@@ -257,7 +257,7 @@ export default function SettingsPage() {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, {
                     salesValue: seller.salesValue, ticketAverage: seller.ticketAverage,
-                    pa: seller.pa, extraPoints: seller.extraPoints,
+                    pa: seller.pa, points: seller.points,
                 });
             });
             
@@ -266,14 +266,12 @@ export default function SettingsPage() {
             const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
             batch.set(goalsRef, cleanedGoals, { merge: true });
             await batch.commit();
-
-            setSellers(prevSellers => prevSellers.map(cs => ({ ...cs, ...data.sellers.find(ds => ds.id === cs.id) })));
-            setGoals(() => cleanedGoals as Goals);
             
             toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
             reset(data);
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao Salvar", description: String(error) });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+            toast({ variant: "destructive", title: "Erro ao Salvar", description: errorMessage });
         } finally {
             setIsSaving(false);
         }
@@ -286,6 +284,9 @@ export default function SettingsPage() {
         }
         setIsSaving(true);
         try {
+            if (!contextSellers || !contextGoals) {
+                throw new Error("Dados de vendedores ou metas não estão prontos.");
+            }
             await addDoc(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/cycle_history`), {
                 endDate: new Date(),
                 sellers: contextSellers,
@@ -293,32 +294,21 @@ export default function SettingsPage() {
             });
 
             const batch = writeBatch(db);
-            const updatedSellers: Seller[] = contextSellers.map(seller => {
+            contextSellers.forEach(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
-                batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 });
-                return { ...seller, salesValue: 0, ticketAverage: 0, pa: 0, points: 0, extraPoints: 0 };
+                batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0 });
             });
 
             await batch.commit();
-
-            setSellers(() => updatedSellers);
-
-            const updatedFormData = {
-                sellers: updatedSellers.map(s => ({
-                    id: s.id, name: s.name, salesValue: 0, ticketAverage: 0, pa: 0, extraPoints: 0
-                })),
-                goals: contextGoals
-            };
-            
-            reset(updatedFormData as FormData);
             
             toast({ title: "Ciclo Finalizado!", description: "Dados de performance zerados." });
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro ao Finalizar Ciclo", description: String(error) });
+        } catch (error: unknown) {
+             const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+            toast({ variant: "destructive", title: "Erro ao Finalizar Ciclo", description: errorMessage });
         } finally {
             setIsSaving(false);
         }
-    }, [isDirty, contextSellers, contextGoals, toast, setSellers, reset]);
+    }, [isDirty, contextSellers, contextGoals, toast]);
 
     return (
         <div className="space-y-8">
@@ -343,7 +333,7 @@ export default function SettingsPage() {
                             <TabsTrigger value="ciclo">Ciclo de Vendas</TabsTrigger>
                         </TabsList>
                         <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={control} fields={contextSellers} /></TabsContent>
-                        <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={control} getValues={form.getValues} /></TabsContent>
+                        <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={control} /></TabsContent>
                         <TabsContent value="modulos" className="mt-6"><GestaoDeModulos control={control} /></TabsContent>
                         <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={isDirty} /></TabsContent>
                     </Tabs>

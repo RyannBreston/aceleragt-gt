@@ -14,50 +14,13 @@ const ARTIFACTS_PATH = `artifacts/${
 const corsOptions = {cors: true};
 
 // ##################################################
-// ### FUNÇÃO DE VERIFICAÇÃO E AUTO-CORREÇÃO DE PERMISSÃO ###
-// ##################################################
-
-const ensureIsAdmin = async (request: CallableRequest) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Ação não autenticada.");
-  }
-  const uid = request.auth.uid;
-  try {
-    const user = await admin.auth().getUser(uid);
-    // Se a permissão já estiver no token, permite a passagem.
-    if (user.customClaims?.role === "admin") {
-      return;
-    }
-
-    // Se a permissão não estiver no token, verifica o banco de dados.
-    const userDocRef = db.collection("users").doc(uid);
-    const userDoc = await userDocRef.get();
-
-    // Se o banco de dados confirmar que é admin, corrige e permite a passagem.
-    if (userDoc.exists && userDoc.data()?.role === "admin") {
-      await admin.auth().setCustomUserClaims(uid, {role: "admin"});
-      return;
-    }
-
-    // Se não for admin em nenhum dos locais, nega o acesso.
-    throw new HttpsError("permission-denied", "Ação não autorizada.");
-  } catch (error) {
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    throw new HttpsError(
-      "permission-denied", "Falha ao verificar permissões de administrador."
-    );
-  }
-};
-
-
-// ##################################################
 // ### FUNÇÕES DE GESTÃO DE ESCALA DE TRABALHO ###
 // ##################################################
 
 const getSchedulePageData = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {weekIdentifier} = request.data;
   if (!weekIdentifier) {
     throw new HttpsError(
@@ -83,7 +46,9 @@ const getSchedulePageData = async (request: CallableRequest) => {
 };
 
 const setWorkSchedule = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {weekIdentifier, schedule} = request.data;
   if (!weekIdentifier || !schedule) {
     const msg = "Identificador da semana e escala são obrigatórios.";
@@ -102,7 +67,9 @@ const setWorkSchedule = async (request: CallableRequest) => {
 // ##################################################
 
 const createDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {title, sprintTiers, participantIds} = request.data;
   if (!title || !sprintTiers || !participantIds ||
       participantIds.length === 0) {
@@ -126,7 +93,9 @@ const createDailySprint = async (request: CallableRequest) => {
 };
 
 const updateDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {id, ...data} = request.data;
   if (!id || !data.title) {
     throw new HttpsError("invalid-argument", "ID e título são obrigatórios.");
@@ -137,7 +106,9 @@ const updateDailySprint = async (request: CallableRequest) => {
 };
 
 const deleteDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {id} = request.data;
   if (!id) {
     throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
@@ -147,7 +118,9 @@ const deleteDailySprint = async (request: CallableRequest) => {
 };
 
 const toggleDailySprint = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {id, isActive} = request.data;
   if (!id) {
     throw new HttpsError("invalid-argument", "ID da corridinha é obrigatório.");
@@ -172,7 +145,9 @@ const toggleDailySprint = async (request: CallableRequest) => {
 // ##################################################
 
 const createAdmin = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {email, password, name} = request.data;
   if (!email || !password || !name || password.length < 6) {
     throw new HttpsError(
@@ -212,7 +187,9 @@ const createAdmin = async (request: CallableRequest) => {
 };
 
 const updateAdmin = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid, name, email} = request.data;
   if (!uid || !name || !email) {
     throw new HttpsError(
@@ -238,7 +215,9 @@ const updateAdmin = async (request: CallableRequest) => {
 };
 
 const changeAdminPassword = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid, newPassword} = request.data;
   if (!uid || !newPassword || newPassword.length < 6) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -254,7 +233,9 @@ const changeAdminPassword = async (request: CallableRequest) => {
 };
 
 const createSeller = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {email, password, name} = request.data;
   if (!email || !password || !name || password.length < 6) {
     throw new HttpsError("invalid-argument", "Argumentos inválidos.");
@@ -296,7 +277,9 @@ const createSeller = async (request: CallableRequest) => {
 };
 
 const updateSeller = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid, name, email} = request.data;
   if (!uid || !name || !email) {
     throw new HttpsError("invalid-argument", "Argumentos inválidos.");
@@ -323,7 +306,9 @@ const updateSeller = async (request: CallableRequest) => {
 };
 
 const deleteSeller = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid} = request.data;
   if (!uid) {
     throw new HttpsError("invalid-argument", "O ID do utilizador é necessário.");
@@ -344,7 +329,9 @@ const deleteSeller = async (request: CallableRequest) => {
 };
 
 const changeSellerPassword = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid, newPassword} = request.data;
   if (!uid || !newPassword || newPassword.length < 6) {
     throw new HttpsError("invalid-argument", "Dados inválidos.");
@@ -360,7 +347,9 @@ const changeSellerPassword = async (request: CallableRequest) => {
 };
 
 const updateSellerPoints = async (request: CallableRequest) => {
-  await ensureIsAdmin(request);
+  if (request.auth?.token.role !== "admin") {
+    throw new HttpsError("permission-denied", "Ação não autorizada.");
+  }
   const {uid, points} = request.data;
   if (!uid || points === undefined ||
       typeof points !== "number" || points < 0) {

@@ -46,7 +46,6 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
     let dataUnsubscribers: (() => void)[] = [];
 
     const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Limpa listeners antigos ao mudar de usuário
       dataUnsubscribers.forEach(unsub => unsub());
       dataUnsubscribers = [];
       
@@ -54,7 +53,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setIsSeller(false);
         setUserId(null);
         setCurrentSeller(null);
-        setIsAuthReady(true); // Fim do processo para usuário deslogado
+        setIsAuthReady(true);
         return;
       }
 
@@ -79,7 +78,6 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         setIsSeller(false);
         setCurrentSeller(null);
       }
-      // Garante que o estado de "pronto" seja definido para todos os caminhos de usuário logado
       setIsAuthReady(true);
     });
 
@@ -106,11 +104,12 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
 
   // Efeito para calcular os dados do vendedor atual
   useEffect(() => {
+    // CORRIGIDO: Recalcula quando o activeSprint muda
     const unsub = store.subscribe(({ sellers, goals }) => {
         if (userId && sellers.length > 0 && goals) {
             const sellerData = sellers.find(s => s.id === userId);
             if (sellerData) {
-                const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
+                const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals, activeSprint);
                 setCurrentSeller(sellerWithPrizes);
             }
         } else {
@@ -118,7 +117,7 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         }
     });
     return () => unsub();
-  }, [userId]);
+  }, [userId, activeSprint]);
 
   const contextValue: SellerContextType = useMemo(() => ({
     ...state,

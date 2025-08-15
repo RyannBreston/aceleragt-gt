@@ -42,17 +42,18 @@ const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style:
 // ####################################################################
 
 const useRankingData = (criterion: RankingCriterion) => {
-    const { sellers, goals } = useAdminContext();
+    const { sellers, goals, sprints } = useAdminContext();
     
     const sellersWithPrizes = useMemo(() => {
         if (!goals) return [];
-        return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
-    }, [sellers, goals]);
+        const activeSprint = sprints.find(s => s.isActive) || null;
+        return sellers.map(s => calculateSellerPrizes(s, sellers, goals, activeSprint));
+    }, [sellers, goals, sprints]);
 
     const sortedSellers = useMemo(() => {
         return [...sellersWithPrizes].sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
-            if (criterion === 'points') return b.points - a.points; // CORRIGIDO
+            if (criterion === 'points') return b.points - a.points;
             const valueA = (a as any)[criterion] || 0;
             const valueB = (b as any)[criterion] || 0;
             return valueB - valueA;
@@ -144,7 +145,7 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
     const prizeForCriterion = criterion === 'totalPrize'
         ? seller.totalPrize
         : (seller.prizes as any)[criterion] || 0;
-    const sellerResult = seller[criterion as keyof SellerWithPrize] as number || 0; // CORRIGIDO
+    const sellerResult = seller[criterion as keyof SellerWithPrize] as number || 0; 
             
     const isCurrency = criterion !== 'points' && criterion !== 'pa';
 
@@ -203,7 +204,6 @@ export default function RankingPage() {
     const [selectedSeller, setSelectedSeller] = useState<SellerWithPrize | null>(null);
     const sortedSellers = useRankingData(criterion);
     
-    // Auto-seleciona o primeiro vendedor da lista quando o critério ou a lista mudam
     React.useEffect(() => {
         if (sortedSellers.length > 0) {
             setSelectedSeller(sortedSellers[0]);
@@ -217,7 +217,7 @@ export default function RankingPage() {
     };
     
     const getResultForSeller = (seller: SellerWithPrize) => {
-        const result = seller[criterion as keyof SellerWithPrize] as number || 0; // CORRIGIDO
+        const result = seller[criterion as keyof SellerWithPrize] as number || 0;
         return criterion === 'pa' || criterion === 'points' ? result.toLocaleString('pt-BR') : formatCurrency(result);
     };
 
@@ -239,7 +239,7 @@ export default function RankingPage() {
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-1 space-y-4">
+                <div className="lg-col-span-1 space-y-4">
                      <Card>
                         <CardHeader className='pb-4'><CardTitle>Classificação</CardTitle></CardHeader>
                         <CardContent className="space-y-3">

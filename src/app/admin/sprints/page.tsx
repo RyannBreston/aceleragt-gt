@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -13,8 +13,6 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, PlusCircle, Save, Zap, MoreVertical, Pencil, Trash2, Users, X, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAdminContext } from '@/contexts/AdminContext';
-import { functions } from '@/lib/firebase';
-import { httpsCallable } from 'firebase/functions';
 import type { Seller, DailySprint, SprintTier } from '@/lib/types';
 import { EmptyState } from '@/components/EmptyState';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -23,7 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: Partial<DailySprint>; sellers: Seller[]; onSave: (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => Promise<void>; onCancel: () => void; }) => {
     const { toast } = useToast();
     const [title, setTitle] = useState(initialData.title || '');
-    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>(initialData.sprintTiers || [{ goal: 200, points: 50, label: ""}, { goal: 400, points: 100, label: "" }, { goal: 600, points: 150, label: "" }]);
+    const [sprintTiers, setSprintTiers] = useState<SprintTier[]>(initialData.sprintTiers || [{ goal: 200, prize: 10, label: ""}, { goal: 400, prize: 20, label: "" }, { goal: 600, prize: 30, label: "" }]);
     const [participantIds, setParticipantIds] = useState<string[]>(initialData.participantIds || []);
     const [searchTerm, setSearchTerm] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,13 +30,13 @@ const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: P
         return sellers.filter(seller => seller.name.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [sellers, searchTerm]);
 
-    const handleTierChange = (index: number, field: 'goal' | 'points', value?: number) => {
+    const handleTierChange = (index: number, field: 'goal' | 'prize', value?: number) => {
         const newTiers = [...sprintTiers];
         newTiers[index] = { ...newTiers[index], [field]: value || 0, label: newTiers[index].label || "" };
         setSprintTiers(newTiers);
     };
 
-    const handleAddTier = () => setSprintTiers(prev => [...prev, { goal: 0, points: 0, label: "" }]);
+    const handleAddTier = () => setSprintTiers(prev => [...prev, { goal: 0, prize: 0, label: "" }]);
     const handleRemoveTier = (index: number) => setSprintTiers(prev => prev.filter((_, i) => i !== index));
 
     const handleSave = async () => {
@@ -57,7 +55,7 @@ const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: P
             <DialogContent className="max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>{initialData.id ? 'Editar Corridinha' : 'Criar Corridinha'}</DialogTitle>
-                    <DialogDescription>Defina os detalhes e metas da corridinha.</DialogDescription>
+                    <DialogDescription>Defina as metas de vendas e o prémio em R$ correspondente.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 flex-grow overflow-y-auto pr-4">
                     <div><Label htmlFor="sprint-title">Título</Label><Input id="sprint-title" value={title} onChange={e => setTitle(e.target.value)} /></div>
@@ -66,7 +64,7 @@ const SprintForm = ({ initialData, sellers, onSave, onCancel }: { initialData: P
                         {sprintTiers.map((tier, index) => (
                             <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2">
                                 <CurrencyInput value={tier.goal} onValueChange={value => handleTierChange(index, 'goal', value)} placeholder="Valor da Meta (R$)" />
-                                <Input type="number" value={tier.points} onChange={e => handleTierChange(index, 'points', Number(e.target.value))} placeholder="Prémio (Pts)" />
+                                <CurrencyInput value={tier.prize} onValueChange={value => handleTierChange(index, 'prize', value)} placeholder="Prémio (R$)" />
                                 <Button variant="ghost" size="icon" onClick={() => handleRemoveTier(index)} disabled={sprintTiers.length <= 1}><X className="size-4 text-muted-foreground" /></Button>
                             </div>
                         ))}
@@ -125,7 +123,7 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
             </div>
             <div className="text-sm text-right">
                 <p><strong>Meta Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.goal)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                <p><strong>Prêmio Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.points))} pts</p>
+                <p><strong>Prêmio Máx:</strong> {Math.max(...sprint.sprintTiers.map(t => t.prize)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
             </div>
         </CardContent>
     </Card>
@@ -133,85 +131,60 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
 
 // --- Componente Principal da Página ---
 export default function AdminSprintsPage() {
-    const { sellers, sprints: contextSprints, isAuthReady } = useAdminContext();
+    const { sellers, sprints, saveSprint, deleteSprint, toggleSprint, isAuthReady } = useAdminContext();
     const { toast } = useToast();
-    const [sprints, setSprints] = useState<DailySprint[]>([]);
     const [sprintToEdit, setSprintToEdit] = useState<Partial<DailySprint> | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        setSprints(contextSprints || []);
-    }, [contextSprints]);
+    const handleAction = async (action: Promise<void>, messages: { success: string; error: string }) => {
+        setIsSaving(true);
+        try {
+            await action;
+            toast({ title: 'Sucesso!', description: messages.success });
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : messages.error;
+            toast({ variant: 'destructive', title: 'Erro', description: errorMessage });
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleSave = async (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => {
-        setIsLoading(true);
-        try {
-            const action = id ? 'updateDailySprint' : 'createDailySprint';
-            const callable = httpsCallable(functions, 'api');
-            const result = await callable({ action, ...data, id });
-            
-            const resultData = result.data as { id?: string };
-            const resultId = resultData.id || id;
-
-            if (!resultId) {
-                throw new Error("ID da corridinha não foi retornado pelo backend.");
-            }
-            
-            toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'}.` });
-            setSprintToEdit(null);
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro ao Salvar', description: String(error) });
-        } finally {
-            setIsLoading(false);
-        }
+        await handleAction(saveSprint(data, id), {
+            success: `Corridinha ${id ? 'atualizada' : 'criada'}.`,
+            error: 'Ocorreu um erro ao salvar a corridinha.'
+        });
+        setSprintToEdit(null);
     };
 
-    const handleToggle = async (id: string, isActive: boolean) => {
-        setIsLoading(true);
-        try {
-            const callable = httpsCallable(functions, 'api');
-            await callable({ action: 'toggleDailySprint', id, isActive });
-            toast({ title: 'Sucesso!', description: `Corridinha ${isActive ? 'ativada' : 'desativada'}.` });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro ao Ativar/Desativar', description: String(error) });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const handleToggle = (id: string, isActive: boolean) => handleAction(toggleSprint(id, isActive), {
+        success: `Corridinha ${isActive ? 'ativada' : 'desativada'}.`,
+        error: 'Ocorreu um erro ao alterar o estado da corridinha.'
+    });
 
-    const handleDelete = async (id: string) => {
-        setIsLoading(true);
-        try {
-            const callable = httpsCallable(functions, 'api');
-            await callable({ action: 'deleteDailySprint', id });
-            toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Erro ao Excluir', description: String(error) });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const handleDelete = (id: string) => handleAction(deleteSprint(id), {
+        success: 'Corridinha excluída.',
+        error: 'Ocorreu um erro ao excluir a corridinha.'
+    });
 
     return (
         <div className="space-y-8">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4"><Zap className="size-8 text-primary" /><h1 className="text-3xl font-bold">Corridinhas Diárias</h1></div>
-                <Button onClick={() => setSprintToEdit({})}><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
+                <Button onClick={() => setSprintToEdit({})} disabled={isSaving}><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
             </div>
             
-            {isLoading && <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>}
-            
-            {!isLoading && !isAuthReady && <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>}
-            
-            {!isLoading && isAuthReady && sprints.length === 0 && <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>}
-            
-            {!isLoading && isAuthReady && sprints.length > 0 &&
+            {!isAuthReady ? (
+                 <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>
+            ) : sprints.length === 0 ? (
+                <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>
+            ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sprints.map(sprint => (
                         <SprintCard key={sprint.id} sprint={sprint} onToggle={handleToggle} onEdit={setSprintToEdit} onDelete={handleDelete} />
                     ))}
                 </div>
-            }
+            )}
 
             <Dialog open={!!sprintToEdit} onOpenChange={(isOpen) => !isOpen && setSprintToEdit(null)}>
                 {sprintToEdit && <SprintForm initialData={sprintToEdit} sellers={sellers} onSave={handleSave} onCancel={() => setSprintToEdit(null)} />}

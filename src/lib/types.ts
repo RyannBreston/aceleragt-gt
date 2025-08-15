@@ -20,8 +20,7 @@ export interface Seller {
   salesValue: number;
   ticketAverage: number;
   pa: number;
-  points: number;
-  extraPoints: number;
+  points: number; // Pontos de performance (ex: Academia)
   dailyAttendanceCount?: number;
   lastAttendanceUpdate?: Timestamp;
   completedCourseIds?: string[];
@@ -107,7 +106,7 @@ export interface QuizResult {
 
 export interface SprintTier {
     goal: number;
-    points: number;
+    prize: number; // CORRIGIDO: de 'points' para 'prize' (R$)
     label: string;
 }
 
@@ -169,7 +168,6 @@ export interface Mission {
   deadline: Date;
 }
 
-// ✅ Tipo adicionado conforme solicitado
 export interface SalesEntry {
   id: string;
   sellerId: string;
@@ -180,7 +178,6 @@ export interface SalesEntry {
   productsPerService: number;
 }
 
-// Tipo para o Ranking e cálculos de prémios
 export type SellerWithPrizes = Seller & {
   prizes: {
     salesValue: number;
@@ -188,6 +185,7 @@ export type SellerWithPrizes = Seller & {
     pa: number;
     points: number;
   };
+  sprintPrize: number; // NOVO: Prémio em R$ acumulado das corridinhas
   totalPrize: number;
   teamBonusApplied: boolean;
   topScorerBonus: number;

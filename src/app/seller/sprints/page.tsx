@@ -1,58 +1,42 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Zap, Check, Award } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import type { DailySprint, Seller, Goals, GoalLevel, MetricGoals } from '@/lib/types';
+import type { DailySprint, SellerWithPrizes } from '@/lib/types';
 import { cn } from '@/lib/client-utils';
 import { EmptyState } from '@/components/EmptyState';
 
-// --- Componente: Card de Prémios da Corridinha ---
-const SprintPrizesCard = ({ seller, goals }: { seller: Seller, goals: Goals | null }) => {
-    const extraPoints = seller.extraPoints || 0;
+const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-    const prizeFromPoints = useMemo(() => {
-        if (!goals || !goals.points) return 0;
+// --- Componente: Card de Prémios Acumulados ---
+const SprintPrizesCard = ({ seller }: { seller: SellerWithPrizes }) => {
+    const sprintPrize = seller.sprintPrize || 0;
 
-        const pointGoals = goals.points as MetricGoals;
-        const totalPoints = (seller.points || 0) + extraPoints;
-        const levels: (keyof MetricGoals)[] = ['lendaria', 'metona', 'meta', 'metinha'];
-        
-        for (const level of levels) {
-            const goalLevel = pointGoals[level] as GoalLevel;
-            if (goalLevel && goalLevel.threshold > 0 && totalPoints >= goalLevel.threshold) {
-                return goalLevel.prize || 0;
-            }
-        }
-        return 0;
-    }, [seller, extraPoints, goals]);
+    if (sprintPrize === 0) return null;
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Award /> Prémios das Corridinhas</CardTitle>
-                <CardDescription>O seu acumulado de prémios ganhos através das corridinhas diárias neste ciclo.</CardDescription>
+                <CardDescription>O seu prémio em R$ acumulado através das corridinhas diárias neste ciclo.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent>
                 <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-muted-foreground">Pontos Extras Ganhos</h3>
-                    <p className="text-3xl font-bold text-primary">{extraPoints.toLocaleString('pt-BR')}</p>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-muted-foreground">Impacto no Prémio de Pontos</h3>
-                    <p className="text-3xl font-bold text-green-400">{prizeFromPoints.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Este valor representa o seu prémio total na categoria de Pontos (metas + corridinhas).</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Prémio Total Acumulado</h3>
+                    <p className="text-3xl font-bold text-green-400">{formatCurrency(sprintPrize)}</p>
                 </div>
             </CardContent>
         </Card>
     );
 };
 
+
 // --- Componente: Card da Corridinha Ativa ---
-const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Seller }) => {
+const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: SellerWithPrizes }) => {
     const sellerSales = seller.salesValue || 0;
     
     const nextTier = sprint.sprintTiers.find(tier => sellerSales < tier.goal);
@@ -60,14 +44,14 @@ const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Sell
 
     let progress = 0;
     let progressLabel = "Meta máxima atingida!";
-    let description = `Parabéns! Você ganhou ${lastAchievedTier?.points || 0} pontos extras por atingir o último nível!`;
+    let description = `Parabéns! Você atingiu o último nível e garantiu um prémio de ${formatCurrency(lastAchievedTier?.prize || 0)}!`;
 
     if (nextTier) {
         const baseGoal = lastAchievedTier?.goal || 0;
         const range = nextTier.goal - baseGoal;
         progress = range > 0 ? ((sellerSales - baseGoal) / range) * 100 : 0;
-        progressLabel = `Próximo Nível: ${nextTier.goal.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}`;
-        description = `Venda mais ${Math.max(0, nextTier.goal - sellerSales).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})} para ganhar +${nextTier.points} pts!`;
+        progressLabel = `Próximo Nível: ${formatCurrency(nextTier.goal)}`;
+        description = `Venda mais ${formatCurrency(Math.max(0, nextTier.goal - sellerSales))} para ganhar +${formatCurrency(nextTier.prize)}!`;
     }
 
     return (
@@ -100,7 +84,7 @@ const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: Sell
 
 // --- Página Principal ---
 export default function SellerSprintPage() {
-    const { currentSeller, activeSprint, goals, isAuthReady } = useSellerContext();
+    const { currentSeller, activeSprint, isAuthReady } = useSellerContext();
 
     if (!isAuthReady || !currentSeller) {
         return <DashboardSkeleton />;
@@ -113,7 +97,7 @@ export default function SellerSprintPage() {
                 <h1 className="text-3xl font-bold">Corridinha Diária</h1>
             </div>
 
-            <SprintPrizesCard seller={currentSeller} goals={goals} />
+            <SprintPrizesCard seller={currentSeller} />
 
             {activeSprint ? (
                 <DailySprintCard sprint={activeSprint} seller={currentSeller} />

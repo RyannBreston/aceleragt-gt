@@ -56,16 +56,17 @@ const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style:
 // ####################################################################
 
 const useSellerPerformance = (criterion: RankingCriterion) => {
-    const { sellers, goals, currentSeller } = useSellerContext();
+    const { sellers, goals, currentSeller, activeSprint } = useSellerContext();
 
     const sellerData = useMemo(() => {
-         if (!currentSeller || !goals) return null;
-        return calculateSellerPrizes(currentSeller, sellers, goals);
-    }, [currentSeller, sellers, goals]);
+        if (!currentSeller || !goals) return null;
+        // O currentSeller do contexto já vem com os prémios calculados, mas recalculamos aqui para garantir a consistência no-fly
+        return calculateSellerPrizes(currentSeller, sellers, goals, activeSprint);
+    }, [currentSeller, sellers, goals, activeSprint]);
 
     const sortedSellersForRank = useMemo(() => {
         if(!goals) return [];
-        const allSellersWithPrizes = sellers.map(s => calculateSellerPrizes(s, sellers, goals));
+        const allSellersWithPrizes = sellers.map(s => calculateSellerPrizes(s, sellers, goals, activeSprint));
         
         return allSellersWithPrizes.sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
@@ -74,7 +75,7 @@ const useSellerPerformance = (criterion: RankingCriterion) => {
             const valueB = (b as any)[criterion as keyof Seller] || 0;
             return valueB - valueA;
         });
-    }, [sellers, goals, criterion]);
+    }, [sellers, goals, criterion, activeSprint]);
     
     const currentUserRank = useMemo(() => {
         if (!sellerData) return -1;
@@ -172,21 +173,17 @@ const TeamGoalCard = ({ sellers, goals }: { sellers: Seller[], goals: Goals | nu
 };
 
 const SprintPrizesSummaryCard = ({ sellerData }: { sellerData: SellerWithPrize }) => {
-    if (!sellerData.extraPoints || sellerData.extraPoints === 0) return null;
+    if (!sellerData.sprintPrize || sellerData.sprintPrize === 0) return null;
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Zap className="text-yellow-400"/> Prémios da Corridinha</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Zap className="text-yellow-400"/> Prémio da Corridinha</CardTitle>
+                <CardDescription>O seu prémio em R$ acumulado na corridinha diária deste ciclo.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-muted-foreground">Pontos Extras Ganhos</h3>
-                    <p className="text-2xl font-bold text-primary">{sellerData.extraPoints.toLocaleString('pt-BR')}</p>
-                </div>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-muted-foreground">Impacto no Prémio de Pontos</h3>
-                    <p className="text-2xl font-bold text-green-400">{formatCurrency(sellerData.prizes.points)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Este é o seu prémio total na categoria de Pontos (metas + corridinhas).</p>
+                    <h3 className="text-sm font-medium text-muted-foreground">Prémio Acumulado</h3>
+                    <p className="text-2xl font-bold text-green-400">{formatCurrency(sellerData.sprintPrize)}</p>
                 </div>
             </CardContent>
         </Card>

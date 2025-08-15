@@ -2,6 +2,8 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    // Permite a leitura e escrita de qualquer arquivo em qualquer pasta
+    // apenas para usuários que estão autenticados (logados).
     match /{allPaths=**} {
       allow read, write: if request.auth != null;
     }

@@ -1,154 +1,127 @@
 'use client';
 
-import * as React from 'react';
-import Image from 'next/image';
-import { ShoppingBag, Loader2, Star } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy, doc, increment, runTransaction } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from '@/components/ui/button';
+import { useSellerContext } from '@/contexts/SellerContext';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, doc, runTransaction } from 'firebase/firestore';
 import type { PrizeItem } from '@/lib/types';
-import { useSellerContext } from '@/contexts/SellerContext';
-import { EmptyState } from '@/components/EmptyState'; // Importa o novo componente
+import { ShoppingBag } from 'lucide-react';
+import Image from 'next/image';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-// Componentes UI
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+const ARTIFACTS_PATH = `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id'}/public/data`;
+const PRIZE_COLLECTION = `${ARTIFACTS_PATH}/prizes`;
 
-const formatPoints = (value: number) => {
-    return `${value.toLocaleString('pt-BR')} pts`;
+const PrizeCard = ({ prize, onRedeem, currentPoints }: { prize: PrizeItem; onRedeem: (prize: PrizeItem) => void; currentPoints: number; }) => {
+    const canRedeem = currentPoints >= prize.points;
+    return (
+        <Card className="flex flex-col">
+            <CardHeader>
+                <div className="relative aspect-video">
+                    <Image src={prize.imageUrl} alt={prize.name} layout="fill" objectFit="cover" className="rounded-t-lg" />
+                </div>
+            </CardHeader>
+            <CardContent className="flex-grow">
+                <CardTitle>{prize.name}</CardTitle>
+                <CardDescription className="mt-2">{prize.description}</CardDescription>
+            </CardContent>
+            <CardFooter className="flex justify-between items-center">
+                <span className="text-lg font-bold text-primary">{prize.points.toLocaleString('pt-BR')} pts</span>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button disabled={!canRedeem}>Resgatar</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar Resgate</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Você está prestes a resgatar &quot;{prize.name}&quot; por {prize.points} pontos. Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onRedeem(prize)}>Confirmar</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardFooter>
+        </Card>
+    );
 };
 
-export default function SellerLojaPage() {
-  const { toast } = useToast();
-  const { currentSeller, setSellers } = useSellerContext();
-  const [prizes, setPrizes] = React.useState<PrizeItem[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [redeemingId, setRedeemingId] = React.useState<string | null>(null);
-  
-  const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'default-app-id';
-  const prizesCollectionPath = `artifacts/${appId}/public/data/prizes`;
+export default function LojaPage() {
+    const { currentSeller } = useSellerContext();
+    const { toast } = useToast();
+    const [prizes, setPrizes] = useState<PrizeItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-  React.useEffect(() => {
-    const prizesQuery = query(collection(db, prizesCollectionPath), orderBy('points', 'asc'));
-    const unsubscribe = onSnapshot(prizesQuery, (snapshot) => {
-      const prizesList = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PrizeItem));
-      setPrizes(prizesList);
-      setLoading(false);
-    }, () => {
-      toast({ variant: 'destructive', title: 'Erro ao Carregar Prémios', description: "Não foi possível buscar os prémios." });
-      setLoading(false);
-    });
+    useEffect(() => {
+        const q = query(collection(db, PRIZE_COLLECTION), orderBy('points', 'asc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            setPrizes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PrizeItem)));
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
 
-    return () => unsubscribe();
-  }, [prizesCollectionPath, toast]);
-  
-  const handleRedeem = async (prize: PrizeItem) => {
-      if (!currentSeller) return;
+    const handleRedeem = async (prize: PrizeItem) => {
+        if (!currentSeller) return;
 
-      const totalPoints = (currentSeller.points || 0) + (currentSeller.extraPoints || 0);
-      if (totalPoints < prize.points) {
-          toast({ variant: 'destructive', title: 'Pontos Insuficientes!' });
-          return;
-      }
-      
-      setRedeemingId(prize.id);
+        const totalPoints = currentSeller.points || 0;
+        if (totalPoints < prize.points) {
+           toast({ variant: 'destructive', title: 'Pontos Insuficientes!' });
+           return;
+        }
 
-      try {
-        await runTransaction(db, async (transaction) => {
-            const sellerRef = doc(db, 'sellers', currentSeller.id);
-            const prizeRef = doc(db, prizesCollectionPath, prize.id);
+        const sellerRef = doc(db, 'sellers', currentSeller.id);
 
-            const sellerDoc = await transaction.get(sellerRef);
-            if (!sellerDoc.exists()) throw new Error("Vendedor não encontrado.");
-            
-            const currentPoints = (sellerDoc.data().points || 0);
-            if (currentPoints < prize.points) throw new Error("Pontos insuficientes.");
-
-            transaction.update(sellerRef, { points: increment(-prize.points) });
-
-            if (typeof prize.stock === 'number') {
-                const prizeDoc = await transaction.get(prizeRef);
-                if (!prizeDoc.exists() || (prizeDoc.data().stock ?? 0) < 1) {
-                    throw new Error("Prémio esgotado!");
+        try {
+            await runTransaction(db, async (transaction) => {
+                const sellerDoc = await transaction.get(sellerRef);
+                if (!sellerDoc.exists()) {
+                    throw "Vendedor não encontrado.";
                 }
-                transaction.update(prizeRef, { stock: increment(-1) });
-            }
-        });
-        
-        setSellers(prev => prev.map(s => s.id === currentSeller.id ? { ...s, points: (s.points || 0) - prize.points } : s));
 
-        toast({
-            title: 'Resgate bem-sucedido!',
-            description: `Você resgatou "${prize.name}" por ${formatPoints(prize.points)}.`,
-        });
+                const newPoints = (sellerDoc.data().points || 0) - prize.points;
+                if (newPoints < 0) {
+                    throw "Pontos insuficientes.";
+                }
+                
+                transaction.update(sellerRef, { points: newPoints });
+            });
 
-      } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
-          toast({ variant: "destructive", title: "Erro no Resgate", description: errorMessage });
-      } finally {
-          setRedeemingId(null);
-      }
-  }
+            toast({ title: 'Resgate bem-sucedido!', description: `Você resgatou ${prize.name}.` });
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erro no resgate', description: String(error) });
+        }
+    };
 
-  const totalPoints = (currentSeller?.points || 0) + (currentSeller?.extraPoints || 0);
+    if (isLoading || !currentSeller) {
+        return <DashboardSkeleton />;
+    }
 
-  if (loading) {
-    return <EmptyState Icon={Loader2} title="A carregar prémios..." description="Aguarde um momento." className="animate-spin"/>
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-            <ShoppingBag className="size-8 text-primary" />
-            <h1 className="text-3xl font-bold">Loja de Prémios</h1>
-        </div>
-        <Card className="p-3 bg-card border-border/50">
-            <div className="flex items-center gap-2">
-                <Star className="size-5 text-yellow-400" />
-                <span className="text-lg font-bold">{totalPoints.toLocaleString('pt-BR')}</span>
-                <span className="text-sm text-muted-foreground">Pontos Disponíveis</span>
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                    <ShoppingBag className="size-8 text-primary" />
+                    <h1 className="text-3xl font-bold">Loja de Prémios</h1>
+                </div>
+                <div className="p-3 bg-muted rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground">Seus Pontos</p>
+                    <p className="text-2xl font-bold text-primary">{(currentSeller.points || 0).toLocaleString('pt-BR')}</p>
+                </div>
             </div>
-        </Card>
-      </div>
 
-      {prizes.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {prizes.map(prize => {
-            const canAfford = totalPoints >= prize.points;
-            const isOutOfStock = typeof prize.stock === 'number' && prize.stock <= 0;
-            const isDisabled = !canAfford || isOutOfStock || redeemingId === prize.id;
-
-            return (
-              <Card key={prize.id} className="flex flex-col overflow-hidden shadow-lg hover:shadow-primary/20 transition-shadow duration-300">
-                <CardHeader className="p-0 relative">
-                  <Image src={prize.imageUrl || 'https://placehold.co/600x400/27272a/FFF?text=Prêmio'} alt={prize.name} width={600} height={400} className="w-full h-48 object-cover" />
-                  {isOutOfStock && <Badge variant="destructive" className="absolute top-2 right-2">Esgotado</Badge>}
-                </CardHeader>
-                <CardContent className="p-4 flex flex-col flex-grow">
-                  <CardTitle className="text-lg mb-2 flex-grow">{prize.name}</CardTitle>
-                  {prize.description && <CardDescription className="text-xs mb-4">{prize.description}</CardDescription>}
-                  
-                   <div className="mt-auto">
-                     <Badge variant="secondary" className="text-base font-bold text-primary border-primary/50 border-2">
-                        {formatPoints(prize.points)}
-                    </Badge>
-                   </div>
-                </CardContent>
-                <CardFooter className="p-4 bg-muted/50">
-                    <Button onClick={() => handleRedeem(prize)} disabled={isDisabled} className="w-full font-bold">
-                        {redeemingId === prize.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isOutOfStock ? 'Esgotado' : (canAfford ? 'Resgatar' : 'Pontos Insuficientes')}
-                    </Button>
-                </CardFooter>
-              </Card>
-            )
-          })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {prizes.map(prize => (
+                    <PrizeCard key={prize.id} prize={prize} onRedeem={handleRedeem} currentPoints={currentSeller.points || 0} />
+                ))}
+            </div>
         </div>
-      ) : (
-        <EmptyState Icon={ShoppingBag} title="Nenhum prémio disponível" description="Verifique novamente mais tarde para novas recompensas."/>
-      )}
-    </div>
-  );
+    );
 }
