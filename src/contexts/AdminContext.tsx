@@ -35,79 +35,102 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [sprints, setSprints] = useState<DailySprint[]>([]);
   const [cycleHistory, setCycleHistory] = useState<CycleSnapshot[]>([]);
+  // Garantir que o estado de loading comece como true por padrão
   const [isLoading, setIsLoading] = useState(true);
   const [isDirty, setIsDirty] = useState(false);
 
+  // Centraliza a lógica de autenticação e verificação de perfil
   useEffect(() => {
-    const authUnsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
-        const idTokenResult = await user.getIdTokenResult(true);
-        if (idTokenResult.claims.role === 'admin') {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            setAdmin({ id: user.uid, ...userDoc.data() } as Admin);
+        try {
+          // Força a atualização do token para garantir que as claims personalizadas estejam presentes
+          const idTokenResult = await user.getIdTokenResult(true);
+
+          // Verifica se o usuário tem a claim 'admin'
+          if (idTokenResult.claims.role === 'admin') {
+            const userDocRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+              // Usuário é admin e seu documento existe
+              setAdmin({ id: user.uid, ...userDoc.data() } as Admin);
+              // Não definimos isLoading aqui, deixamos o listener de dados fazer isso
+            } else {
+              // Usuário autenticado como admin, mas sem perfil no Firestore
+              console.error("Admin user document not found in Firestore.");
+              setAdmin(null);
+              setIsLoading(false); // Fim do carregamento, usuário não autorizado
+            }
           } else {
+            // Usuário autenticado, mas não é admin
             setAdmin(null);
+            setIsLoading(false); // Fim do carregamento, usuário não autorizado
           }
-        } else {
+        } catch (error) {
+          console.error("Error verifying admin role:", error);
           setAdmin(null);
+          setIsLoading(false); // Fim do carregamento devido a erro
         }
       } else {
+        // Nenhum usuário logado
         setAdmin(null);
-        // Limpa os dados quando o utilizador faz logout
         setSellers([]);
         setGoals(null);
         setMissions([]);
         setSprints([]);
         setCycleHistory([]);
+        setIsLoading(false); // Fim do carregamento, nenhum usuário
       }
-      // O estado de carregamento será gerido pelo listener de dados
     });
-    return () => authUnsubscribe();
+
+    return () => unsubscribe();
   }, []);
 
+  // Gerencia o carregamento dos dados APENAS se o usuário for um admin válido
   useEffect(() => {
     if (!admin) {
-      setIsLoading(false);
-      return;
+        // Se não houver admin, garante que o estado de loading já esteja como false
+        // A lógica no useEffect de autenticação já deve ter tratado isso
+        return;
     }
 
-    setIsLoading(true);
-    const unsubscribers: (() => void)[] = [];
-    let listenersAttached = 0;
-    const totalListeners = 5;
+    // Quando o admin é definido, começamos o processo de carregar os dados
+    const dataPaths = ['sellers', 'dailySprints', 'missions', 'cycle_history'];
+    const setters = [setSellers, setSprints, setMissions, setCycleHistory];
+    let loadedCount = 0;
 
     const onDataLoaded = () => {
-        listenersAttached++;
-        if (listenersAttached === totalListeners) {
+        loadedCount++;
+        if (loadedCount === dataPaths.length + 1) { // +1 para o listener de 'goals'
             setIsLoading(false);
         }
     };
 
-    const createListener = <T,>(path: string, setter: React.Dispatch<React.SetStateAction<T[]>>, orderField = 'name', orderDir: 'asc' | 'desc' = 'asc') => {
-        const q = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/${path}`), orderBy(orderField, orderDir));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as T)));
+    const unsubscribers = dataPaths.map((path, index) => {
+        const q = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/${path}`));
+        return onSnapshot(q, (snapshot) => {
+            setters[index](snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
             onDataLoaded();
-        }, () => onDataLoaded());
-        unsubscribers.push(unsubscribe);
-    };
-
-    createListener<Seller>('sellers', setSellers);
-    createListener<DailySprint>('dailySprints', setSprints, 'createdAt', 'desc');
-    createListener<Mission>('missions', setMissions);
-    createListener<CycleSnapshot>('cycle_history', setCycleHistory, 'endDate');
+        }, (error) => {
+            console.error(`Error loading ${path}:`, error);
+            onDataLoaded(); // Continua mesmo em caso de erro para não bloquear o app
+        });
+    });
 
     const goalsRef = doc(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/goals`, 'main');
     const unsubGoals = onSnapshot(goalsRef, (doc) => {
         setGoals(doc.exists() ? doc.data() as GoalsType : null);
         onDataLoaded();
-    }, () => onDataLoaded());
+    }, (error) => {
+        console.error("Error loading goals:", error);
+        onDataLoaded();
+    });
     unsubscribers.push(unsubGoals);
 
+
     return () => { unsubscribers.forEach(unsub => unsub()); };
-  }, [admin]);
+  }, [admin]); // Este useEffect depende apenas do 'admin'
 
   const callApi = useCallback(async (action: string, data: object) => {
     const callable = httpsCallable(functions, 'api');

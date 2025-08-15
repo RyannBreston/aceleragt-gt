@@ -46,6 +46,11 @@ export default function LoginPage() {
             const userData = userDoc.data();
             const role = userData?.role;
 
+            // *** CORREÇÃO APLICADA AQUI ***
+            // Força a atualização do token de ID para garantir que as reivindicações personalizadas (role) estão presentes.
+            // Isto resolve o problema de loop de login e o erro 'auth/invalid-id-token'.
+            await user.getIdToken(true);
+
             if (role === 'admin') {
                 router.push('/admin/dashboard');
             } else if (role === 'seller') {
