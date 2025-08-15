@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '@/lib/firebase';
@@ -39,16 +39,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
-    const authUnsubscribe = onAuthStateChanged(auth, async (user) => {
-      setIsLoading(true);
-
-      setAdmin(null);
-      setSellers([]);
-      setGoals(null);
-      setMissions([]);
-      setSprints([]);
-      setCycleHistory([]);
-      
+    const authUnsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
       if (user) {
         const idTokenResult = await user.getIdTokenResult(true);
         if (idTokenResult.claims.role === 'admin') {
@@ -56,9 +47,22 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
             setAdmin({ id: user.uid, ...userDoc.data() } as Admin);
+          } else {
+            setAdmin(null);
           }
+        } else {
+          setAdmin(null);
         }
+      } else {
+        setAdmin(null);
+        // Limpa os dados quando o utilizador faz logout
+        setSellers([]);
+        setGoals(null);
+        setMissions([]);
+        setSprints([]);
+        setCycleHistory([]);
       }
+      // O estado de carregamento será gerido pelo listener de dados
     });
     return () => authUnsubscribe();
   }, []);
@@ -69,6 +73,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    setIsLoading(true);
     const unsubscribers: (() => void)[] = [];
     let listenersAttached = 0;
     const totalListeners = 5;
