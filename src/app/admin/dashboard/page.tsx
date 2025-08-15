@@ -54,10 +54,10 @@ const useTeamStats = () => {
 };
 
 export default function DashboardPage() {
-    const { isAuthReady } = useAdminContext();
+    const { isLoading } = useAdminContext();
     const { totalSellers, currentSales, totalPoints, averageTicket, averagePA, totalPrizes, topSeller } = useTeamStats();
 
-    if (!isAuthReady) {
+    if (isLoading) {
         return <DashboardSkeleton />;
     }
 

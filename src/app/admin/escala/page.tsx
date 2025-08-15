@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { httpsCallable } from 'firebase/functions';
 import { cn } from '@/lib/client-utils';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 type Shift = { id: string; name: string; entryTime: string; exitTime: string; lunchTime: string; };
 type Schedule = { [sellerId: string]: { [dayIndex: number]: string | 'off'; } };
@@ -74,12 +75,12 @@ const ShiftDefinitionsModal = ({ shifts, setShifts }: { shifts: Shift[], setShif
 
 // --- Componente Principal ---
 export default function EscalaPage() {
-    const { sellers, isAuthReady } = useAdminContext();
+    const { sellers, isLoading: isAdminContextLoading } = useAdminContext();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [schedule, setSchedule] = useState<Schedule>({});
-    const [savedSchedule, setSavedSchedule] = useState<Schedule>({}); // Estado para comparar alterações
-    const [isLoading, setIsLoading] = useState(true);
+    const [savedSchedule, setSavedSchedule] = useState<Schedule>({});
+    const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
     
@@ -87,28 +88,27 @@ export default function EscalaPage() {
 
     const handleDateChange = (days: number) => setCurrentDate(prev => addDays(prev, days));
 
-    // Carrega dados da página (escala e turnos) de forma unificada
     useEffect(() => {
         const loadPageData = async () => {
-            setIsLoading(true);
+            setIsLoadingData(true);
             try {
                 const callable = httpsCallable(functions, 'api');
                 const result = await callable({ action: 'getSchedulePageData', weekIdentifier });
                 const { schedule: loadedSchedule, shifts: loadedShifts } = result.data as { schedule: Schedule, shifts: Shift[] };
                 setSchedule(loadedSchedule || {});
-                setSavedSchedule(loadedSchedule || {}); // Guarda o estado original
+                setSavedSchedule(loadedSchedule || {});
                 setShifts(loadedShifts || []);
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Erro ao carregar dados da escala', description: String(error) });
             } finally {
-                setIsLoading(false);
+                setIsLoadingData(false);
             }
         };
 
-        if (isAuthReady) {
+        if (!isAdminContextLoading) {
             loadPageData();
         }
-    }, [weekIdentifier, toast, isAuthReady]);
+    }, [weekIdentifier, toast, isAdminContextLoading]);
 
     const handleScheduleChange = (sellerId: string, dayIndex: number, value: string) => {
         setSchedule(prev => ({
@@ -122,7 +122,7 @@ export default function EscalaPage() {
         try {
             const callable = httpsCallable(functions, 'api');
             await callable({ action: 'setWorkSchedule', weekIdentifier, schedule });
-            setSavedSchedule(schedule); // Atualiza o estado original após salvar
+            setSavedSchedule(schedule);
             toast({ title: 'Sucesso!', description: 'Escala salva com sucesso.' });
         } catch (error) {
             toast({ variant: 'destructive', title: 'Erro ao salvar escala', description: String(error) });
@@ -162,6 +162,10 @@ export default function EscalaPage() {
         return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
     }, [currentDate]);
 
+    if (isAdminContextLoading || isLoadingData) {
+        return <DashboardSkeleton />;
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -187,34 +191,28 @@ export default function EscalaPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {isLoading ? (
-                            <tr><td colSpan={8} className="text-center p-8"><Loader2 className="mx-auto animate-spin text-primary" size={32} /></td></tr>
-                        ) : sellers.length > 0 ? (
-                            sellers.map(seller => (
-                                <tr key={seller.id} className="border-b">
-                                    <td className="p-3 font-medium">{seller.name}</td>
-                                    {weekDays.map((day, dayIndex) => (
-                                        <td key={day.toISOString()} className="p-2">
-                                            <Select
-                                                value={schedule[seller.id]?.[dayIndex] || 'off'}
-                                                onValueChange={(value) => handleScheduleChange(seller.id, dayIndex, value)}
-                                            >
-                                                <SelectTrigger className={cn(isCellDirty(seller.id, dayIndex) && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
-                                                    <SelectValue placeholder="Definir..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="off">Folga</SelectItem>
-                                                    {shifts.length > 0 && <SelectSeparator />}
-                                                    {shifts.map(shift => <SelectItem key={shift.id} value={shift.id}>{shift.name} ({shift.entryTime} - {shift.exitTime})</SelectItem>)}
-                                                </SelectContent>
-                                            </Select>
-                                        </td>
-                                    ))}
-                                </tr>
-                            ))
-                        ) : (
-                            <tr><td colSpan={8} className="text-center p-8 text-muted-foreground">Nenhum vendedor encontrado.</td></tr>
-                        )}
+                        {sellers.map(seller => (
+                            <tr key={seller.id} className="border-b">
+                                <td className="p-3 font-medium">{seller.name}</td>
+                                {weekDays.map((day, dayIndex) => (
+                                    <td key={day.toISOString()} className="p-2">
+                                        <Select
+                                            value={schedule[seller.id]?.[dayIndex] || 'off'}
+                                            onValueChange={(value) => handleScheduleChange(seller.id, dayIndex, value)}
+                                        >
+                                            <SelectTrigger className={cn(isCellDirty(seller.id, dayIndex) && 'ring-2 ring-primary ring-offset-2 ring-offset-background')}>
+                                                <SelectValue placeholder="Definir..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="off">Folga</SelectItem>
+                                                {shifts.length > 0 && <SelectSeparator />}
+                                                {shifts.map(shift => <SelectItem key={shift.id} value={shift.id}>{shift.name} ({shift.entryTime} - {shift.exitTime})</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>

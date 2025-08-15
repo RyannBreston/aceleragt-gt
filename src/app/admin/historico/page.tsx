@@ -22,9 +22,9 @@ import { ptBR } from 'date-fns/locale';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 export default function HistoryPage() {
-  const { cycleHistory, isAuthReady } = useAdminContext();
+  const { cycleHistory, isLoading } = useAdminContext();
 
-  if (!isAuthReady) {
+  if (isLoading) {
     return <DashboardSkeleton />;
   }
 

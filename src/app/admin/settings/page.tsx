@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from '@/lib/firebase';
 import { doc, addDoc, collection, writeBatch } from "firebase/firestore";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
-import type { Seller, Goals } from '@/lib/types';
+import type { Seller } from '@/lib/types';
 
 // --- Esquema de Validação com Zod ---
 const optionalNumber = z.union([z.string(), z.number()]).optional().transform(v => v === '' ? undefined : Number(v) || undefined);
@@ -226,7 +226,7 @@ const cleanData = <T extends Record<string, unknown>>(obj: T): T => {
 
 // --- Componente Principal da Página ---
 export default function SettingsPage() {
-    const { sellers: contextSellers, goals: contextGoals, setSellers, setGoals, setIsDirty } = useAdminContext();
+    const { sellers: contextSellers, goals: contextGoals, setIsDirty } = useAdminContext();
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
 
@@ -242,7 +242,7 @@ export default function SettingsPage() {
     }, [isFormDirty, setIsDirty]);
 
     useEffect(() => {
-        if (contextSellers.length > 0 && contextGoals) {
+        if (contextSellers && contextGoals) {
             reset({
                 sellers: contextSellers.map(s => ({
                     id: s.id, name: s.name, salesValue: s.salesValue || 0,
@@ -271,15 +271,6 @@ export default function SettingsPage() {
             batch.set(goalsRef, cleanedGoals, { merge: true });
             await batch.commit();
             
-            // Atualiza o estado local mesclando os dados
-            setSellers(prevSellers => 
-                prevSellers.map(prevSeller => {
-                    const updatedSeller = data.sellers.find(s => s.id === prevSeller.id);
-                    return updatedSeller ? { ...prevSeller, ...updatedSeller } : prevSeller;
-                })
-            );
-            setGoals(() => cleanedGoals as Goals);
-            
             toast({ title: "Alterações Salvas!", description: "Configurações atualizadas." });
             reset(data);
         } catch (error: unknown) {
@@ -307,14 +298,12 @@ export default function SettingsPage() {
             });
 
             const batch = writeBatch(db);
-            const updatedSellers: Seller[] = contextSellers.map(seller => {
+            contextSellers.forEach(seller => {
                 const sellerRef = doc(db, 'sellers', seller.id);
                 batch.update(sellerRef, { salesValue: 0, ticketAverage: 0, pa: 0, points: 0 });
-                return { ...seller, salesValue: 0, ticketAverage: 0, pa: 0, points: 0 };
             });
 
             await batch.commit();
-            setSellers(() => updatedSellers);
             
             toast({ title: "Ciclo Finalizado!", description: "Dados de performance zerados." });
         } catch (error: unknown) {
@@ -323,7 +312,7 @@ export default function SettingsPage() {
         } finally {
             setIsSaving(false);
         }
-    }, [isFormDirty, contextSellers, contextGoals, toast, setSellers]);
+    }, [isFormDirty, contextSellers, contextGoals, toast]);
 
     return (
         <div className="space-y-8">

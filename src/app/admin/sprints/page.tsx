@@ -131,7 +131,7 @@ const SprintCard = ({ sprint, onToggle, onEdit, onDelete }: { sprint: DailySprin
 
 // --- Componente Principal da Página ---
 export default function AdminSprintsPage() {
-    const { sellers, sprints, saveSprint, deleteSprint, toggleSprint, isAuthReady } = useAdminContext();
+    const { sellers, sprints, saveSprint, deleteSprint, toggleSprint, isLoading } = useAdminContext();
     const { toast } = useToast();
     const [sprintToEdit, setSprintToEdit] = useState<Partial<DailySprint> | null>(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -142,7 +142,7 @@ export default function AdminSprintsPage() {
             await action;
             toast({ title: 'Sucesso!', description: messages.success });
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : messages.error;
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
             toast({ variant: 'destructive', title: 'Erro', description: errorMessage });
         } finally {
             setIsSaving(false);
@@ -174,7 +174,7 @@ export default function AdminSprintsPage() {
                 <Button onClick={() => setSprintToEdit({})} disabled={isSaving}><PlusCircle className="mr-2 size-4" /> Criar Corridinha</Button>
             </div>
             
-            {!isAuthReady ? (
+            {isLoading ? (
                  <div className="text-center p-6"><Loader2 className="mx-auto animate-spin text-primary" /></div>
             ) : sprints.length === 0 ? (
                 <EmptyState Icon={Zap} title="Nenhuma Corridinha Criada" description="Crie a sua primeira corridinha para começar a gamificar as suas vendas."/>

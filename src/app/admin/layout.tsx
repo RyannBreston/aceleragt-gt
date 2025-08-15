@@ -9,17 +9,24 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 
 const ProtectedAdminLayout = ({ children }: { children: React.ReactNode }) => {
     const router = useRouter();
-    const { isAuthReady, isAdmin } = useAdminContext();
+    const { isLoading, isAdmin } = useAdminContext();
 
     React.useEffect(() => {
-        if (isAuthReady) {
+        // Roda depois que o carregamento inicial (auth + dados) estiver completo
+        if (!isLoading) {
             if (!isAdmin) {
                 router.push('/login');
             }
         }
-    }, [isAuthReady, isAdmin, router]);
+    }, [isLoading, isAdmin, router]);
 
-    if (!isAuthReady || !isAdmin) {
+    // Exibe o esqueleto de carregamento enquanto o contexto está a carregar
+    if (isLoading) {
+        return <DashboardSkeleton />;
+    }
+    
+    // Se não for admin, exibe a skeleton para evitar piscar de conteúdo antes do redirecionamento
+    if (!isAdmin) {
         return <DashboardSkeleton />;
     }
 
