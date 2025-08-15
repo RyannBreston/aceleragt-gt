@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
 import { Loader2, UserPlus, Shield, KeyRound, Trash2, Edit } from 'lucide-react';
-import { Seller } from '@/lib/types';
+import { Seller, Admin } from '@/lib/types';
 
 // Modal para CRIAR um novo vendedor
 const CreateSellerModal = ({ onSellerCreated }: { onSellerCreated: () => void }) => {
@@ -144,7 +144,7 @@ export default function PerfilPage() {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<any | null>(null);
+    const [selectedUser, setSelectedUser] = useState<Seller | Admin | null>(null);
 
     const handleDelete = async (user: Seller) => {
         if (!confirm(`Tem certeza que deseja excluir o vendedor ${user.name}? Esta ação não pode ser desfeita.`)) return;
@@ -173,7 +173,7 @@ export default function PerfilPage() {
             
             {/* Modals reutilizáveis */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-                {selectedUser && <EditSellerModal seller={selectedUser} onSellerUpdated={() => setIsEditModalOpen(false)} />}
+                {selectedUser && 'salesValue' in selectedUser && <EditSellerModal seller={selectedUser} onSellerUpdated={() => setIsEditModalOpen(false)} />}
             </Dialog>
             <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
                 {selectedUser && <PasswordModal user={selectedUser} onPasswordChanged={() => setIsPasswordModalOpen(false)} />}
