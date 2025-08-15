@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from '@/lib/firebase';
 import type { Admin, Goals as GoalsType, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
@@ -110,7 +110,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribers = dataPaths.map((path, index) => {
         const q = query(collection(db, `artifacts/${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}/public/data/${path}`));
         return onSnapshot(q, (snapshot) => {
-            setters[index](snapshot.docs.map(d => ({ id: d.id, ...d.data() } as any)));
+            setters[index](snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as never);
             onDataLoaded();
         }, (error) => {
             console.error(`Error loading ${path}:`, error);
