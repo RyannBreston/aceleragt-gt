@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, DollarSign, Star, TrendingUp, Trophy, Target } from 'lucide-react';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
