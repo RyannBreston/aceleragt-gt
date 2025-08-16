@@ -3,6 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- Funções de Ajuda ---
     function isAdmin() {
       return request.auth.token.role == 'admin';
     }
@@ -10,16 +11,22 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // --- Regras para Coleções Principais ---
 
     match /users/{userId} {
       allow read, write: if isAdmin() || isOwner(userId);
     }
 
     match /sellers/{sellerId} {
-      allow read: if isAdmin() || isOwner(sellerId);
-      allow write: if isAdmin(); // Apenas Admins podem escrever nos dados dos vendedores
+      allow read: if isAuthenticated(); // Qualquer usuário logado pode ler (para rankings, etc.)
+      allow write: if isAdmin(); // Apenas Admins podem escrever/atualizar dados dos vendedores
 
-      // Validação de Dados para Vendedores
+      // Validação de Dados para Vendedores (mantido)
       allow update: if request.resource.data.name is string &&
                        request.resource.data.email is string &&
                        request.resource.data.salesValue is number &&
@@ -28,17 +35,31 @@ service cloud.firestore {
                        request.resource.data.points is number &&
                        request.resource.data.extraPoints is number;
     }
-
-    match /artifacts/{appId}/public/data/{collection}/{docId} {
-      allow read: if request.auth != null;
+    
+    // Regras explícitas para as coleções que estão na raiz e precisam de acesso pelo AdminContext
+    match /missions/{missionId} {
+      allow read: if isAuthenticated();
       allow write: if isAdmin();
-
-      // Validação para a coleção 'goals'
-      match /goals/main {
-        allow write: if request.resource.data.teamGoalBonus is number &&
-                        request.resource.data.salesValue.metinha.threshold is number &&
-                        request.resource.data.salesValue.metinha.prize is number;
-      }
     }
+    
+    match /dailySprints/{sprintId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    match /cycle_history/{cycleId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    // Regra para o documento 'goals/main' na raiz
+    match /goals/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // NOTA: A regra antiga para /artifacts/{appId}/public/data/... foi removida
+    // para alinhar com a estrutura de coleções na raiz.
+
   }
 }
