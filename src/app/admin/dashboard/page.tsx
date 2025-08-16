@@ -25,6 +25,7 @@ const useTeamStats = () => {
     const { sellers, goals, sprints } = useAdminContext();
 
     return useMemo(() => {
+        console.log("Sellers in useTeamStats: ", sellers)
         const totalSellers = sellers.length;
         if (totalSellers === 0 || !goals) {
             return { totalSellers: 0, currentSales: 0, totalPoints: 0, averageTicket: 0, averagePA: 0, totalPrizes: 0, topSeller: null };

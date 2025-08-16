@@ -51,6 +51,7 @@ const useRankingData = (criterion: RankingCriterion) => {
     }, [sellers, goals, sprints]);
 
     const sortedSellers = useMemo(() => {
+        console.log("Sellers in sortedSellers: ", sellers)
         return [...sellersWithPrizes].sort((a, b) => {
             if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
             if (criterion === 'points') return b.points - a.points;
@@ -153,8 +154,7 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
         <Card className="sticky top-24">
             <CardHeader>
                 <CardTitle>{seller.name}</CardTitle>
-                <CardDescription>Desempenho detalhado para o critério <span className="font-bold text-primary">{criterionLabel}</span>.</CardDescription>
-            </CardHeader>
+                <CardDescription>Desempenho detalhado para o critério <span className="font-bold text-primary">{criterionLabel}</span>.</CardDescription></CardHeader>
             <CardContent className="space-y-8">
                  <div className="grid grid-cols-2 gap-6">
                     <div>
@@ -220,6 +220,8 @@ export default function RankingPage() {
         const result = seller[criterion as keyof SellerWithPrize] as number || 0;
         return criterion === 'pa' || criterion === 'points' ? result.toLocaleString('pt-BR') : formatCurrency(result);
     };
+     const { sellers } = useAdminContext();
+     console.log("Sellers in Ranking: ", sellers);
 
     return (
         <div className="space-y-8">
