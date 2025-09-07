@@ -1,180 +1,231 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '@/lib/firebase';
+import { useSession } from 'next-auth/react';
+
+// Extend the session user type to include 'role'
+import 'next-auth';
+
+declare module 'next-auth' {
+  interface User {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role?: string;
+  }
+}
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    };
+  }
+}
+import { useToast } from '@/hooks/use-toast';
 import type { Admin, Goals as GoalsType, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
 
-// 1. Definição da Interface
 interface AdminContextType {
   sellers: Seller[];
   goals: GoalsType | null;
   missions: Mission[];
   sprints: DailySprint[];
   admin: Admin | null;
-  cycleHistory: CycleSnapshot[];
   isLoading: boolean;
   isAdmin: boolean;
-  isDirty: boolean;
-  setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;
-  saveSprint: (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => Promise<void>;
+  saveSprint: (data: any, id?: string) => Promise<void>;
   deleteSprint: (id: string) => Promise<void>;
-  toggleSprint: (id: string, isActive: boolean) => Promise<void>;
+  toggleSprint: (sprint: DailySprint, isActive: boolean) => Promise<void>;
+  createSeller: (data: any) => Promise<void>;
+  updateSeller: (data: any) => Promise<void>;
+  deleteSeller: (id: string) => Promise<void>;
+  saveMission: (data: any, id?: string) => Promise<void>;
+  deleteMission: (id: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
-// 2. Criação do Contexto
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-// 3. Provider Refatorado
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
+  const { data: session, status } = useSession();
+  const { toast } = useToast();
+  
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [goals, setGoals] = useState<GoalsType | null>(null);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [sprints, setSprints] = useState<DailySprint[]>([]);
-  const [cycleHistory, setCycleHistory] = useState<CycleSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDirty, setIsDirty] = useState(false);
 
-  // Lógica de autenticação e verificação de permissão
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-      console.log("AUTH: onAuthStateChanged triggered. User:", user ? user.uid : "null");
-      if (user) {
-        try {
-          const idTokenResult = await user.getIdTokenResult(true);
-          console.log("AUTH: User claims role:", idTokenResult.claims.role);
-          
-          if (idTokenResult.claims.role === 'admin') {
-            const userDocRef = doc(db, 'users', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            console.log("AUTH: User document exists in Firestore /users:", userDoc.exists());
-
-            if (userDoc.exists()) {
-              setAdmin({ id: user.uid, ...userDoc.data() } as Admin);
-              console.log("AUTH: Admin context user set.", { id: user.uid, ...userDoc.data() });
-            } else {
-              console.log("AUTH: Admin user document not found.");
-              setAdmin(null);
-              setIsLoading(false);
-            }
-          } else {
-            console.log("AUTH: User is not admin.");
-            setAdmin(null);
-            setIsLoading(false);
-          }
-        } catch (error) {
-          console.error("AUTH ERROR: Error verifying admin role:", error);
-          setAdmin(null);
-          setIsLoading(false);
-        }
-      } else {
-        console.log("AUTH: No user logged in.");
-        setAdmin(null);
-        setSellers([]);
-        setGoals(null);
-        setMissions([]);
-        setSprints([]);
-        setCycleHistory([]);
-        setIsLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Gerenciamento de dados do Firestore (depende de 'admin')
-  useEffect(() => {
-    console.log("DATA: Data fetching useEffect triggered. Admin state:", admin ? "present" : "null");
-    if (!admin) {
-      if (!auth.currentUser) {
-        console.log("DATA: No admin and no current user. Setting loading false.");
-        setIsLoading(false);
-      }
+  const refreshData = useCallback(async () => {
+    if (status !== 'authenticated' || session?.user?.role !== 'admin') {
+      setIsLoading(false);
       return;
     }
+    
+    setIsLoading(true);
+    try {
+      const [sellersRes, goalsRes, missionsRes, sprintsRes] = await Promise.all([
+        fetch('/api/sellers'),
+        fetch('/api/goals'),
+        fetch('/api/missions'),
+        fetch('/api/sprints'),
+      ]);
 
-    console.log("DATA: Admin is present. Starting data listeners.");
-    const listeners = [
-      { path: 'sellers', setter: setSellers, name: "sellers" },
-      { path: 'missions', setter: setMissions, name: "missions" },
-      { path: 'dailySprints', setter: setSprints, name: "dailySprints" },
-      { path: 'cycle_history', setter: setCycleHistory, name: "cycle_history" },
-    ];
-    let loadedCount = 0;
-
-    const onDataLoaded = () => {
-      loadedCount++;
-      if (loadedCount === listeners.length + 1) { // +1 for goals
-        console.log("DATA: All listeners loaded. Setting isLoading false.");
-        setIsLoading(false);
+      if (!sellersRes.ok || !goalsRes.ok || !missionsRes.ok || !sprintsRes.ok) {
+        throw new Error('Falha ao carregar os dados da aplicação.');
       }
-    };
 
-    const unsubscribers = listeners.map(({ path, setter, name }) => {
-      console.log(`DATA: Setting up listener for collection: ${path}`);
-      const q = query(collection(db, path));
-      return onSnapshot(q, (snapshot) => {
-        console.log(`DATA: Received snapshot for ${name}. Docs count: ${snapshot.docs.length}`);
-        setter(snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as never);
-        onDataLoaded();
-      }, (error) => {
-        console.error(`DATA ERROR: Error loading ${name}:`, error);
-        onDataLoaded();
+      setSellers(await sellersRes.json());
+      setGoals(await goalsRes.json());
+      setMissions(await missionsRes.json());
+      setSprints(await sprintsRes.json());
+
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, status, toast]);
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
+      setAdmin({
+        id: session.user.id,
+        name: session.user.name || '',
+        email: session.user.email || '',
+        role: 'admin',
       });
+      refreshData();
+    } else if (status !== 'loading') {
+      setIsLoading(false);
+      setAdmin(null);
+    }
+  }, [session, status, refreshData]);
+
+  // Implementação das Funções de Escrita
+  const createSeller = useCallback(async (data: any) => {
+    const response = await fetch('/api/sellers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao criar o vendedor.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: 'Vendedor criado com sucesso.' });
+  }, [refreshData, toast]);
 
-    console.log("DATA: Setting up listener for goals document.");
-    const goalsRef = doc(db, 'goals', 'main');
-    const unsubGoals = onSnapshot(goalsRef, (doc) => {
-      console.log(`DATA: Received snapshot for goals. Doc exists: ${doc.exists()}`);
-      setGoals(doc.exists() ? doc.data() as GoalsType : null);
-      onDataLoaded();
-    }, (error) => {
-      console.error("DATA ERROR: Error loading goals:", error);
-      onDataLoaded();
+  const updateSeller = useCallback(async (data: any) => {
+    const response = await fetch('/api/sellers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
-    unsubscribers.push(unsubGoals);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao atualizar o vendedor.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: 'Vendedor atualizado com sucesso.' });
+  }, [refreshData, toast]);
 
-    return () => { 
-      console.log("DATA: Cleaning up data listeners.");
-      unsubscribers.forEach(unsub => unsub()); 
-    };
-  }, [admin]);
+  const deleteSeller = useCallback(async (id: string) => {
+    const response = await fetch(`/api/sellers/${id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao excluir o vendedor.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: 'Vendedor excluído.' });
+  }, [refreshData, toast]);
 
-  const callApi = useCallback(async (action: string, data: object) => {
-    const callable = httpsCallable(functions, 'api');
-    await callable({ action, ...data });
-  }, []);
+  const saveSprint = useCallback(async (data: any, id?: string) => {
+    const method = id ? 'PUT' : 'POST';
+    const body = JSON.stringify({ ...data, id });
+    const response = await fetch('/api/sprints', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao salvar a corridinha.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: `Corridinha ${id ? 'atualizada' : 'criada'} com sucesso.` });
+  }, [refreshData, toast]);
 
-  const saveSprint = useCallback(
-    (data: Omit<DailySprint, 'id' | 'createdAt'>, id?: string) => callApi(id ? 'updateDailySprint' : 'createDailySprint', { ...data, id }),
-    [callApi]
-  );
-  const deleteSprint = useCallback((id: string) => callApi('deleteDailySprint', { id }), [callApi]);
-  const toggleSprint = useCallback((id: string, isActive: boolean) => callApi('toggleDailySprint', { id, isActive }), [callApi]);
+  const deleteSprint = useCallback(async (id: string) => {
+    const response = await fetch(`/api/sprints/${id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao excluir a corridinha.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: 'Corridinha excluída.' });
+  }, [refreshData, toast]);
 
+  const toggleSprint = useCallback(async (sprint: DailySprint, isActive: boolean) => {
+    const response = await fetch('/api/sprints', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...sprint, isActive }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao alterar o estado da corridinha.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: `Corridinha ${isActive ? 'ativada' : 'desativada'}.` });
+  }, [refreshData, toast]);
+
+  const saveMission = useCallback(async (data: any, id?: string) => {
+    const method = id ? 'PUT' : 'POST';
+    const body = JSON.stringify({ ...data, id });
+    const response = await fetch('/api/missions', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body,
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao salvar a missão.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: `Missão ${id ? 'atualizada' : 'criada'} com sucesso.` });
+  }, [refreshData, toast]);
+
+  const deleteMission = useCallback(async (id: string) => {
+    const response = await fetch(`/api/missions/${id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao excluir a missão.');
+    }
+    await refreshData();
+    toast({ title: 'Sucesso!', description: 'Missão excluída.' });
+  }, [refreshData, toast]);
+  
   const contextValue: AdminContextType = {
-    sellers,
-    goals,
-    missions,
-    sprints,
-    admin,
-    cycleHistory,
-    isLoading,
+    sellers, goals, missions, sprints, admin,
+    isLoading: isLoading || status === 'loading',
     isAdmin: !!admin,
-    isDirty,
-    setIsDirty,
-    saveSprint,
-    deleteSprint,
-    toggleSprint,
+    refreshData,
+    createSeller, updateSeller, deleteSeller,
+    saveSprint, deleteSprint, toggleSprint,
+    saveMission, deleteMission,
   };
 
   return <AdminContext.Provider value={contextValue}>{children}</AdminContext.Provider>;
 };
 
-// Hook para usar o contexto
 export const useAdminContext = () => {
   const context = useContext(AdminContext);
   if (context === undefined) {
