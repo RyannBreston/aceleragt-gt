@@ -7,6 +7,9 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 export const authOptions: AuthOptions = {
+  pages: {
+    signIn: '/login',
+  },
   callbacks: {
     async jwt({ token, user }: { token: JWT; user: NextAuthUser | null; }) {
       if (user) {
