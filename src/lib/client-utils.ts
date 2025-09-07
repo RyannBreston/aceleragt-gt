@@ -23,15 +23,18 @@ export function calculateSellerPrizes(
 
       if (metricGoals) {
         // Lógica de prémios por nível (Metinha, Meta, etc.)
-        const levels: (keyof MetricGoals)[] = ['metinha', 'meta', 'metona', 'lendaria'];
+        const levels: ('metinha' | 'meta' | 'metona' | 'lendaria')[] = ['metinha', 'meta', 'metona', 'lendaria'];
         levels.forEach(level => {
           const goalLevel = metricGoals[level];
-          if (goalLevel?.threshold && goalLevel.prize && sellerValue >= goalLevel.threshold) {
-            prizeDetails.push({
-              reason: `Atingiu ${level} de ${metric}`,
-              amount: goalLevel.prize,
-              level: level,
-            });
+          // Check for existence of goalLevel and its properties to satisfy TypeScript
+          if (goalLevel && goalLevel.threshold !== undefined && goalLevel.prize !== undefined) {
+            if (sellerValue >= goalLevel.threshold) {
+              prizeDetails.push({
+                reason: `Atingiu ${level} de ${metric}`,
+                amount: goalLevel.prize,
+                level: level,
+              });
+            }
           }
         });
 

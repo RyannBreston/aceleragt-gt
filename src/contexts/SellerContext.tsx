@@ -30,7 +30,6 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const userId = session?.user?.id;
-  // @ts-expect-error Role is a custom property we are adding to the session.
   const isSeller = status === 'authenticated' && session?.user?.role === 'seller';
 
   useEffect(() => {
@@ -67,8 +66,11 @@ export function SellerProvider({ children }: { children: ReactNode }) {
         setActiveSprint(active || null);
 
       } catch (error) {
-        // @ts-expect-error Error is of type unknown, but we are displaying the message property.
-        toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
+        if (error instanceof Error) {
+          toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
+        } else {
+          toast({ variant: 'destructive', title: 'Erro de Rede', description: 'Ocorreu um erro desconhecido.' });
+        }
       } finally {
         setIsLoading(false);
       }

@@ -56,8 +56,38 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     // ... (implementação da função)
   }, []);
 
-  // ... (implementação de todas as outras funções de escrita com as tipagens corretas)
-  
+  const saveSprint = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const deleteSprint = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const toggleSprint = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const deleteSeller = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const changeSellerPassword = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const saveMission = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const deleteMission = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
+  const updateSettings = useCallback(async () => {
+    // ... (implementação da função)
+  }, []);
+
   const contextValue: AdminContextType = {
     sellers, goals, missions, sprints, admin,
     isLoading: isLoading || status === 'loading',
@@ -67,7 +97,14 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     refreshData,
     createSeller,
     updateSeller,
-    // ... (todas as funções de escrita)
+    saveSprint,
+    deleteSprint,
+    toggleSprint,
+    deleteSeller,
+    changeSellerPassword,
+    saveMission,
+    deleteMission,
+    updateSettings,
   };
 
   return <AdminContext.Provider value={contextValue}>{children}</AdminContext.Provider>;
