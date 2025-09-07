@@ -1,6 +1,10 @@
 import { AuthOptions, User as NextAuthUser, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from "next-auth/providers/credentials";
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+const prisma = new PrismaClient();
 
 export const authOptions: AuthOptions = {
   callbacks: {
@@ -27,14 +31,21 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // TODO: Implement user authentication logic here.
-        // This is just a placeholder.
-        if (credentials?.email === "admin@example.com" && credentials?.password === "password") {
-          return { id: "1", name: "Admin", email: "admin@example.com", role: "admin" };
+        if (!credentials) {
+          return null;
         }
-        if (credentials?.email === "seller@example.com" && credentials?.password === "password") {
-          return { id: "2", name: "Seller", email: "seller@example.com", role: "seller" };
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
+
+        if (user && user.password) {
+          const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password);
+          if (isPasswordCorrect) {
+            return { id: user.id, name: user.name, email: user.email, role: user.role };
+          }
         }
+
         return null;
       }
     })
