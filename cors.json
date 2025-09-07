@@ -1,6 +1,9 @@
 [
   {
-    "origin": ["https://apps-das-supermoda.netlify.app"],
+    "origin": [
+      "https://apps-das-supermoda.netlify.app",
+      "https://aceleragt-leyko58r0-ryanbrestons-projects.vercel.app"
+    ],
     "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     "responseHeader": [
       "Content-Type",
