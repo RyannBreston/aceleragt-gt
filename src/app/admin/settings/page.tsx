@@ -50,8 +50,8 @@ const metricGoalsSchema = z.object({
 const sellerPerformanceSchema = z.object({
   id: z.string(),
   name: z.string(),
-  salesValue: z.coerce.number().min(0, "Deve ser positivo."),
-  ticketAverage: z.coerce.number().min(0, "Deve ser positivo."),
+  sales_value: z.coerce.number().min(0, "Deve ser positivo."),
+  ticket_average: z.coerce.number().min(0, "Deve ser positivo."),
   pa: z.coerce.number().min(0, "Deve ser positivo."),
   points: z.coerce.number().min(0, "Deve ser positivo."),
 });
@@ -95,8 +95,8 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
                     {fields.map((field, index) => (
                         <TableRow key={field.id}>
                             <TableCell className="font-medium">{field.name}</TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.salesValue`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} value={rest.value ?? ''} />} /></TableCell>
-                            <TableCell><FormField control={control} name={`sellers.${index}.ticketAverage`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} value={rest.value ?? ''} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.sales_value`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} value={rest.value ?? ''} />} /></TableCell>
+                            <TableCell><FormField control={control} name={`sellers.${index}.ticket_average`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} value={rest.value ?? ''} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.pa`} render={({ field }) => <Input type="number" {...field} value={field.value ?? ''} />} /></TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.points`} render={({ field }) => <Input type="number" {...field} value={field.value ?? ''} />} /></TableCell>
                         </TableRow>
@@ -228,8 +228,8 @@ export default function SettingsPage() {
 
     useEffect(() => {
         const sellersData = contextSellers.map(s => ({
-            id: s.id, name: s.name, salesValue: s.sales_value || 0,
-            ticketAverage: s.ticket_average || 0, pa: s.pa || 0, points: s.points || 0,
+            id: s.id, name: s.name, sales_value: s.sales_value || 0,
+            ticket_average: s.ticket_average || 0, pa: s.pa || 0, points: s.points || 0,
         }));
         
         const goalsData = contextGoals?.data || {};
@@ -244,8 +244,24 @@ export default function SettingsPage() {
             if (!updateSettings) {
                 throw new Error("A função para atualizar as configurações não está disponível.");
             }
-            await updateSettings(data);
-            reset(data);
+            
+            // Mapeia os dados do formulário de volta para a estrutura completa do Seller
+            const updatedSellers = data.sellers.map(fs => {
+                const originalSeller = contextSellers.find(cs => cs.id === fs.id);
+                return {
+                    ...(originalSeller || {}),
+                    ...fs,
+                };
+            });
+
+            const dataToSave = {
+                ...data,
+                sellers: updatedSellers,
+            };
+
+            await updateSettings(dataToSave as any);
+            reset(dataToSave as any);
+
         } catch (error: any) {
             toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message });
         } finally {

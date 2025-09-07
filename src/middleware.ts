@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server';
 
 export default withAuth(
   // `withAuth` aprimora o seu `Request` com o token do utilizador.
-  function middleware(req: NextRequest & { nextauth: { token: any } }) {
+  function middleware(req: NextRequest & { nextauth: { token: { role?: string | null } } }) {
     const { token } = req.nextauth;
     const { pathname } = req.nextUrl;
 

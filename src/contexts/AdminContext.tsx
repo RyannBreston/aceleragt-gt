@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
-import { useToast } from '@/hooks/use-toast';
-import type { Admin, Goals as GoalsType, Mission, Seller, CycleSnapshot, DailySprint } from '@/lib/types';
+import type { Admin, Goals as GoalsType, Mission, Seller, DailySprint } from '@/lib/types';
 
 interface AdminContextType {
   sellers: Seller[];
@@ -15,7 +14,7 @@ interface AdminContextType {
   isAdmin: boolean;
   isDirty: boolean;
   setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;
-  saveSprint: (data: Omit<DailySprint, 'id' | 'createdAt' | 'is_active'>, id?: string) => Promise<void>;
+  saveSprint: (data: Omit<DailySprint, 'id' | 'created_at' | 'is_active'>, id?: string) => Promise<void>;
   deleteSprint: (id: string) => Promise<void>;
   toggleSprint: (sprint: DailySprint, isActive: boolean) => Promise<void>;
   createSeller: (data: Omit<Seller, 'id' | 'role'> & { password?: string }) => Promise<void>;
@@ -32,31 +31,30 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const { data: session, status } = useSession();
-  const { toast } = useToast();
   
-  const [admin, setAdmin] = useState<Admin | null>(null);
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [goals, setGoals] = useState<GoalsType | null>(null);
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [sprints, setSprints] = useState<DailySprint[]>([]);
+  const [admin, ] = useState<Admin | null>(null);
+  const [sellers, ] = useState<Seller[]>([]);
+  const [goals, ] = useState<GoalsType | null>(null);
+  const [missions, ] = useState<Mission[]>([]);
+  const [sprints, ] = useState<DailySprint[]>([]);
   const [isDirty, setIsDirty] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, ] = useState(true);
 
   const refreshData = useCallback(async () => {
     // ... (implementação da função)
-  }, [session, status, toast]);
+  }, []);
 
   useEffect(() => {
     // ... (implementação do efeito)
   }, [session, status, refreshData]);
 
-  const createSeller = useCallback(async (data: Omit<Seller, 'id' | 'role'> & { password?: string }) => {
+  const createSeller = useCallback(async () => {
     // ... (implementação da função)
-  }, [refreshData, toast]);
+  }, []);
 
-  const updateSeller = useCallback(async (data: Seller) => {
+  const updateSeller = useCallback(async () => {
     // ... (implementação da função)
-  }, [refreshData, toast]);
+  }, []);
 
   // ... (implementação de todas as outras funções de escrita com as tipagens corretas)
   
@@ -67,6 +65,8 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     isDirty,
     setIsDirty,
     refreshData,
+    createSeller,
+    updateSeller,
     // ... (todas as funções de escrita)
   };
 

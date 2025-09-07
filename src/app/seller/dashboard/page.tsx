@@ -4,7 +4,7 @@ import React from 'react';
 import { SellerProvider, useSellerContext } from '@/contexts/SellerContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Loader2, DollarSign, Target, Gem, ShoppingCart } from 'lucide-react';
+import { Loader2, DollarSign, Gem, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 function SellerDashboardContent() {

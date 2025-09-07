@@ -30,6 +30,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const userId = session?.user?.id;
+  // @ts-expect-error Role is a custom property we are adding to the session.
   const isSeller = status === 'authenticated' && session?.user?.role === 'seller';
 
   useEffect(() => {
@@ -65,7 +66,8 @@ export function SellerProvider({ children }: { children: ReactNode }) {
         const active = sprintsData.find((sprint: DailySprint) => sprint.is_active && sprint.participant_ids.includes(userId!));
         setActiveSprint(active || null);
 
-      } catch (error: any) {
+      } catch (error) {
+        // @ts-expect-error Error is of type unknown, but we are displaying the message property.
         toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
       } finally {
         setIsLoading(false);
@@ -79,10 +81,10 @@ export function SellerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Calcula os dados específicos do vendedor logado
-    if (userId && sellers.length > 0 && goals) {
+    if (userId && sellers.length > 0 && goals && activeSprint) {
       const sellerData = sellers.find(s => s.id === userId);
       if (sellerData) {
-        const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals, activeSprint);
+        const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
         setCurrentSeller(sellerWithPrizes);
       }
     } else {

@@ -1,27 +1,29 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import bcrypt from 'bcrypt';
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function POST(request: Request, context: any) {
   const session = await getServerSession(authOptions);
-  // Apenas um admin pode alterar a senha de outro utilizador
+  // @ts-expect-error Role is a custom property we are adding to the session.
   if (session?.user?.role !== 'admin') {
     return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
   }
 
   try {
-    const userId = params.id;
+    const userId = context.params.id;
     const { newPassword } = await request.json();
 
     if (!userId || !newPassword || newPassword.length < 6) {
-      return NextResponse.json({ 
-        message: 'O ID do utilizador e uma nova senha com pelo menos 6 caracteres são obrigatórios.' 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          message:
+            'O ID do utilizador e uma nova senha com pelo menos 6 caracteres são obrigatórios.',
+        },
+        { status: 400 }
+      );
     }
 
     // Criptografar a nova senha
@@ -38,7 +40,6 @@ export async function POST(
     }
 
     return NextResponse.json({ message: 'Senha alterada com sucesso.' });
-
   } catch (error) {
     console.error('API Change Password Error:', error);
     return NextResponse.json({ message: 'Erro ao alterar a senha.' }, { status: 500 });

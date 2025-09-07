@@ -1,4 +1,4 @@
-import type { Seller, Goals, DailySprint, SellerWithPrizes, PrizeDetail, MetricGoals } from './types';
+import type { Seller, Goals, SellerWithPrizes, PrizeDetail, MetricGoals } from './types';
 
 /**
  * Calcula os prémios totais para um único vendedor com base nas metas e performance.
@@ -6,9 +6,8 @@ import type { Seller, Goals, DailySprint, SellerWithPrizes, PrizeDetail, MetricG
  */
 export function calculateSellerPrizes(
   seller: Seller,
-  allSellers: Seller[],
-  goals: Goals,
-  activeSprint: DailySprint | null
+  _allSellers: Seller[],
+  goals: Goals
 ): SellerWithPrizes {
   
   const prizeDetails: PrizeDetail[] = [];
@@ -18,6 +17,7 @@ export function calculateSellerPrizes(
     const metrics: (keyof typeof goalData)[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
     
     metrics.forEach(metric => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sellerValue = (seller as any)[metric] || 0;
       const metricGoals = goalData[metric as keyof typeof goalData] as MetricGoals | undefined;
 

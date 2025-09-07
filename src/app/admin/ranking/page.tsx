@@ -42,13 +42,12 @@ const formatCurrency = (value?: number) => (value || 0).toLocaleString('pt-BR', 
 // ####################################################################
 
 const useRankingData = (criterion: RankingCriterion) => {
-    const { sellers, goals, sprints } = useAdminContext();
+    const { sellers, goals } = useAdminContext();
     
     const sellersWithPrizes = useMemo(() => {
         if (!goals || !sellers) return [];
-        const activeSprint = sprints.find(s => s.is_active) || null;
-        return sellers.map(s => calculateSellerPrizes(s, sellers, goals, activeSprint));
-    }, [sellers, goals, sprints]);
+        return sellers.map(s => calculateSellerPrizes(s, sellers, goals));
+    }, [sellers, goals]);
 
     const sortedSellers = useMemo(() => {
         return [...sellersWithPrizes].sort((a, b) => {
@@ -67,15 +66,26 @@ const useGoalProgress = (sellerData: SellerWithPrizes | null, criterion: Ranking
         if (!sellerData || !goals?.data || criterion === 'prizes_total') {
             return { percent: 0, label: '', achievedLevels: [] };
         }
+
+        const criterionToMetricMap: Record<string, keyof Omit<NonNullable<Goals['data']>, 'gamification' | 'teamGoalBonus'>> = {
+            sales_value: 'salesValue',
+            ticket_average: 'ticketAverage',
+            pa: 'pa',
+            points: 'points',
+        };
         
-        const metric = criterion as keyof Omit<Goals['data'], 'gamification' | 'teamGoalBonus'>;
-        const goalData = goals.data[metric];
+        const metricKey = criterionToMetricMap[criterion];
+        if (!metricKey) {
+            return { percent: 0, label: 'Critério inválido', achievedLevels: [] };
+        }
+
+        const goalData = goals.data[metricKey];
         
         if (typeof goalData !== 'object' || goalData === null) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
-        const sellerValue = (sellerData as any)[metric] as number || 0;
+        const sellerValue = (sellerData as any)[criterion] as number || 0;
 
         if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };

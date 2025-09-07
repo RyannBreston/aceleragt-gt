@@ -14,13 +14,13 @@ import { DailySprint, Seller } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 // Tipo para os dados do formulário, omitindo campos gerados automaticamente
-type SprintFormData = Omit<DailySprint, 'id' | 'createdAt' | 'is_active'>;
+type SprintFormData = Omit<DailySprint, 'id' | 'created_at' | 'is_active'>;
 
 // Componente do formulário para não poluir a página principal
 const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null, onSave: (data: SprintFormData) => void, onCancel: () => void }) => {
     const { sellers } = useAdminContext();
     const [title, setTitle] = useState(sprint?.title || '');
-    const [participantIds, setParticipantIds] = useState<string[]>(sprint?.participant_ids || []);
+    const [participant_ids, setParticipant_ids] = useState<string[]>(sprint?.participant_ids || []);
     const [sprintTiers, setSprintTiers] = useState(sprint?.sprint_tiers ? JSON.stringify(sprint.sprint_tiers, null, 2) : '[\n  {\n    "goal": 1000,\n    "prize": 50\n  }\n]');
     const { toast } = useToast();
 
@@ -30,16 +30,16 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
             const parsedTiers = JSON.parse(sprintTiers);
             onSave({
                 title,
-                participantIds,
+                participant_ids,
                 sprint_tiers: parsedTiers,
             });
-        } catch (error) {
+        } catch {
             toast({ variant: 'destructive', title: 'Erro de Formato', description: 'O JSON para os prémios é inválido.'});
         }
     };
 
     const toggleParticipant = (sellerId: string) => {
-        setParticipantIds(prev =>
+        setParticipant_ids(prev =>
             prev.includes(sellerId) ? prev.filter(id => id !== sellerId) : [...prev, sellerId]
         );
     };
@@ -59,7 +59,7 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
                                 <input
                                     type="checkbox"
                                     id={`seller-${seller.id}`}
-                                    checked={participantIds.includes(seller.id)}
+                                    checked={participant_ids.includes(seller.id)}
                                     onChange={() => toggleParticipant(seller.id)}
                                 />
                                 <label htmlFor={`seller-${seller.id}`}>{seller.name}</label>

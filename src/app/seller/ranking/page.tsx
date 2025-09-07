@@ -87,7 +87,6 @@ export default function SellerRankingPage() {
     };
 
     const topThree = rankedSellers.slice(0, 3);
-    const restOfSellers = rankedSellers.slice(3);
 
     return (
         <div className="container mx-auto p-4 space-y-8">
