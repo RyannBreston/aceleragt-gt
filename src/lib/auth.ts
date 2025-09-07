@@ -2,11 +2,15 @@ import { AuthOptions, User as NextAuthUser, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+const generatedSecret = "a3b9f8e2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4";
+
 export const authOptions: AuthOptions = {
+  trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET || generatedSecret,
   pages: {
     signIn: '/login',
   },
