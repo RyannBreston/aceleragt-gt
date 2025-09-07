@@ -1,113 +1,55 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Zap, Check, Award } from "lucide-react";
 import { useSellerContext } from '@/contexts/SellerContext';
-import { DashboardSkeleton } from '@/components/DashboardSkeleton';
-import type { DailySprint, SellerWithPrizes } from '@/lib/types';
-import { cn } from '@/lib/client-utils';
-import { EmptyState } from '@/components/EmptyState';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, Zap, Trophy } from 'lucide-react';
 
-const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export default function SellerSprintsPage() {
+  const { activeSprint, isLoading } = useSellerContext();
 
-// --- Componente: Card de Prémios Acumulados ---
-const SprintPrizesCard = ({ seller }: { seller: SellerWithPrizes }) => {
-    const sprintPrize = seller.sprintPrize || 0;
+  if (isLoading) {
+    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
-    if (sprintPrize === 0) return null;
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <Zap /> Corridinha Diária
+      </h1>
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Award /> Prémios das Corridinhas</CardTitle>
-                <CardDescription>O seu prémio em R$ acumulado através das corridinhas diárias neste ciclo.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-medium text-muted-foreground">Prémio Total Acumulado</h3>
-                    <p className="text-3xl font-bold text-green-400">{formatCurrency(sprintPrize)}</p>
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
-
-// --- Componente: Card da Corridinha Ativa ---
-const DailySprintCard = ({ sprint, seller }: { sprint: DailySprint; seller: SellerWithPrizes }) => {
-    const sellerSales = seller.salesValue || 0;
-    
-    const nextTier = sprint.sprintTiers.find(tier => sellerSales < tier.goal);
-    const lastAchievedTier = [...sprint.sprintTiers].reverse().find(tier => sellerSales >= tier.goal);
-
-    let progress = 0;
-    let progressLabel = "Meta máxima atingida!";
-    let description = `Parabéns! Você atingiu o último nível e garantiu um prémio de ${formatCurrency(lastAchievedTier?.prize || 0)}!`;
-
-    if (nextTier) {
-        const baseGoal = lastAchievedTier?.goal || 0;
-        const range = nextTier.goal - baseGoal;
-        progress = range > 0 ? ((sellerSales - baseGoal) / range) * 100 : 0;
-        progressLabel = `Próximo Nível: ${formatCurrency(nextTier.goal)}`;
-        description = `Venda mais ${formatCurrency(Math.max(0, nextTier.goal - sellerSales))} para ganhar +${formatCurrency(nextTier.prize)}!`;
-    }
-
-    return (
-        <Card className="col-span-full bg-gradient-to-r from-primary to-secondary text-primary-foreground">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-2xl"><Zap /> {sprint.title}</CardTitle>
-                <CardDescription className="text-primary-foreground/80 text-base">{description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex justify-between font-semibold mb-2 text-primary-foreground/90">
-                    <span>{progressLabel}</span>
-                    <span>{progress.toFixed(0)}%</span>
-                </div>
-                <Progress value={progress} className="h-4 [&>div]:bg-white" />
-                <div className="flex gap-2 mt-4">
-                    {sprint.sprintTiers.map((tier, index) => (
-                        <div key={index} className={cn(
-                            'flex-1 text-center text-sm p-2 rounded-lg font-semibold transition-all',
-                            sellerSales >= tier.goal ? 'bg-white/30' : 'bg-black/20 opacity-70'
-                        )}>
-                            {sellerSales >= tier.goal && <Check className="inline size-5 mr-1.5"/>}
-                            Nível {index + 1}
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    );
-};
-
-// --- Página Principal ---
-export default function SellerSprintPage() {
-    const { currentSeller, activeSprint, isAuthReady } = useSellerContext();
-
-    if (!isAuthReady || !currentSeller) {
-        return <DashboardSkeleton />;
-    }
-
-    return (
-        <div className="space-y-8">
-            <div className="flex items-center gap-4">
-                <Zap className="size-8 text-primary" />
-                <h1 className="text-3xl font-bold">Corridinha Diária</h1>
+      {activeSprint ? (
+        <Card className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
+          <CardHeader>
+            <CardTitle>{activeSprint.title}</CardTitle>
+            <CardDescription className="text-primary-foreground/80">
+              Esta é a corridinha ativa do dia! Dê o seu melhor para alcançar os prémios.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <h3 className="font-semibold">Níveis de Prémio:</h3>
+              <ul className="list-none space-y-2">
+                {activeSprint.sprint_tiers.map((tier, index) => (
+                  <li key={index} className="flex items-center gap-4 p-3 bg-primary/20 rounded-lg">
+                    <Trophy className="h-6 w-6 text-yellow-300" />
+                    <div>
+                      <p className="font-bold">Meta: {tier.goal}</p>
+                      <p className="text-sm">Prémio: R$ {tier.prize.toFixed(2)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            <SprintPrizesCard seller={currentSeller} />
-
-            {activeSprint ? (
-                <DailySprintCard sprint={activeSprint} seller={currentSeller} />
-            ) : (
-                <EmptyState 
-                    Icon={Zap}
-                    title="Nenhuma Corridinha Ativa"
-                    description="Não há nenhuma corridinha de vendas ativa para si no momento. Fique atento para o próximo desafio!"
-                />
-            )}
-        </div>
-    );
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-6">
+            <p>Nenhuma corridinha ativa para você no momento. Fique atento para a próxima!</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

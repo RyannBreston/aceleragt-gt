@@ -1,110 +1,81 @@
 'use client';
 
-import * as React from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { LayoutGrid, LogOut, Target, ShoppingBag, History, User, CalendarDays, BarChart, Zap, GraduationCap } from 'lucide-react';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
-import { auth } from '@/lib/firebase';
 import { useSellerContext } from '@/contexts/SellerContext';
-import { GamificationSettings } from '@/lib/types';
 import { MobileSidebar } from './MobileSidebar';
+import {
+  LayoutDashboard,
+  Trophy,
+  Target,
+  Gem,
+  LogOut,
+  Zap,
+  BookOpen,
+  Calendar,
+  User
+} from 'lucide-react';
 
-const allMenuItems = [
-  {href: '/seller/dashboard', label: 'Dashboard', icon: LayoutGrid, key: 'dashboard'},
-  {href: '/seller/sprints', label: 'Corridinha Diária', icon: Zap, key: 'sprints'},
-  {href: '/seller/escala', label: 'Minha Escala', icon: CalendarDays, key: 'escala'},
-  {href: '/seller/ofertas', label: 'Ofertas', icon: ShoppingBag, key: 'ofertas'},
-  {href: '/seller/loja', label: 'Loja de Prémios', icon: ShoppingBag, key: 'loja'},
-  {href: '/seller/ranking', label: 'Ranking', icon: BarChart, key: 'ranking'},
-  {href: '/seller/missions', label: 'Missões', icon: Target, key: 'missions'},
-  {href: '/seller/academia', label: 'Academia', icon: GraduationCap, key: 'academia'},
-  {href: '/seller/historico', label: 'Histórico', icon: History, key: 'historico'},
-  {href: '/seller/perfil', label: 'Meu Perfil', icon: User, key: 'perfil'},
+// A lista de navegação completa para o Vendedor
+const navItems = [
+  { href: '/seller/dashboard', label: 'Meu Desempenho', icon: LayoutDashboard },
+  { href: '/seller/ranking', label: 'Ranking Geral', icon: Trophy },
+  { href: '/seller/missions', label: 'Missões', icon: Target },
+  { href: '/seller/sprints', label: 'Corridinha', icon: Zap },
+  { href: '/seller/loja', label: 'Loja de Prémios', icon: Gem },
+  { href: '/seller/academia', label: 'Academia', icon: BookOpen },
+  { href: '/seller/escala', label: 'Minha Escala', icon: Calendar },
+  { href: '/seller/perfil', label: 'Meu Perfil', icon: User },
 ];
 
-export const SellerLayoutContent = ({ children }: { children: React.ReactNode }) => {
+export default function SellerSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { isMobile } = useSidebar();
-  const { goals, isAuthReady } = useSellerContext();
+  const { currentSeller } = useSellerContext();
 
-  const visibleMenuItems = React.useMemo(() => {
-    if (!isAuthReady) return [];
-
-    const settings = goals?.gamification as GamificationSettings | undefined;
-    const defaultVisibleKeys = ['dashboard', 'perfil'];
-
-    if (!settings) {
-      return allMenuItems.filter(item => defaultVisibleKeys.includes(item.key));
-    }
-
-    return allMenuItems.filter(item => {
-      if (defaultVisibleKeys.includes(item.key)) {
-        return true;
-      }
-      const itemKey = item.key as keyof GamificationSettings;
-      return settings[itemKey];
-    });
-  }, [goals, isAuthReady]);
-
-  const handleNavigate = (href: string) => {
-    router.push(href);
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
   };
 
-  const handleLogout = () => {
-    auth.signOut();
-    router.push('/login');
-  };
-
-  const sidebarContent = (
-    <>
-      <SidebarHeader className="p-4"><div className="flex items-center gap-3"><Logo /><h1 className="text-xl font-semibold text-white group-data-[collapsible=icon]:hidden">Acelera GT</h1></div></SidebarHeader>
-      <SidebarContent>
-        <SidebarMenu>
-          {visibleMenuItems.map(item => (
-            <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton onClick={() => handleNavigate(item.href)} isActive={pathname === item.href} className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:font-semibold text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" tooltip={{ children: item.label }}>
-                <item.icon className="size-5" />
-                <span className={isMobile ? '' : 'group-data-[collapsible=icon]:hidden'}>{item.label}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarContent>
-      <SidebarFooter className="p-4 space-y-4">
-        <Button onClick={handleLogout} variant="secondary" className="w-full bg-sidebar-accent hover:bg-sidebar-accent/80 text-sidebar-accent-foreground">
-          <LogOut className="mr-2 group-data-[collapsible=icon]:mr-0" />
-          <span className={isMobile ? '' : 'group-data-[collapsible=icon]:hidden'}>Sair</span>
-        </Button>
-      </SidebarFooter>
-    </>
-  );
+  if (!currentSeller) {
+    // Renderiza um placeholder para evitar que o layout "salte"
+    return <div className="hidden lg:flex w-64 flex-shrink-0" />;
+  }
 
   return (
     <>
-      <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar hidden md:flex">
-        {sidebarContent}
-      </Sidebar>
-      
-      <MobileSidebar>
-        {sidebarContent}
-      </MobileSidebar>
-
-      <div className="flex flex-col flex-1">
-        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">{children}</main>
+      <aside className="hidden lg:flex flex-col w-64 border-r bg-card text-card-foreground">
+        <div className="p-4 border-b">
+          <Link href="/seller/dashboard" className="flex items-center gap-2">
+            <Logo />
+            <span className="font-semibold">{currentSeller.name.split(' ')[0]}</span>
+          </Link>
+        </div>
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {navItems.map((item) => (
+            <Link key={item.href} href={item.href} passHref>
+              <Button
+                variant={pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+              >
+                <item.icon className="mr-2 h-4 w-4" />
+                {item.label}
+              </Button>
+            </Link>
+          ))}
+        </nav>
+        <div className="p-4 border-t">
+          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </Button>
+        </div>
+      </aside>
+      <div className="lg:hidden">
+        <MobileSidebar navItems={navItems} onLogout={handleLogout} />
       </div>
     </>
-  );
-};
-
-export default function SellerLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen">
-      <SellerLayoutContent>
-        {children}
-      </SellerLayoutContent>
-    </div>
   );
 }

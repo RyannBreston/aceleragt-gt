@@ -1,108 +1,34 @@
 'use client';
 
 import React from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { History } from 'lucide-react';
 import { useAdminContext } from '@/contexts/AdminContext';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, History } from 'lucide-react';
 
-export default function HistoryPage() {
-  const { cycleHistory, isLoading } = useAdminContext();
-
+export default function AdminHistoricoPage() {
+  // A lógica para `cycleHistory` precisa ser implementada no AdminContext e na API.
+  const { isLoading } = useAdminContext(); 
+  
   if (isLoading) {
-    return <DashboardSkeleton />;
+    return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-4">
-        <History className="size-8 text-primary" />
-        <h1 className="text-3xl font-bold">Histórico de Ciclos</h1>
-      </div>
-      
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <History /> Histórico de Ciclos
+      </h1>
       <Card>
         <CardHeader>
-          <CardTitle>Ciclos Anteriores</CardTitle>
+          <CardTitle>Em Breve</CardTitle>
           <CardDescription>
-            Consulte o desempenho dos vendedores em ciclos de vendas passados.
+            Aqui será exibido o histórico de performance dos ciclos de vendas anteriores.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {cycleHistory.length > 0 ? (
-            <Accordion type="single" collapsible className="w-full">
-              {cycleHistory.map((cycle) => (
-                <AccordionItem value={cycle.id} key={cycle.id}>
-                  <AccordionTrigger>
-                    Ciclo Finalizado em{' '}
-                    {format(cycle.endDate.toDate(), "dd 'de' MMMM, yyyy", {
-                      locale: ptBR,
-                    })}
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Vendedor</TableHead>
-                          <TableHead>Vendas</TableHead>
-                          <TableHead>Ticket Médio</TableHead>
-                          <TableHead>PA</TableHead>
-                          <TableHead>Pontos</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {cycle.sellers.map((seller) => (
-                          <TableRow key={seller.id}>
-                            <TableCell>{seller.name}</TableCell>
-                            <TableCell>
-                              {(seller.salesValue || 0).toLocaleString('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              })}
-                            </TableCell>
-                            <TableCell>
-                              {(seller.ticketAverage || 0).toLocaleString('pt-BR', {
-                                style: 'currency',
-                                currency: 'BRL',
-                              })}
-                            </TableCell>
-                            <TableCell>{(seller.pa || 0).toFixed(2)}</TableCell>
-                            <TableCell>
-                              {(seller.points || 0).toLocaleString('pt-BR')}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          ) : (
-            <div className="text-center text-muted-foreground border-2 border-dashed border-border rounded-lg p-12">
-              <History className="mx-auto h-12 w-12 text-muted-foreground" />
-              <p className="mt-4 font-semibold">
-                Nenhum histórico de ciclo disponível.
-              </p>
-              <p className="text-sm">
-                O desempenho de ciclos anteriores aparecerá aqui.
-              </p>
-            </div>
-          )}
+          <p>
+            Esta funcionalidade será implementada na nova arquitetura, buscando os dados da tabela de histórico no Neon.
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -1,74 +1,61 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-import type { Seller, Goals, SellerWithPrizes, MetricGoals, GoalLevel, DailySprint } from '@/lib/types';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-type PrizeMetric = 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+import type { Seller, Goals, DailySprint, SellerWithPrizes, PrizeDetail, MetricGoals } from './types';
 
 /**
- * Calcula os prémios de um vendedor com base nas metas e na corridinha ativa.
+ * Calcula os prémios totais para um único vendedor com base nas metas e performance.
+ * Esta função está agora completamente desacoplada do Firebase.
  */
-export const calculateSellerPrizes = (
-  sellerData: Seller,
-  sellers: Seller[],
+export function calculateSellerPrizes(
+  seller: Seller,
+  allSellers: Seller[],
   goals: Goals,
   activeSprint: DailySprint | null
-): SellerWithPrizes => {
+): SellerWithPrizes {
+  
+  const prizeDetails: PrizeDetail[] = [];
+  const goalData = goals.data; // A estrutura complexa está dentro de 'data'
 
-  // 1. Calcula o prémio da Corridinha (Sprint)
-  let sprintPrize = 0;
-  if (activeSprint && activeSprint.participantIds.includes(sellerData.id)) {
-    const achievedTiers = activeSprint.sprintTiers
-      .filter(tier => sellerData.salesValue >= tier.goal)
-      .sort((a, b) => b.goal - a.goal); // Ordena do maior para o menor
+  if (goalData) {
+    const metrics: (keyof typeof goalData)[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
+    
+    metrics.forEach(metric => {
+      const sellerValue = (seller as any)[metric] || 0;
+      const metricGoals = goalData[metric as keyof typeof goalData] as MetricGoals | undefined;
 
-    if (achievedTiers.length > 0) {
-      sprintPrize = achievedTiers[0].prize; // Pega o prémio do nível mais alto atingido
-    }
+      if (metricGoals) {
+        // Lógica de prémios por nível (Metinha, Meta, etc.)
+        const levels: (keyof MetricGoals)[] = ['metinha', 'meta', 'metona', 'lendaria'];
+        levels.forEach(level => {
+          const goalLevel = metricGoals[level];
+          if (goalLevel?.threshold && goalLevel.prize && sellerValue >= goalLevel.threshold) {
+            prizeDetails.push({
+              reason: `Atingiu ${level} de ${metric}`,
+              amount: goalLevel.prize,
+              level: level,
+            });
+          }
+        });
+
+        // Lógica de bónus de performance
+        const perfBonus = metricGoals.performanceBonus;
+        if (perfBonus?.per && perfBonus.prize && perfBonus.per > 0) {
+            const bonusAmount = Math.floor(sellerValue / perfBonus.per) * perfBonus.prize;
+            if (bonusAmount > 0) {
+                prizeDetails.push({ reason: `Bónus de performance em ${metric}`, amount: bonusAmount });
+            }
+        }
+      }
+    });
   }
 
-  // 2. Calcula os prémios das Metas de Performance
-  const prizes: Record<PrizeMetric, number> = {
-    salesValue: 0,
-    ticketAverage: 0,
-    pa: 0,
-    points: 0,
-  };
+  // A lógica do sprint e outros prémios pode ser adicionada aqui...
 
-  const metrics: PrizeMetric[] = ['salesValue', 'ticketAverage', 'pa', 'points'];
-
-  metrics.forEach(metric => {
-    const sellerValue = (sellerData[metric as keyof Seller] as number) || 0;
-    const metricGoals = goals[metric] as MetricGoals;
-    if (!metricGoals) return;
-
-    const levels: (keyof MetricGoals)[] = ['lendaria', 'metona', 'meta', 'metinha'];
-    for (const level of levels) {
-      const goalLevel = metricGoals[level] as GoalLevel;
-      if (goalLevel && goalLevel.threshold > 0 && sellerValue >= goalLevel.threshold) {
-        prizes[metric] = goalLevel.prize || 0;
-        break; 
-      }
-    }
-  });
-
-  // 3. Calcula o Prémio Total
-  const totalPrizeFromMetrics = Object.values(prizes).reduce((sum, prize) => sum + prize, 0);
-  const totalPrize = totalPrizeFromMetrics + sprintPrize;
-
-  // 4. Calcula o Ranking (exemplo, pode ser ajustado)
-  const rank = [...sellers].sort((a, b) => b.salesValue - a.salesValue).findIndex(s => s.id === sellerData.id) + 1;
+  const totalPrize = prizeDetails.reduce((sum, prize) => sum + prize.amount, 0);
 
   return {
-    ...sellerData,
-    prizes,
-    sprintPrize,
-    totalPrize,
-    rank,
-    teamBonusApplied: false,
-    topScorerBonus: 0,
+    ...seller,
+    prizes: {
+      total: totalPrize,
+      details: prizeDetails,
+    },
   };
-};
+}

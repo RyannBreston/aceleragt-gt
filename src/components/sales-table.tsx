@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   Table,
   TableBody,
@@ -8,60 +9,49 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { SalesEntry } from '@/lib/types';
-import { format } from 'date-fns';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import type { Seller } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 
-type SalesTableProps = {
-  salesData: SalesEntry[];
-};
+interface SalesTableProps {
+  sellers: Seller[];
+}
 
-export default function SalesTable({ salesData }: SalesTableProps) {
+export default function SalesTable({ sellers }: SalesTableProps) {
+  const rankedSellers = [...sellers]
+    .sort((a, b) => (b.points || 0) - (a.points || 0))
+    .slice(0, 5);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sales Entries</CardTitle>
-        <CardDescription>A list of recent sales records.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[300px]">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead className="text-right">Sales Value</TableHead>
-                <TableHead className="text-right">Ticket Average</TableHead>
-                <TableHead className="text-right">PPA</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {salesData.length > 0 ? (
-                salesData.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell>{format(entry.date, 'MMM d, yyyy')}</TableCell>
-                    <TableCell className="text-right">
-                      ${entry.salesValue.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      ${entry.ticketAverage.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {entry.productsPerService.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center">
-                    No sales data available.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Vendedor</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead className="text-right">Vendas</TableHead>
+          <TableHead className="text-right">Pontos</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rankedSellers.map((seller) => (
+          <TableRow key={seller.id}>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Avatar className="hidden h-9 w-9 sm:flex">
+                  <AvatarFallback>{seller.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="font-medium">{seller.name}</div>
+              </div>
+            </TableCell>
+            <TableCell>{seller.email}</TableCell>
+            <TableCell className="text-right">{formatCurrency(seller.sales_value || 0)}</TableCell>
+            <TableCell className="text-right">
+                <Badge variant="secondary">{seller.points || 0}</Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

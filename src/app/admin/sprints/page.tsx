@@ -13,13 +13,16 @@ import { Loader2, PlusCircle, Trash2, Edit, ToggleLeft, ToggleRight } from 'luci
 import { DailySprint, Seller } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+// Tipo para os dados do formulário, omitindo campos gerados automaticamente
+type SprintFormData = Omit<DailySprint, 'id' | 'createdAt' | 'is_active'>;
+
 // Componente do formulário para não poluir a página principal
-const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null, onSave: (data: any) => void, onCancel: () => void }) => {
+const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null, onSave: (data: SprintFormData) => void, onCancel: () => void }) => {
     const { sellers } = useAdminContext();
     const [title, setTitle] = useState(sprint?.title || '');
     const [participantIds, setParticipantIds] = useState<string[]>(sprint?.participant_ids || []);
-    // Tiers são complexos, vamos usar JSON por enquanto para simplicidade
     const [sprintTiers, setSprintTiers] = useState(sprint?.sprint_tiers ? JSON.stringify(sprint.sprint_tiers, null, 2) : '[\n  {\n    "goal": 1000,\n    "prize": 50\n  }\n]');
+    const { toast } = useToast();
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,10 +31,10 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
             onSave({
                 title,
                 participantIds,
-                sprintTiers: parsedTiers,
+                sprint_tiers: parsedTiers,
             });
         } catch (error) {
-            alert('Formato de JSON inválido para os prémios.');
+            toast({ variant: 'destructive', title: 'Erro de Formato', description: 'O JSON para os prémios é inválido.'});
         }
     };
 
@@ -94,16 +97,13 @@ export default function SprintsPage() {
         setEditingSprint(null);
     };
 
-    const handleSave = async (data: any) => {
+    const handleSave = async (data: SprintFormData) => {
         try {
             await saveSprint(data, editingSprint?.id);
             handleCloseDialog();
         } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro!',
-                description: 'Não foi possível salvar a corridinha.',
-            });
+            console.error("Failed to save sprint:", error);
+            toast({ variant: 'destructive', title: 'Erro!', description: 'Não foi possível salvar a corridinha.' });
         }
     };
 
@@ -111,11 +111,17 @@ export default function SprintsPage() {
         try {
             await deleteSprint(id);
         } catch (error) {
-             toast({
-                variant: 'destructive',
-                title: 'Erro!',
-                description: 'Não foi possível excluir a corridinha.',
-            });
+             console.error("Failed to delete sprint:", error);
+             toast({ variant: 'destructive', title: 'Erro!', description: 'Não foi possível excluir a corridinha.'});
+        }
+    };
+
+    const handleToggle = async (sprint: DailySprint) => {
+        try {
+            await toggleSprint(sprint, !sprint.is_active);
+        } catch (error) {
+            console.error("Failed to toggle sprint:", error);
+            toast({ variant: 'destructive', title: 'Erro!', description: 'Não foi possível alterar o estado da corridinha.'});
         }
     };
 
@@ -158,7 +164,7 @@ export default function SprintsPage() {
                 <p>Nenhuma corridinha encontrada.</p>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sprints.map((sprint: DailySprint) => (
+                    {sprints.map((sprint) => (
                         <Card key={sprint.id}>
                             <CardHeader>
                                 <CardTitle>{sprint.title}</CardTitle>
@@ -176,7 +182,7 @@ export default function SprintsPage() {
                                 <Button variant="ghost" size="sm" onClick={() => handleOpenDialog(sprint)}>
                                     <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => toggleSprint(sprint, !sprint.is_active)}>
+                                <Button variant="ghost" size="sm" onClick={() => handleToggle(sprint)}>
                                     {sprint.is_active ? 'Desativar' : 'Ativar'}
                                 </Button>
                                 <AlertDialog>

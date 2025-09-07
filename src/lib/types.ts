@@ -1,48 +1,56 @@
-import { Timestamp } from 'firebase/firestore';
+// --- TIPOS DE DADOS BASE DO BANCO DE DADOS (NEON) ---
 
-// ====================================================================
-// TIPOS E ESQUEMAS PARA UTILIZADORES E GAMIFICAÇÃO
-// ====================================================================
-
-export interface Admin {
+export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin';
-  createdAt?: Timestamp;
+  role: 'admin' | 'seller';
 }
 
-export interface Seller {
-  id: string;
-  name: string;
-  email: string;
-  role: 'seller';
-  salesValue: number;
-  ticketAverage: number;
-  pa: number;
-  points: number; // Pontos de performance (ex: Academia)
-  dailyAttendanceCount?: number;
-  lastAttendanceUpdate?: Timestamp;
-  completedCourseIds?: string[];
-  workSchedule?: Record<string, string>;
-  createdAt?: Timestamp;
+export interface Seller extends User {
+  sales_value?: number;
+  ticket_average?: number;
+  pa?: number;
+  points?: number;
+  extra_points?: number;
 }
+
+export interface Mission {
+  id: string;
+  title: string;
+  description?: string;
+  points: number;
+  type?: string;
+  goal?: number;
+  course_id?: string;
+}
+
+export interface DailySprint {
+  id: string;
+  title: string;
+  is_active: boolean;
+  created_at: string; // ou Date
+  participant_ids: string[];
+  sprint_tiers: { goal: number; prize: number }[];
+}
+
+// --- TIPO PARA AS METAS E CONFIGURAÇÕES DE GAMIFICAÇÃO ---
 
 export interface GoalLevel {
-    threshold: number;
-    prize: number;
+  threshold?: number;
+  prize?: number;
 }
 
 export interface PerformanceBonus {
-    per: number;
-    prize: number;
+    per?: number;
+    prize?: number;
 }
 
 export interface MetricGoals {
-    metinha: GoalLevel;
-    meta: GoalLevel;
-    metona: GoalLevel;
-    lendaria: GoalLevel;
+    metinha?: GoalLevel;
+    meta?: GoalLevel;
+    metona?: GoalLevel;
+    lendaria?: GoalLevel;
     performanceBonus?: PerformanceBonus;
     topScorerPrize?: number;
 }
@@ -59,135 +67,45 @@ export interface GamificationSettings {
 }
 
 export interface Goals {
+  id: 'main';
+  // Metas principais (opcional, pois podem estar dentro de 'data')
+  monthly_goal?: number;
+  pa_goal?: number;
+  ticket_goal?: number;
+  // Objeto 'data' para armazenar a estrutura complexa do formulário de configurações
+  data?: {
     salesValue: MetricGoals;
     ticketAverage: MetricGoals;
     pa: MetricGoals;
     points: MetricGoals;
     gamification: GamificationSettings;
     teamGoalBonus?: number;
+  }
 }
 
-export type CourseDifficulty = 'Fácil' | 'Médio' | 'Difícil';
+// --- TIPOS DERIVADOS E PARA OS CONTEXTOS ---
 
-export interface Course {
-    id?: string;
-    title: string;
-    content: string;
-    quiz: QuizQuestion[];
-    points: number;
-    dificuldade: CourseDifficulty;
-    pdfUrl?: string;
-    pdfFileName?: string;
+export interface Admin extends User {
+  role: 'admin';
 }
 
-export interface QuizQuestion {
-    question: string;
-    options: string[];
-    correctAnswerIndex: number;
-    explanation:string;
+export interface PrizeDetail {
+  reason: string;
+  amount: number;
+  level?: string;
 }
 
-export interface Quiz {
-    id: string;
-    title: string;
-    questions: QuizQuestion[];
-}
-
-export interface QuizResult {
-    quizId: string;
-    quizTitle: string;
-    sellerId: string;
-    sellerName: string;
-    timestamp: Date;
-    score: number;
-    correctAnswers: number;
-    totalQuestions: number;
-}
-
-export interface SprintTier {
-    goal: number;
-    prize: number; // CORRIGIDO: de 'points' para 'prize' (R$)
-    label: string;
-}
-
-export interface DailySprint {
-    id: string;
-    title: string;
-    sprintTiers: SprintTier[];
-    createdAt: { seconds: number, nanoseconds: number };
-    participantIds: string[];
-    isActive: boolean;
-}
-
-export interface PrizeItem {
-    id: string;
-    name: string;
-    description: string;
-    points: number;
-    stock?: number | null;
-    imageUrl: string;
-    createdAt?: Timestamp;
-    updatedAt?: Timestamp;
-}
-
-export interface Offer {
-    id: string;
-    name: string;
-    description: string;
-    imageUrl: string;
-    originalPrice?: number;
-    promotionalPrice: number;
-    startDate: Date;
-    expirationDate: Date;
-    isActive: boolean;
-    category: string;
-    productCode?: string;
-    reference?: string;
-    isFlashOffer?: boolean;
-    isBestSeller?: boolean;
-    createdAt?: Timestamp;
-    updatedAt?: Timestamp;
-}
-
-export interface CycleSnapshot {
-  id: string;
-  endDate: Timestamp;
-  sellers: Seller[];
-  goals: Goals;
-}
-
-export interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  type: 'individual' | 'team';
-  goal: number;
-  metric: 'salesValue' | 'ticketAverage' | 'pa' | 'points';
-  isActive: boolean;
-  deadline: Date;
-}
-
-export interface SalesEntry {
-  id: string;
-  sellerId: string;
-  sellerName: string;
-  date: Date;
-  salesValue: number;
-  ticketAverage: number;
-  productsPerService: number;
-}
-
-export type SellerWithPrizes = Seller & {
+export interface SellerWithPrizes extends Seller {
   prizes: {
-    salesValue: number;
-    ticketAverage: number;
-    pa: number;
-    points: number;
+    total: number;
+    details: PrizeDetail[];
   };
-  sprintPrize: number; // NOVO: Prémio em R$ acumulado das corridinhas
-  totalPrize: number;
-  teamBonusApplied: boolean;
-  topScorerBonus: number;
-  rank: number;
-};
+}
+
+// Tipo para o histórico, se vier a ser implementado
+export interface CycleSnapshot {
+    id: string;
+    endDate: Date;
+    sellers: Seller[];
+    goals: Goals;
+}

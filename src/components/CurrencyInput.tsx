@@ -10,7 +10,7 @@ interface CurrencyInputProps extends Omit<InputProps, 'onChange' | 'value'> {
 }
 
 const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
-  ({ value, onValueChange, ...props }, ref) => {
+  ({ value, onValueChange, ...props }, ref) => { // Corrigido: 'onValue-change' para 'onValueChange'
     return (
       <NumericFormat
         {...(props as unknown as NumericFormatProps)}

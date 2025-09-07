@@ -1,58 +1,31 @@
-'use client';
+import { create } from 'zustand';
+import type { Seller, Goals, Mission, CycleSnapshot, Admin } from './types';
 
-import { useSyncExternalStore } from 'react';
-import { createStore } from 'zustand/vanilla';
-import type { Seller, Goals, Mission, Admin, CycleSnapshot, DailySprint } from './types';
-import { initialSellers, initialGoals, initialMissions } from './data';
-
-type AppState = {
+interface AppState {
   sellers: Seller[];
   goals: Goals | null;
   missions: Mission[];
-  sprints: DailySprint[];
-  admin: Admin | null;
   cycleHistory: CycleSnapshot[];
-};
-
-type AppStore = AppState & {
+  admin: Admin | null;
   setSellers: (updater: (prev: Seller[]) => Seller[]) => void;
   setGoals: (updater: (prev: Goals | null) => Goals | null) => void;
   setMissions: (updater: (prev: Mission[]) => Mission[]) => void;
-  setSprints: (updater: (prev: DailySprint[]) => DailySprint[]) => void;
-  setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
   setCycleHistory: (updater: (prev: CycleSnapshot[]) => CycleSnapshot[]) => void;
-};
+  setAdmin: (updater: (prev: Admin | null) => Admin | null) => void;
+}
 
-const initialState: AppState = {
-  sellers: initialSellers,
-  goals: initialGoals,
-  missions: initialMissions,
-  sprints: [],
-  admin: null,
+export const useStore = create<AppState>((set) => ({
+  sellers: [],
+  goals: null,
+  missions: [],
   cycleHistory: [],
-};
-
-export const store = createStore<AppStore>((set) => ({
-  ...initialState,
+  admin: null,
   setSellers: (updater) => set((state) => ({ sellers: updater(state.sellers) })),
   setGoals: (updater) => set((state) => ({ goals: updater(state.goals) })),
   setMissions: (updater) => set((state) => ({ missions: updater(state.missions) })),
-  setSprints: (updater) => set((state) => ({ sprints: updater(state.sprints) })),
-  setAdmin: (updater) => set((state) => ({ admin: updater(state.admin) })),
   setCycleHistory: (updater) => set((state) => ({ cycleHistory: updater(state.cycleHistory) })),
+  setAdmin: (updater) => set((state) => ({ admin: updater(state.admin) })),
 }));
 
-// Expondo as ações para uso fora dos componentes React
-export const dataStore = {
-  setSellers: store.getState().setSellers,
-  setGoals: store.getState().setGoals,
-  setMissions: store.getState().setMissions,
-  setSprints: store.getState().setSprints,
-  setAdmin: store.getState().setAdmin,
-  setCycleHistory: store.getState().setCycleHistory,
-};
-
-// Hook para consumir a store nos componentes
-export const useStore = <T>(selector: (state: AppStore) => T): T => {
-  return useSyncExternalStore(store.subscribe, () => selector(store.getState()), () => selector(initialState as AppStore));
-};
+// Exportar o store diretamente para uso fora de componentes React, se necessário
+export const store = useStore;

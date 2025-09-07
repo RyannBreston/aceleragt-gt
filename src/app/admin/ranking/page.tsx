@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useMemo, memo } from 'react';
+import React, { useState, useMemo, memo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star } from 'lucide-react';
+import { Trophy, Medal, Award, DollarSign, Ticket, Box, Star, Loader2 } from 'lucide-react';
 import { useAdminContext } from '@/contexts/AdminContext';
-import type { Goals, MetricGoals } from '@/lib/types';
-import { cn, calculateSellerPrizes } from '@/lib/client-utils';
+import type { Goals, MetricGoals, SellerWithPrizes } from '@/lib/types';
+import { calculateSellerPrizes } from '@/lib/client-utils';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
@@ -15,15 +16,14 @@ import { Progress } from '@/components/ui/progress';
 // ### 1. TIPOS, CONSTANTES E FORMATAÇÃO ###
 // ####################################################################
 
-type RankingCriterion = 'totalPrize' | 'salesValue' | 'ticketAverage' | 'pa' | 'points';
+type RankingCriterion = 'prizes_total' | 'sales_value' | 'ticket_average' | 'pa' | 'points';
 type GoalLevelName = 'Metinha' | 'Meta' | 'Metona' | 'Lendária';
-type SellerWithPrize = ReturnType<typeof calculateSellerPrizes>;
 
 const TABS_CONFIG: { value: RankingCriterion; label: string; icon: React.ElementType }[] = [
-    { value: 'totalPrize', label: 'Prémio Total', icon: Trophy },
-    { value: 'salesValue', label: 'Vendas', icon: DollarSign },
+    { value: 'prizes_total', label: 'Prémio Total', icon: Trophy },
+    { value: 'sales_value', label: 'Vendas', icon: DollarSign },
     { value: 'points', label: 'Pontos', icon: Star },
-    { value: 'ticketAverage', label: 'Ticket Médio', icon: Ticket },
+    { value: 'ticket_average', label: 'Ticket Médio', icon: Ticket },
     { value: 'pa', label: 'PA', icon: Box },
 ];
 
@@ -34,7 +34,7 @@ const goalLevelConfig: Record<GoalLevelName, { label: string; className: string;
     'Lendária': { label: 'Lendária', className: 'border-purple-500/50 text-purple-400 bg-purple-500/10' },
 };
 
-const formatCurrency = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const formatCurrency = (value?: number) => (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 
 // ####################################################################
@@ -45,16 +45,14 @@ const useRankingData = (criterion: RankingCriterion) => {
     const { sellers, goals, sprints } = useAdminContext();
     
     const sellersWithPrizes = useMemo(() => {
-        if (!goals) return [];
-        const activeSprint = sprints.find(s => s.isActive) || null;
+        if (!goals || !sellers) return [];
+        const activeSprint = sprints.find(s => s.is_active) || null;
         return sellers.map(s => calculateSellerPrizes(s, sellers, goals, activeSprint));
     }, [sellers, goals, sprints]);
 
     const sortedSellers = useMemo(() => {
-        console.log("Sellers in sortedSellers: ", sellers)
         return [...sellersWithPrizes].sort((a, b) => {
-            if (criterion === 'totalPrize') return b.totalPrize - a.totalPrize;
-            if (criterion === 'points') return b.points - a.points;
+            if (criterion === 'prizes_total') return b.prizes.total - a.prizes.total;
             const valueA = (a as any)[criterion] || 0;
             const valueB = (b as any)[criterion] || 0;
             return valueB - valueA;
@@ -64,20 +62,20 @@ const useRankingData = (criterion: RankingCriterion) => {
     return sortedSellers;
 };
 
-const useGoalProgress = (sellerData: SellerWithPrize | null, criterion: RankingCriterion, goals: Goals | null) => {
+const useGoalProgress = (sellerData: SellerWithPrizes | null, criterion: RankingCriterion, goals: Goals | null) => {
     return useMemo(() => {
-        if (!sellerData || !goals || criterion === 'totalPrize') {
+        if (!sellerData || !goals?.data || criterion === 'prizes_total') {
             return { percent: 0, label: '', achievedLevels: [] };
         }
         
-        const metric = criterion as keyof Omit<Goals, 'gamification' | 'teamGoalBonus'>;
-        const goalData = goals[metric];
+        const metric = criterion as keyof Omit<Goals['data'], 'gamification' | 'teamGoalBonus'>;
+        const goalData = goals.data[metric];
         
         if (typeof goalData !== 'object' || goalData === null) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
         }
 
-        const sellerValue = sellerData[metric as keyof SellerWithPrize] as number || 0;
+        const sellerValue = (sellerData as any)[metric] as number || 0;
 
         if (!goalData.metinha?.threshold) {
             return { percent: 0, label: 'Metas não definidas', achievedLevels: [] };
@@ -86,7 +84,7 @@ const useGoalProgress = (sellerData: SellerWithPrize | null, criterion: RankingC
         const levels: GoalLevelName[] = ['Metinha', 'Meta', 'Metona', 'Lendária'];
         const allGoals = levels.map(level => {
             const levelKey = level.toLowerCase() as keyof MetricGoals;
-            const goalLevel = goalData[levelKey] as { threshold: number } | undefined;
+            const goalLevel = (goalData as any)[levelKey] as { threshold: number } | undefined;
             return { name: level, threshold: goalLevel?.threshold || 0 };
         });
 
@@ -129,7 +127,7 @@ const PodiumIcon = memo(({ rank }: { rank: number }) => {
 });
 PodiumIcon.displayName = 'PodiumIcon';
 
-const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize | null, criterion: RankingCriterion }) => {
+const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrizes | null, criterion: RankingCriterion }) => {
     const { goals } = useAdminContext();
     const goalProgress = useGoalProgress(seller, criterion, goals);
 
@@ -143,10 +141,10 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
     }
     
     const criterionLabel = TABS_CONFIG.find(t => t.value === criterion)?.label || '';
-    const prizeForCriterion = criterion === 'totalPrize'
-        ? seller.totalPrize
-        : (seller.prizes as any)[criterion] || 0;
-    const sellerResult = seller[criterion as keyof SellerWithPrize] as number || 0; 
+    const prizeForCriterion = criterion === 'prizes_total'
+        ? seller.prizes.total
+        : (seller.prizes.details.find(d => d.reason.includes(criterion))?.amount || 0);
+    const sellerResult = (seller as any)[criterion] as number || 0; 
             
     const isCurrency = criterion !== 'points' && criterion !== 'pa';
 
@@ -158,7 +156,7 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
             <CardContent className="space-y-8">
                  <div className="grid grid-cols-2 gap-6">
                     <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">Prêmio (Critério)</h3>
+                        <h3 className="text-sm font-medium text-muted-foreground">Prémio (Critério)</h3>
                         <p className="text-2xl font-bold text-green-400">{formatCurrency(prizeForCriterion)}</p>
                     </div>
                     <div>
@@ -200,28 +198,34 @@ const PerformanceDetailCard = ({ seller, criterion }: { seller: SellerWithPrize 
 // ####################################################################
 
 export default function RankingPage() {
-    const [criterion, setCriterion] = useState<RankingCriterion>('totalPrize');
-    const [selectedSeller, setSelectedSeller] = useState<SellerWithPrize | null>(null);
+    const { isLoading } = useAdminContext();
+    const [criterion, setCriterion] = useState<RankingCriterion>('prizes_total');
+    const [selectedSeller, setSelectedSeller] = useState<SellerWithPrizes | null>(null);
     const sortedSellers = useRankingData(criterion);
     
-    React.useEffect(() => {
-        if (sortedSellers.length > 0) {
+    useEffect(() => {
+        if (sortedSellers.length > 0 && !selectedSeller) {
             setSelectedSeller(sortedSellers[0]);
-        } else {
+        } else if (sortedSellers.length === 0) {
             setSelectedSeller(null);
         }
-    }, [sortedSellers]);
+    }, [sortedSellers, selectedSeller]);
 
-    const handleSellerSelect = (seller: SellerWithPrize) => {
+    const handleSellerSelect = (seller: SellerWithPrizes) => {
         setSelectedSeller(seller);
     };
     
-    const getResultForSeller = (seller: SellerWithPrize) => {
-        const result = seller[criterion as keyof SellerWithPrize] as number || 0;
+    const getResultForSeller = (seller: SellerWithPrizes) => {
+        if (criterion === 'prizes_total') {
+            return formatCurrency(seller.prizes.total);
+        }
+        const result = (seller as any)[criterion] as number || 0;
         return criterion === 'pa' || criterion === 'points' ? result.toLocaleString('pt-BR') : formatCurrency(result);
     };
-     const { sellers } = useAdminContext();
-     console.log("Sellers in Ranking: ", sellers);
+
+    if (isLoading) {
+      return <div className="flex h-full w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+    }
 
     return (
         <div className="space-y-8">
@@ -241,7 +245,7 @@ export default function RankingPage() {
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                <div className="lg-col-span-1 space-y-4">
+                <div className="lg:col-span-1 space-y-4">
                      <Card>
                         <CardHeader className='pb-4'><CardTitle>Classificação</CardTitle></CardHeader>
                         <CardContent className="space-y-3">

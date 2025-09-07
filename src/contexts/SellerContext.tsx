@@ -3,40 +3,45 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { calculateSellerPrizes } from '@/lib/client-utils';
-import type { Seller, Goals, Mission, CycleSnapshot, DailySprint, Admin, SellerWithPrizes } from '@/lib/types';
+import type { Seller, Goals, Mission, DailySprint, SellerWithPrizes } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface SellerContextType {
-  sellers: Seller[];
+  sellers: Seller[]; // <-- Crucial: Armazena a lista de TODOS os vendedores para o ranking
   goals: Goals | null;
   missions: Mission[];
   currentSeller: SellerWithPrizes | null;
-  cycleHistory: CycleSnapshot[];
   activeSprint: DailySprint | null;
-  isAuthReady: boolean;
-  userId: string | null;
+  isLoading: boolean;
   isSeller: boolean;
-  admin: Admin | null;
 }
 
 const SellerContext = createContext<SellerContextType | undefined>(undefined);
 
-export const SellerProvider = ({ children }: { children: ReactNode }) => {
+export function SellerProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
+  const { toast } = useToast();
+  
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [goals, setGoals] = useState<Goals | null>(null);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [currentSeller, setCurrentSeller] = useState<SellerWithPrizes | null>(null);
   const [activeSprint, setActiveSprint] = useState<DailySprint | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const userId = useMemo(() => session?.user?.id, [session]);
-  const isSeller = useMemo(() => status === 'authenticated' && session?.user?.role === 'seller', [session, status]);
+  const userId = session?.user?.id;
+  const isSeller = status === 'authenticated' && session?.user?.role === 'seller';
 
   useEffect(() => {
     const fetchData = async () => {
-      // Apenas busca os dados se for um vendedor autenticado
-      if (!isSeller) return;
+      if (!isSeller) {
+        setIsLoading(false);
+        return;
+      }
 
+      setIsLoading(true);
       try {
+        // Busca todos os dados necessários para a experiência do vendedor
         const [sellersRes, goalsRes, missionsRes, sprintsRes] = await Promise.all([
           fetch('/api/sellers'),
           fetch('/api/goals'),
@@ -53,26 +58,27 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
         const missionsData = await missionsRes.json();
         const sprintsData = await sprintsRes.json();
 
-        setSellers(sellersData);
+        setSellers(sellersData); // <-- Armazena a lista completa de vendedores
         setGoals(goalsData);
         setMissions(missionsData);
         
-        // Encontra a corridinha ativa para este vendedor específico
-        const active = sprintsData.find((sprint: DailySprint) => sprint.is_active && sprint.participant_ids.includes(userId));
+        const active = sprintsData.find((sprint: DailySprint) => sprint.is_active && sprint.participant_ids.includes(userId!));
         setActiveSprint(active || null);
 
-      } catch (error) {
-        console.error("Erro ao buscar dados da API:", error);
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    if (status === 'authenticated') {
+    if (status !== 'loading') {
       fetchData();
     }
-  }, [isSeller, status, userId]);
+  }, [isSeller, status, userId, toast]);
 
   useEffect(() => {
-    // Calcula os dados do vendedor atual sempre que os dados base mudarem
+    // Calcula os dados específicos do vendedor logado
     if (userId && sellers.length > 0 && goals) {
       const sellerData = sellers.find(s => s.id === userId);
       if (sellerData) {
@@ -85,17 +91,10 @@ export const SellerProvider = ({ children }: { children: ReactNode }) => {
   }, [userId, sellers, goals, activeSprint]);
 
   const contextValue: SellerContextType = useMemo(() => ({
-    sellers,
-    goals,
-    missions,
-    currentSeller,
-    activeSprint,
-    userId,
+    sellers, goals, missions, currentSeller, activeSprint,
+    isLoading: isLoading || status === 'loading',
     isSeller,
-    isAuthReady: status !== 'loading',
-    admin: null, // Não aplicável no contexto de vendedor
-    cycleHistory: [], // Não aplicável no contexto de vendedor
-  }), [sellers, goals, missions, currentSeller, activeSprint, userId, isSeller, status]);
+  }), [sellers, goals, missions, currentSeller, activeSprint, isLoading, status, isSeller]);
 
   return <SellerContext.Provider value={contextValue}>{children}</SellerContext.Provider>;
 };

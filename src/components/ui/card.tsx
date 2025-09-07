@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@/lib/client-utils"
+import { cn } from "@/lib/utils" // Corrigido: a importação agora aponta para @/lib/utils
 
 const Card = React.forwardRef<
   HTMLDivElement,
@@ -30,10 +30,10 @@ const CardHeader = React.forwardRef<
 CardHeader.displayName = "CardHeader"
 
 const CardTitle = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => (
-  <div
+  <h3
     ref={ref}
     className={cn(
       "text-2xl font-semibold leading-none tracking-tight",

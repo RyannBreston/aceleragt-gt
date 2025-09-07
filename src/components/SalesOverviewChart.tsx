@@ -1,57 +1,48 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useAdminContext } from '@/contexts/AdminContext';
-import { EmptyState } from '@/components/EmptyState';
-import { BarChart as BarChartIcon } from 'lucide-react';
+import React from 'react';
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import type { Seller } from '@/lib/types';
 
-export function SalesOverviewChart() {
-    const { sellers } = useAdminContext();
+interface SalesOverviewChartProps {
+  sellers: Seller[];
+}
 
-    const chartData = useMemo(() => {
-        if (!sellers || sellers.length === 0) {
-            return [];
-        }
-        return sellers
-            .map(seller => ({
-                name: seller.name.split(' ')[0], // Pega o primeiro nome
-                'Vendas (R$)': seller.salesValue || 0,
-                'Pontos': seller.points || 0,
-            }));
-    }, [sellers]);
+export default function SalesOverviewChart({ sellers }: SalesOverviewChartProps) {
+  // Ordena os vendedores pelo valor de vendas para mostrar os top 5
+  const sortedSellers = [...sellers]
+    .sort((a, b) => (b.sales_value || 0) - (a.sales_value || 0))
+    .slice(0, 5);
 
-    if (sellers.length === 0) {
-        return (
-            <div className="h-[350px] w-full">
-                 <EmptyState 
-                    Icon={BarChartIcon}
-                    title="Sem dados para exibir"
-                    description="Os dados de vendas e pontos aparecerão aqui quando houver vendedores."
-                />
-            </div>
-        )
-    }
+  const data = sortedSellers.map(seller => ({
+    name: seller.name.split(' ')[0], // Pega apenas o primeiro nome
+    vendas: seller.sales_value || 0,
+  }));
 
-    return (
-        <div className="h-[350px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                    <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                    <Tooltip 
-                        contentStyle={{ 
-                            backgroundColor: 'hsl(var(--background))', 
-                            borderColor: 'hsl(var(--border))' 
-                        }}
-                    />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="Vendas (R$)" fill="#8884d8" />
-                    <Bar yAxisId="right" dataKey="Pontos" fill="#82ca9d" />
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
-    );
+  return (
+    <ResponsiveContainer width="100%" height={350}>
+      <BarChart data={data}>
+        <XAxis
+          dataKey="name"
+          stroke="#888888"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          stroke="#888888"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(value) => `R$${value}`}
+        />
+        <Tooltip
+            cursor={{ fill: 'hsl(var(--muted))' }}
+            formatter={(value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
+        />
+        <Legend />
+        <Bar dataKey="vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
 }

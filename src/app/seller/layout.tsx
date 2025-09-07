@@ -1,29 +1,23 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
-import Providers from "@/components/Providers"; // Importação Corrigida
+import { SellerProvider } from "@/contexts/SellerContext";
+import SellerSidebar from "@/components/SellerSidebar";
+import Header from "@/components/header";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Acelera GT",
-  description: "Plataforma de gamificação",
-};
-
-export default function RootLayout({
+export default function SellerLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="pt-BR">
-      <body className={inter.className}>
-        <Providers>
-          {children}
-          <Toaster />
-        </Providers>
-      </body>
-    </html>
+    <SellerProvider>
+      <div className="flex h-screen overflow-hidden bg-background">
+        <SellerSidebar />
+        <div className="flex-1 flex flex-col overflow-y-auto">
+          <Header />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            {children}
+          </main>
+        </div>
+      </div>
+    </SellerProvider>
   );
 }
