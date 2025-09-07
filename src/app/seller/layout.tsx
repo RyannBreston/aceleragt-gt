@@ -1,18 +1,29 @@
-'use client';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
+import Providers from "@/components/Providers"; // Importação Corrigida
 
-import * as React from 'react';
-import SellerLayout from '@/components/SellerSidebar';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import { SellerProvider } from '@/contexts/SellerContext';
+const inter = Inter({ subsets: ["latin"] });
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = {
+  title: "Acelera GT",
+  description: "Plataforma de gamificação",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <SellerProvider>
-      <SidebarProvider>
-        <SellerLayout>
+    <html lang="pt-BR">
+      <body className={inter.className}>
+        <Providers>
           {children}
-        </SellerLayout>
-      </SidebarProvider>
-    </SellerProvider>
+          <Toaster />
+        </Providers>
+      </body>
+    </html>
   );
 }

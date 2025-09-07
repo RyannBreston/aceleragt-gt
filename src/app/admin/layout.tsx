@@ -1,6 +1,6 @@
 import { AdminProvider } from "@/contexts/AdminContext";
 import AdminSidebar from "@/components/AdminSidebar";
-import Header from "@/components/header"; // Corrigido: 'header' com 'h' minúsculo
+import Header from "@/components/header";
 
 export default function AdminLayout({
   children,
