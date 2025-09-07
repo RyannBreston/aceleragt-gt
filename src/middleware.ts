@@ -10,6 +10,16 @@ export default withAuth(
     const isLoggedIn = !!token;
     const userRole = token?.role;
 
+    // Se o utilizador está logado e acede à página inicial, redireciona para o dashboard correto
+    if (isLoggedIn && pathname === '/') {
+      if (userRole === 'admin') {
+        return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+      }
+      if (userRole === 'seller') {
+        return NextResponse.redirect(new URL('/seller/dashboard', req.url));
+      }
+    }
+
     // Se o utilizador for admin e tentar aceder a uma rota de vendedor, redireciona para o dashboard de admin
     if (isLoggedIn && userRole === 'admin' && pathname.startsWith('/seller')) {
       return NextResponse.redirect(new URL('/admin/dashboard', req.url));
@@ -22,7 +32,7 @@ export default withAuth(
 
     // Se o utilizador não estiver logado e tentar aceder a uma rota protegida,
     // o `withAuth` já o redireciona para a página de login definida nas `authOptions`.
-    
+
     return NextResponse.next();
   },
   {
@@ -35,6 +45,7 @@ export default withAuth(
 // Define quais as rotas que serão protegidas pelo middleware
 export const config = {
   matcher: [
+    '/', // Adicionado para proteger a rota raiz
     '/admin/:path*',
     '/seller/:path*',
   ],
