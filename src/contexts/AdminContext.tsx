@@ -32,61 +32,119 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const { data: session, status } = useSession();
   
-  const [admin, ] = useState<Admin | null>(null);
-  const [sellers, ] = useState<Seller[]>([]);
-  const [goals, ] = useState<GoalsType | null>(null);
-  const [missions, ] = useState<Mission[]>([]);
-  const [sprints, ] = useState<DailySprint[]>([]);
+  const [admin, setAdmin] = useState<Admin | null>(null);
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [goals, setGoals] = useState<GoalsType | null>(null);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [sprints, setSprints] = useState<DailySprint[]>([]);
   const [isDirty, setIsDirty] = useState(false);
-  const [isLoading, ] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   const refreshData = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+    setIsLoading(true);
+    try {
+      if (status === 'authenticated' && session) {
+        // Simulando a busca de dados. Substitua com as chamadas de API reais.
+        const adminResponse = await fetch('/api/users/' + session.user.id);
+        const adminData = await adminResponse.json();
+        setAdmin(adminData);
+
+        const sellersResponse = await fetch('/api/sellers');
+        const sellersData = await sellersResponse.json();
+        setSellers(sellersData);
+        
+        // Adicione aqui outras buscas de dados (metas, missões, etc.)
+      }
+    } catch (error) {
+      console.error("Falha ao carregar dados do admin:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session, status]);
 
   useEffect(() => {
-    // ... (implementação do efeito)
-  }, [session, status, refreshData]);
+    if (status === 'authenticated') {
+      refreshData();
+    } else if (status === 'unauthenticated') {
+      setIsLoading(false);
+    }
+  }, [status, refreshData]);
+  
+  // Funções de CRUD (Create, Read, Update, Delete) - Implementação de exemplo
+  const createSeller = useCallback(async (data: Omit<Seller, 'id' | 'role'> & { password?: string }) => {
+    await fetch('/api/sellers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    await refreshData();
+  }, [refreshData]);
 
-  const createSeller = useCallback(async () => {
-    // ... (implementação da função)
+  const updateSeller = useCallback(async (data: Seller) => {
+    await fetch(`/api/sellers/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    await refreshData();
+  }, [refreshData]);
+
+  const deleteSeller = useCallback(async (id: string) => {
+    await fetch(`/api/sellers/${id}`, { method: 'DELETE' });
+    await refreshData();
+  }, [refreshData]);
+
+  const changeSellerPassword = useCallback(async (userId: string, newPassword: string) => {
+    await fetch(`/api/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+    });
   }, []);
 
-  const updateSeller = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const saveSprint = useCallback(async (data: Omit<DailySprint, 'id' | 'created_at' | 'is_active'>, id?: string) => {
+    const url = id ? `/api/sprints/${id}` : '/api/sprints';
+    const method = id ? 'PUT' : 'POST';
+    await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    await refreshData();
+  }, [refreshData]);
 
-  const saveSprint = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const deleteSprint = useCallback(async (id: string) => {
+    await fetch(`/api/sprints/${id}`, { method: 'DELETE' });
+    await refreshData();
+  }, [refreshData]);
 
-  const deleteSprint = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const toggleSprint = useCallback(async (sprint: DailySprint, isActive: boolean) => {
+      // Implementar a lógica no backend se necessário, ou apenas atualizar o estado
+      await refreshData();
+  }, [refreshData]);
 
-  const toggleSprint = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const saveMission = useCallback(async (data: Omit<Mission, 'id'>, id?: string) => {
+      const url = id ? `/api/missions/${id}` : '/api/missions';
+      const method = id ? 'PUT' : 'POST';
+      await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+      });
+      await refreshData();
+  }, [refreshData]);
 
-  const deleteSeller = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const deleteMission = useCallback(async (id: string) => {
+      await fetch(`/api/missions/${id}`, { method: 'DELETE' });
+      await refreshData();
+  }, [refreshData]);
 
-  const changeSellerPassword = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
+  const updateSettings = useCallback(async (data: { sellers: Seller[], goals: GoalsType['data'] }) => {
+      // Implementar a lógica de atualização das configurações
+      console.log("Updating settings with:", data);
+      await refreshData();
+  }, [refreshData]);
 
-  const saveMission = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
-
-  const deleteMission = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
-
-  const updateSettings = useCallback(async () => {
-    // ... (implementação da função)
-  }, []);
 
   const contextValue: AdminContextType = {
     sellers, goals, missions, sprints, admin,
