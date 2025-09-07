@@ -7,7 +7,6 @@ import bcrypt from 'bcrypt';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function POST(request: Request, context: any) {
   const session = await getServerSession(authOptions);
-  // @ts-expect-error Role is a custom property we are adding to the session.
   if (session?.user?.role !== 'admin') {
     return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
   }

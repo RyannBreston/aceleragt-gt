@@ -6,8 +6,8 @@ import jspdf from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Download, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { QRCodeSVG } from 'qrcode.react';
-import { cn } from '@/lib/client-utils';
+import { QRCode } from 'qrcode.react';
+import { cn } from '@/lib/utils';
 
 type PerformanceLevel = 'bronze' | 'silver' | 'gold' | 'platinum';
 
@@ -71,7 +71,7 @@ export const Certificate: React.FC<CertificateProps> = ({
         <div className="relative z-10 flex flex-col items-center justify-center h-full text-center">
 
           <div className="absolute top-8 right-8">
-            <QRCodeSVG value={verificationUrl} size={80} bgColor="#ffffff" fgColor="#333333" level="Q" />
+            <QRCode value={verificationUrl} size={80} bgColor="#ffffff" fgColor="#333333" level="Q" />
           </div>
 
           <Award className="size-24 text-yellow-500 mb-4" />
