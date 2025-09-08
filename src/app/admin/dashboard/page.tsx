@@ -12,6 +12,18 @@ import { Progress } from '@/components/ui/progress';
 export default function AdminDashboardPage() {
   const { sellers, missions, sprints, goals, isLoading } = useAdminContext();
 
+  // Defensive check to ensure sellers is an array before using .reduce()
+  const totalSalesValue = Array.isArray(sellers) ? sellers.reduce((acc, seller) => acc + (seller.sales_value || 0), 0) : 0;
+  
+  // Goals are already accessed safely with optional chaining.
+  const monthlyGoal = goals?.data?.salesValue?.meta?.threshold || 0;
+  const goalProgress = monthlyGoal > 0 ? (totalSalesValue / monthlyGoal) * 100 : 0;
+
+  // Use a safer approach for other array-dependent parts too
+  const sellerCount = Array.isArray(sellers) ? sellers.length : 0;
+  const missionCount = Array.isArray(missions) ? missions.length : 0;
+  const sprintCount = Array.isArray(sprints) ? sprints.length : 0;
+
   if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -19,10 +31,6 @@ export default function AdminDashboardPage() {
       </div>
     );
   }
-
-  const totalSalesValue = sellers.reduce((acc, seller) => acc + (seller.sales_value || 0), 0);
-  const monthlyGoal = goals?.data?.salesValue?.meta?.threshold || 0;
-  const goalProgress = monthlyGoal > 0 ? (totalSalesValue / monthlyGoal) * 100 : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +52,7 @@ export default function AdminDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sellers.length}</div>
+            <div className="text-2xl font-bold">{sellerCount}</div>
             <p className="text-xs text-muted-foreground">Vendedores ativos</p>
           </CardContent>
         </Card>
@@ -54,7 +62,7 @@ export default function AdminDashboardPage() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{missions.length}</div>
+            <div className="text-2xl font-bold">{missionCount}</div>
             <p className="text-xs text-muted-foreground">Missões ativas</p>
           </CardContent>
         </Card>
@@ -64,7 +72,7 @@ export default function AdminDashboardPage() {
             <Rocket className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sprints.length}</div>
+            <div className="text-2xl font-bold">{sprintCount}</div>
             <p className="text-xs text-muted-foreground">Sprints disponíveis</p>
           </CardContent>
         </Card>
@@ -72,11 +80,13 @@ export default function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Visão Geral de Vendas</CardTitle></CardHeader>
-          <CardContent><SalesOverviewChart sellers={sellers} /></CardContent>
+          {/* Pass an empty array as fallback to child components */}
+          <CardContent><SalesOverviewChart sellers={sellers || []} /></CardContent>
         </Card>
         <Card>
            <CardHeader><CardTitle>Ranking de Vendedores</CardTitle></CardHeader>
-          <CardContent><SalesTable sellers={sellers} /></CardContent>
+          {/* Pass an empty array as fallback to child components */}
+          <CardContent><SalesTable sellers={sellers || []} /></CardContent>
         </Card>
       </div>
     </div>
