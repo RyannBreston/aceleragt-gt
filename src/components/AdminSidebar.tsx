@@ -1,3 +1,4 @@
+// src/components/AdminSidebar.tsx
 'use client';
 
 import Link from 'next/link';
@@ -5,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
-import { useAdminContext } from '@/contexts/AdminContext';
 import { MobileSidebar } from './MobileSidebar';
 import {
   LayoutDashboard,
@@ -34,18 +34,14 @@ const navItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const { admin } = useAdminContext();
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
   };
 
-  if (!admin) {
-    return <div className="hidden lg:flex w-64 flex-shrink-0" />;
-  }
-
   return (
     <>
+      {/* Barra lateral para desktop */}
       <aside className="hidden lg:flex flex-col w-64 border-r bg-card text-card-foreground">
         <div className="p-4 border-b">
           <Link href="/admin/dashboard" className="flex items-center gap-2">
@@ -73,6 +69,8 @@ export default function AdminSidebar() {
           </Button>
         </div>
       </aside>
+      
+      {/* Menu para telas móveis */}
       <div className="lg:hidden">
         <MobileSidebar navItems={navItems} onLogout={handleLogout} />
       </div>

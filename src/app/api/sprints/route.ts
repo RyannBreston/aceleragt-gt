@@ -1,27 +1,22 @@
-// src/app/api/sprints/route.ts
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
-// Rota para CRIAR (POST) uma nova sprint
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    // Garante que o campo is_active não seja undefined
-    const { title, description, goal, prize, start_date, end_date, is_active = false } = body;
+    const { title, description, participant_ids, sprint_tiers } = body;
 
-    if (!title || !goal || !prize || !start_date || !end_date) {
+    if (!title || !participant_ids || !sprint_tiers) {
         return new NextResponse('Dados incompletos para criar a sprint', { status: 400 });
     }
 
-    const sprint = await db.dailySprint.create({
+    const sprint = await prisma.dailySprint.create({
       data: {
         title,
         description,
-        goal,
-        prize,
-        start_date: new Date(start_date),
-        end_date: new Date(end_date),
-        is_active,
+        participant_ids,
+        sprint_tiers,
+        is_active: false, // Sprints começam inativas por padrão
       },
     });
 

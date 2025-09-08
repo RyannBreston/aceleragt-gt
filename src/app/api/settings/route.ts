@@ -1,5 +1,7 @@
+// src/app/api/settings/route.ts
+
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -9,8 +11,6 @@ export async function PUT(request: Request) {
     return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
   }
 
-  const client = await db.getClient(); // Obtém um cliente do pool para a transação
-
   try {
     const { sellers, goals } = await request.json();
 
@@ -18,47 +18,38 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: 'Dados de vendedores e metas são obrigatórios.' }, { status: 400 });
     }
 
-    // Iniciar a transação
-    await client.query('BEGIN');
-    
-    // 1. Atualizar cada vendedor num loop
-    for (const seller of sellers) {
-      const sellerQuery = `
-        UPDATE sellers
-        SET sales_value = $1, ticket_average = $2, pa = $3, points = $4
-        WHERE id = $5;
-      `;
-      await client.query(sellerQuery, [
-        seller.salesValue,
-        seller.ticketAverage,
-        seller.pa,
-        seller.points,
-        seller.id,
-      ]);
-    }
+    // Utiliza uma transação do Prisma para garantir a consistência dos dados
+    await prisma.$transaction(async (tx) => {
+      // 1. Atualiza cada vendedor em um loop
+      for (const seller of sellers) {
+        await tx.seller.update({
+          where: { id: seller.id },
+          data: {
+            sales_value: seller.sales_value,
+            ticket_average: seller.ticket_average,
+            pa: seller.pa,
+            points: seller.points,
+          },
+        });
+      }
 
-    // 2. Atualizar as metas (UPSERT)
-    const goalsQuery = `
-      INSERT INTO goals (id, data)
-      VALUES ('main', $1)
-      ON CONFLICT (id) DO UPDATE SET
-        data = EXCLUDED.data,
-        updated_at = CURRENT_TIMESTAMP;
-    `;
-    await client.query(goalsQuery, [goals]);
-
-    // Confirmar a transação
-    await client.query('COMMIT');
+      // 2. Atualiza (ou cria, se não existir) o registro de metas
+      await tx.goals.upsert({
+        where: { id: 'main' },
+        update: {
+          data: goals,
+        },
+        create: {
+          id: 'main',
+          data: goals,
+        },
+      });
+    });
 
     return NextResponse.json({ message: 'Configurações salvas com sucesso.' });
 
   } catch (error) {
-    // Se ocorrer qualquer erro, reverte a transação
-    await client.query('ROLLBACK');
     console.error('API Settings PUT Error:', error);
     return NextResponse.json({ message: 'Erro interno ao salvar as configurações.' }, { status: 500 });
-  } finally {
-    // Liberta o cliente de volta para o pool, independentemente do resultado
-    client.release();
   }
 }

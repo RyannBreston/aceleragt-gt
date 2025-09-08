@@ -19,7 +19,6 @@ import {
   User
 } from 'lucide-react';
 
-// A lista de navegação completa para o Vendedor
 const navItems = [
   { href: '/seller/dashboard', label: 'Meu Desempenho', icon: LayoutDashboard },
   { href: '/seller/ranking', label: 'Ranking Geral', icon: Trophy },

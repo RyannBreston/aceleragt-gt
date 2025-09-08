@@ -1,21 +1,20 @@
-// src/app/api/missions/route.ts
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
-// Rota para CRIAR (POST) uma nova missão
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, description, goal, prize } = body;
+    const { title, description, points, goal, prize } = body;
 
-    if (!title || !goal || !prize) {
-        return new NextResponse('Dados incompletos para criar a missão', { status: 400 });
+    if (!title || !points) {
+      return new NextResponse('Dados incompletos para criar a missão', { status: 400 });
     }
 
-    const mission = await db.mission.create({
+    const mission = await prisma.mission.create({
       data: {
         title,
         description,
+        points,
         goal,
         prize,
       },
@@ -28,17 +27,16 @@ export async function POST(request: Request) {
   }
 }
 
-// Rota para LER (GET) todas as missões
 export async function GET() {
-    try {
-        const missions = await db.mission.findMany({
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
-        return NextResponse.json(missions);
-    } catch (error) {
-        console.error("[MISSIONS_GET]", error);
-        return new NextResponse("Erro interno", { status: 500 });
-    }
+  try {
+    const missions = await prisma.mission.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    return NextResponse.json(missions);
+  } catch (error) {
+    console.error("[MISSIONS_GET]", error);
+    return new NextResponse("Erro interno", { status: 500 });
+  }
 }

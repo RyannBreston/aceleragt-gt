@@ -1,8 +1,7 @@
+// src/app/api/register/route.ts
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma'; // Correção: Usa a instância compartilhada do Prisma
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
@@ -21,26 +20,35 @@ export async function POST(request: Request) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Garante que o role seja 'seller' se não for especificado
     const userRole = role || 'seller';
 
-    const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        role: userRole, 
-      },
+    // Correção Crítica: Criar User e Seller dentro de uma transação
+    const newUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: userRole,
+        },
+      });
+
+      // Se o usuário é um vendedor, cria a entrada correspondente em Seller
+      if (userRole === 'seller') {
+        await tx.seller.create({
+          data: {
+            id: user.id, // Usa o mesmo ID do usuário
+          },
+        });
+      }
+
+      return user;
     });
 
     return NextResponse.json({ message: 'Usuário criado com sucesso.', user: newUser }, { status: 201 });
 
   } catch (error) {
     console.error('Register API Error:', error);
-    // Evite expor detalhes do erro no cliente
     return NextResponse.json({ message: 'Erro interno ao registrar usuário.' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }

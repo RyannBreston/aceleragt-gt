@@ -1,24 +1,45 @@
 // src/app/api/admin/route.ts
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const [sellers, missions, sprints, goals] = await Promise.all([
-      db.seller.findMany({ include: { sales: true } }),
-      db.mission.findMany(),
-      db.dailySprint.findMany(),
-      db.goal.findFirst(), // Assuming you have a single goal document/record
-    ]);
+    // Busca todos os sellers e inclui os dados do usuário relacionado (nome e email)
+    const sellersWithUser = await prisma.seller.findMany({
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
 
-    // Processar os dados se necessário, por exemplo, calcular o valor total de vendas por vendedor
-    const sellersWithSalesValue = sellers.map(seller => ({
-      ...seller,
-      sales_value: seller.sales.reduce((acc, sale) => acc + sale.value, 0),
+    // Formata a resposta para combinar os dados do Seller e do User em um único objeto
+    const sellers = sellersWithUser.map(s => ({
+      id: s.id,
+      name: s.user.name,
+      email: s.user.email,
+      sales_value: s.sales_value,
+      ticket_average: s.ticket_average,
+      pa: s.pa,
+      points: s.points,
+      extra_points: s.extra_points,
+      team_id: s.team_id,
+      // Mantém a compatibilidade com a interface User
+      role: 'seller', 
     }));
 
-    return NextResponse.json({ 
-      sellers: sellersWithSalesValue,
+    // Busca os outros dados
+    const [missions, sprints, goals] = await Promise.all([
+      prisma.mission.findMany(),
+      prisma.dailySprint.findMany(),
+      prisma.goals.findFirst({ where: { id: 'main' } }),
+    ]);
+
+    return NextResponse.json({
+      sellers,
       missions,
       sprints,
       goals,

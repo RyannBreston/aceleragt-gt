@@ -1,10 +1,12 @@
+// src/lib/auth.ts
+
 import { AuthOptions, User as NextAuthUser, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma'; // Alterado: Importa a instância compartilhada
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+// Removido: const prisma = new PrismaClient();
 
 const generatedSecret = "a3b9f8e2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4";
 

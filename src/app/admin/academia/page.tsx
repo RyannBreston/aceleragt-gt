@@ -3,11 +3,20 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen } from 'lucide-react';
+import { useSellerContext } from '@/contexts/SellerContext';
+import { Loader2 } from 'lucide-react';
 
 export default function AcademiaPage() {
-  // A lógica para esta página será desenvolvida com a nova arquitetura
-  // usando o AdminContext e chamadas à API, se necessário.
-  
+  const { isLoading } = useSellerContext();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center justify-between mb-6">
@@ -18,12 +27,12 @@ export default function AcademiaPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <BookOpen className="mr-2" />
-            Gestão de Cursos
+            Cursos e Treinamentos
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p>
-            A funcionalidade de gestão da academia será implementada aqui.
+            A funcionalidade da academia será implementada aqui na nova arquitetura.
           </p>
         </CardContent>
       </Card>

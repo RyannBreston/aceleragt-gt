@@ -1,5 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// ryannbreston/aceleragt-gt/aceleragt-gt-1fe8cc8f087837f49d85e024415735562f1f3fa1/prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
@@ -11,11 +10,59 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String?
-  email     String   @unique
+  email     String    @unique
   password  String
-  role      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      String // 'admin' or 'seller'
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  seller    Seller?
+}
+
+model Seller {
+  id             String    @id @unique
+  user           User      @relation(fields: [id], references: [id], onDelete: Cascade)
+  sales_value    Float?    @default(0)
+  ticket_average Float?    @default(0)
+  pa             Float?    @default(0)
+  points         Int?      @default(0)
+  extra_points   Int?      @default(0)
+  team_id        String?
+  // Adicione outras relações se necessário
+}
+
+model Mission {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  points      Int
+  type        String?
+  goal        Float?
+  prize       Float?
+  course_id   String?
+  createdAt   DateTime @default(now())
+}
+
+model DailySprint {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  goal            Float?
+  prize           Float?
+  is_active       Boolean  @default(false)
+  created_at      DateTime @default(now())
+  start_date      DateTime?
+  end_date        DateTime?
+  participant_ids String[]
+  sprint_tiers    Json
+}
+
+model Goals {
+  id           String   @id @default("main")
+  monthly_goal Float?
+  pa_goal      Float?
+  ticket_goal  Float?
+  data         Json?
+  updated_at   DateTime @updatedAt
 }
