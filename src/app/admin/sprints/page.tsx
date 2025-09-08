@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 // Tipo para os dados do formulário, omitindo campos gerados automaticamente
 type SprintFormData = Omit<DailySprint, 'id' | 'created_at' | 'is_active'>;
 
-// Componente do formulário para não poluir a página principal
+// --- Componente do Formulário de Sprint ---
 const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null, onSave: (data: SprintFormData) => void, onCancel: () => void }) => {
     const { sellers } = useAdminContext();
     const [title, setTitle] = useState(sprint?.title || '');
@@ -28,21 +28,17 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
         e.preventDefault();
         try {
             const parsedTiers = JSON.parse(sprintTiers);
-            onSave({
-                title,
-                participant_ids,
-                sprint_tiers: parsedTiers,
-            });
+            onSave({ title, participant_ids, sprint_tiers: parsedTiers });
         } catch {
-            toast({ variant: 'destructive', title: 'Erro de Formato', description: 'O JSON para os prémios é inválido.'});
+            toast({ variant: 'destructive', title: 'Erro de Formato', description: 'O JSON para os prémios é inválido.' });
         }
     };
 
     const toggleParticipant = (sellerId: string) => {
-        setParticipant_ids(prev =>
-            prev.includes(sellerId) ? prev.filter(id => id !== sellerId) : [...prev, sellerId]
-        );
+        setParticipant_ids(prev => prev.includes(sellerId) ? prev.filter(id => id !== sellerId) : [...prev, sellerId]);
     };
+    
+    const sellerList = Array.isArray(sellers) ? sellers : [];
 
     return (
         <form onSubmit={handleSubmit}>
@@ -54,7 +50,7 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
                 <div className="grid grid-cols-4 items-center gap-4">
                     <Label className="text-right">Participantes</Label>
                     <div className="col-span-3 h-32 overflow-y-auto rounded-md border p-2">
-                        {sellers.map((seller: Seller) => (
+                        {sellerList.map((seller: Seller) => (
                             <div key={seller.id} className="flex items-center space-x-2">
                                 <input
                                     type="checkbox"
@@ -81,6 +77,7 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
 };
 
 
+// --- Página Principal de Sprints ---
 export default function SprintsPage() {
     const { sprints, isLoading, deleteSprint, toggleSprint, saveSprint } = useAdminContext();
     const { toast } = useToast();
@@ -125,13 +122,15 @@ export default function SprintsPage() {
         }
     };
 
-    if (isLoading) {
+    if (isLoading && !sprints) { // Adjusted loading state
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
+
+    const sprintList = Array.isArray(sprints) ? sprints : [];
 
     return (
         <div className="container mx-auto p-4">
@@ -151,20 +150,16 @@ export default function SprintsPage() {
                                 Preencha os detalhes da corridinha diária.
                             </DialogDescription>
                         </DialogHeader>
-                        <SprintForm
-                            sprint={editingSprint}
-                            onSave={handleSave}
-                            onCancel={handleCloseDialog}
-                        />
+                        <SprintForm sprint={editingSprint} onSave={handleSave} onCancel={handleCloseDialog} />
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {sprints.length === 0 ? (
+            {sprintList.length === 0 ? (
                 <p>Nenhuma corridinha encontrada.</p>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sprints.map((sprint) => (
+                    {sprintList.map((sprint) => (
                         <Card key={sprint.id}>
                             <CardHeader>
                                 <CardTitle>{sprint.title}</CardTitle>
@@ -187,9 +182,7 @@ export default function SprintsPage() {
                                 </Button>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="destructive" size="sm">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        <Button variant="destructive" size="sm"><Trash2 className="h-4 w-4" /></Button>
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                         <AlertDialogHeader>
@@ -200,9 +193,7 @@ export default function SprintsPage() {
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                            <AlertDialogAction onClick={() => handleDelete(sprint.id)}>
-                                                Continuar
-                                            </AlertDialogAction>
+                                            <AlertDialogAction onClick={() => handleDelete(sprint.id)}>Continuar</AlertDialogAction>
                                         </AlertDialogFooter>
                                     </AlertDialogContent>
                                 </AlertDialog>

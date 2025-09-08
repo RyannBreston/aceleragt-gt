@@ -6,12 +6,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card'; // Importação adicionada
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { PlusCircle, MoreHorizontal, Loader2, Edit, Trash2, KeyRound } from 'lucide-react';
+import { PlusCircle, MoreHorizontal, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Seller } from '@/lib/types';
 
@@ -79,7 +80,6 @@ export default function SellersPage() {
     const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
     const { toast } = useToast();
 
-    // Carregar vendedores
     const fetchSellers = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -117,7 +117,7 @@ export default function SellersPage() {
             
             toast({ title: "Sucesso!", description: `Vendedor ${data.name} foi salvo.` });
             setIsFormOpen(false);
-            fetchSellers(); // Recarregar a lista
+            fetchSellers();
         } catch (error: any) {
             toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message });
         }
@@ -143,12 +143,10 @@ export default function SellersPage() {
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold">Gerir Vendedores</h1>
                  <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-                    <DialogTrigger asChild>
-                         <Button onClick={() => setSelectedSeller(null)}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Adicionar Vendedor
-                        </Button>
-                    </DialogTrigger>
+                    <Button onClick={() => { setSelectedSeller(null); setIsFormOpen(true); }}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Adicionar Vendedor
+                    </Button>
                    {isFormOpen && <SellerForm seller={selectedSeller} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />}
                 </Dialog>
             </div>
