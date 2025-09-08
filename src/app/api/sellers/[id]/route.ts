@@ -1,39 +1,68 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, context: any) {
+const prisma = new PrismaClient();
+
+// --- Atualizar Vendedor (PUT) ---
+export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'admin') {
     return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
   }
 
   try {
-    const id = context.params.id;
-    if (!id) {
-      return NextResponse.json({ message: 'O ID do vendedor é obrigatório.' }, { status: 400 });
+    const id = params.id;
+    const { name, email } = await request.json();
+
+    if (!name || !email) {
+      return NextResponse.json({ message: 'Nome e email são obrigatórios.' }, { status: 400 });
     }
 
-    // Devido à chave estrangeira, precisamos de apagar primeiro da tabela 'sellers'
-    // e depois da tabela 'users'. Uma transação garante a consistência.
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-      await client.query('DELETE FROM sellers WHERE id = $1', [id]);
-      await client.query('DELETE FROM users WHERE id = $1', [id]);
-      await client.query('COMMIT');
-    } catch (e) {
-      await client.query('ROLLBACK');
-      throw e;
-    } finally {
-      client.release();
-    }
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { name, email },
+    });
 
-    return new NextResponse(null, { status: 204 }); // Sucesso sem conteúdo
+    return NextResponse.json(updatedUser, { status: 200 });
+
+  } catch (error) {
+    console.error('API Sellers PUT Error:', error);
+    // Adicionar verificação para erros específicos do Prisma, como registro não encontrado
+    if ((error as any).code === 'P2025') {
+        return NextResponse.json({ message: 'Vendedor não encontrado.' }, { status: 404 });
+    }
+    return NextResponse.json({ message: 'Erro ao atualizar o vendedor.' }, { status: 500 });
+  }
+}
+
+// --- Excluir Vendedor (DELETE) ---
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== 'admin') {
+    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
+  }
+
+  try {
+    const id = params.id;
+
+    // Usar uma transação para garantir que ambos os registros sejam removidos
+    await prisma.$transaction(async (prisma) => {
+        // O schema atual parece não ter uma tabela 'sellers' separada, 
+        // o usuário com role 'seller' é o vendedor. Apenas apagamos o usuário.
+        await prisma.user.delete({
+            where: { id },
+        });
+    });
+
+    return new NextResponse(null, { status: 204 });
+
   } catch (error) {
     console.error('API Sellers DELETE Error:', error);
+    if ((error as any).code === 'P2025') {
+        return NextResponse.json({ message: 'Vendedor não encontrado.' }, { status: 404 });
+    }
     return NextResponse.json({ message: 'Erro ao excluir o vendedor.' }, { status: 500 });
   }
 }

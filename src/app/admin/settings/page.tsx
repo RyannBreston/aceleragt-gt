@@ -92,7 +92,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
             <Table>
                 <TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>Vendas (R$)</TableHead><TableHead>Ticket Médio (R$)</TableHead><TableHead>PA</TableHead><TableHead>Pontos (Performance)</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {fields.map((field, index) => (
+                    {(fields || []).map((field, index) => (
                         <TableRow key={field.id}>
                             <TableCell className="font-medium">{field.name}</TableCell>
                             <TableCell><FormField control={control} name={`sellers.${index}.sales_value`} render={({ field: { onChange, ...rest } }) => <CurrencyInput onValueChange={onChange} {...rest} value={rest.value ?? ''} />} /></TableCell>
@@ -227,7 +227,7 @@ export default function SettingsPage() {
     }, [isDirty, setIsDirty]);
 
     useEffect(() => {
-        const sellersData = contextSellers.map(s => ({
+        const sellersData = (contextSellers || []).map(s => ({
             id: s.id, name: s.name, sales_value: s.sales_value || 0,
             ticket_average: s.ticket_average || 0, pa: s.pa || 0, points: s.points || 0,
         }));
@@ -247,7 +247,7 @@ export default function SettingsPage() {
             
             // Mapeia os dados do formulário de volta para a estrutura completa do Seller
             const updatedSellers = data.sellers.map(fs => {
-                const originalSeller = contextSellers.find(cs => cs.id === fs.id);
+                const originalSeller = (contextSellers || []).find(cs => cs.id === fs.id);
                 return {
                     ...(originalSeller || {}),
                     ...fs,
@@ -300,12 +300,11 @@ export default function SettingsPage() {
                             <TabsTrigger value="modulos">Módulos</TabsTrigger>
                             <TabsTrigger value="ciclo">Ciclo de Vendas</TabsTrigger>
                         </TabsList>
-                        {/* **INÍCIO DA CORREÇÃO** */}
-                        <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={control} fields={contextSellers} /></TabsContent>
+                        <TabsContent value="lancamentos" className="mt-6"><TabelaDePerformance control={control} fields={contextSellers || []} /></TabsContent>
                         <TabsContent value="metas" className="mt-6"><FormularioDeMetas control={control} /></TabsContent>
+
                         <TabsContent value="modulos" className="mt-6"><GestaoDeModulos control={control} /></TabsContent>
                         <TabsContent value="ciclo" className="mt-6"><GestaoDeCiclo onEndCycle={handleEndCycle} isDirty={isDirty} /></TabsContent>
-                        {/* **FIM DA CORREÇÃO** */}
                     </Tabs>
                 </form>
             </Form>
