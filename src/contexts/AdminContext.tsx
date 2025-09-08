@@ -11,10 +11,19 @@ interface AdminContextType {
   goals: Goal | null;
   isLoading: boolean;
   refetch: () => void; // Função para recarregar os dados
-  // Funções para manipular os dados (save, delete, toggle) serão adicionadas aqui
+
+  // Funções para Sprints
   saveSprint: (data: any, id?: string) => Promise<void>;
   deleteSprint: (id: string) => Promise<void>;
   toggleSprint: (sprint: DailySprint, isActive: boolean) => Promise<void>;
+
+  // Funções para Vendedores (Sellers)
+  saveSeller: (data: any, id?: string) => Promise<void>;
+  deleteSeller: (id: string) => Promise<void>;
+
+  // Funções para Missões (Missions)
+  saveMission: (data: any, id?: string) => Promise<void>;
+  deleteMission: (id: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
@@ -27,11 +36,11 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
-    setIsLoading(true);
+    if (!isLoading) setIsLoading(true);
     try {
       const response = await fetch('/api/admin');
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error('A resposta da rede não foi boa');
       }
       const data = await response.json();
       setSellers(data.sellers);
@@ -40,7 +49,6 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       setGoals(data.goals);
     } catch (error) {
       console.error('Falha ao carregar dados do admin:', error);
-      // Em caso de erro, definimos os dados como arrays vazios para evitar quebras
       setSellers([]);
       setMissions([]);
       setSprints([]);
@@ -54,47 +62,84 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     fetchData();
   }, []);
 
-  // Funções para manipular Sprints (exemplo)
+  // --- Funções Genéricas para API ---
+  const apiRequest = async (url: string, method: string, body?: any) => {
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Falha na operação' }));
+      throw new Error(errorData.message);
+    }
+    return response.json();
+  };
+
+
+  // --- Lógica de Vendedores (Sellers) ---
+  const saveSeller = async (data: any, id?: string) => {
+    // Para criar um vendedor, usamos a rota /api/register
+    const url = id ? `/api/sellers/${id}` : '/api/register';
+    const method = id ? 'PUT' : 'POST';
+    // Garante que a role seja enviada, especialmente para novos usuários
+    const body = { ...data, role: 'seller' }; 
+    await apiRequest(url, method, body);
+    await fetchData(); // Recarrega tudo
+  };
+
+  const deleteSeller = async (id: string) => {
+    await apiRequest(`/api/sellers/${id}`, 'DELETE');
+    await fetchData();
+  };
+
+  // --- Lógica de Sprints ---
   const saveSprint = async (data: any, id?: string) => {
     const url = id ? `/api/sprints/${id}` : '/api/sprints';
     const method = id ? 'PUT' : 'POST';
-    const response = await fetch(url, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error('Falha ao salvar a corridinha');
-    await fetchData(); // Recarrega os dados após a alteração
+    await apiRequest(url, method, data);
+    await fetchData();
   };
 
   const deleteSprint = async (id: string) => {
-    const response = await fetch(`/api/sprints/${id}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error('Falha ao excluir a corridinha');
+    await apiRequest(`/api/sprints/${id}`, 'DELETE');
     await fetchData();
   };
 
   const toggleSprint = async (sprint: DailySprint, is_active: boolean) => {
-    const response = await fetch(`/api/sprints/${sprint.id}/toggle`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active }),
-    });
-    if (!response.ok) throw new Error('Falha ao alterar o estado da corridinha');
+    await apiRequest(`/api/sprints/${sprint.id}/toggle`, 'PUT', { is_active });
+    await fetchData();
+  };
+
+  // --- Lógica de Missões (Missions) ---
+  const saveMission = async (data: any, id?: string) => {
+    const url = id ? `/api/missions/${id}` : '/api/missions';
+    const method = id ? 'PUT' : 'POST';
+    await apiRequest(url, method, data);
+    await fetchData();
+  };
+
+  const deleteMission = async (id: string) => {
+    await apiRequest(`/api/missions/${id}`, 'DELETE');
     await fetchData();
   };
 
 
   return (
-    <AdminContext.Provider value={{ 
-      sellers, 
-      missions, 
-      sprints, 
-      goals, 
-      isLoading, 
-      refetch: fetchData, 
-      saveSprint, 
-      deleteSprint, 
-      toggleSprint 
+    <AdminContext.Provider value={{
+      sellers,
+      missions,
+      sprints,
+      goals,
+      isLoading,
+      refetch: fetchData,
+      saveSprint,
+      deleteSprint,
+      toggleSprint,
+      saveSeller,
+      deleteSeller,
+      saveMission,
+      deleteMission,
     }}>
       {children}
     </AdminContext.Provider>
@@ -104,7 +149,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 export const useAdminContext = () => {
   const context = useContext(AdminContext);
   if (context === undefined) {
-    throw new Error('useAdminContext must be used within an AdminProvider');
+    throw new Error('useAdminContext deve ser usado dentro de um AdminProvider');
   }
   return context;
 };

@@ -1,30 +1,56 @@
+// src/app/api/missions/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, context: any) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
+interface IParams {
+  id?: string;
+}
 
+// Rota para ATUALIZAR (PUT) uma missão existente
+export async function PUT(request: Request, { params }: { params: IParams }) {
   try {
-    const id = context.params.id;
+    const { id } = params;
+    const body = await request.json();
+    const { title, description, goal, prize } = body;
+
     if (!id) {
-      return NextResponse.json({ message: 'O ID da missão é obrigatório.' }, { status: 400 });
+      return new NextResponse('ID da missão não encontrado', { status: 400 });
     }
 
-    const { rowCount } = await db.query('DELETE FROM missions WHERE id = $1', [id]);
+    const mission = await db.mission.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        goal,
+        prize,
+      },
+    });
 
-    if (rowCount === 0) {
-      return NextResponse.json({ message: 'Missão não encontrada.' }, { status: 404 });
-    }
-
-    return new NextResponse(null, { status: 204 }); // Sucesso
+    return NextResponse.json(mission);
   } catch (error) {
-    console.error('API Missions DELETE Error:', error);
-    return NextResponse.json({ message: 'Erro ao excluir a missão.' }, { status: 500 });
+    console.error("[MISSION_PUT]", error);
+    return new NextResponse("Erro interno", { status: 500 });
   }
+}
+
+// Rota para DELETAR (DELETE) uma missão
+export async function DELETE(request: Request, { params }: { params: IParams }) {
+    try {
+        const { id } = params;
+
+        if (!id) {
+            return new NextResponse('ID da missão não encontrado', { status: 400 });
+        }
+
+        await db.mission.delete({
+            where: { id },
+        });
+
+        return new NextResponse(null, { status: 204 });
+
+    } catch (error) {
+        console.error("[MISSION_DELETE]", error);
+        return new NextResponse("Erro interno", { status: 500 });
+    }
 }

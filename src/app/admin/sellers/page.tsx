@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { PlusCircle, MoreHorizontal, Loader2, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Seller } from '@/lib/types';
+import { useAdminContext } from '@/contexts/AdminContext'; // Importe o contexto
 
 const sellerSchema = z.object({
   id: z.string().optional(),
@@ -28,8 +29,9 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
-const SellerForm = ({ seller, onSave, onCancel }: { seller?: Seller | null, onSave: (data: SellerFormData) => void, onCancel: () => void }) => {
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SellerFormData>({
+// O formulário permanece em grande parte o mesmo, não precisa de alterações imediatas
+const SellerForm = ({ seller, onSave, onCancel, isSaving }: { seller?: Seller | null, onSave: (data: SellerFormData) => void, onCancel: () => void, isSaving: boolean }) => {
+    const { register, handleSubmit, formState: { errors } } = useForm<SellerFormData>({
         resolver: zodResolver(sellerSchema),
         defaultValues: { id: seller?.id, name: seller?.name || '', email: seller?.email || '' },
     });
@@ -58,9 +60,9 @@ const SellerForm = ({ seller, onSave, onCancel }: { seller?: Seller | null, onSa
                     </div>
                 )}
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
+                    <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
+                    <Button type="submit" disabled={isSaving}>
+                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
                          Salvar
                     </Button>
                 </DialogFooter>
@@ -70,66 +72,31 @@ const SellerForm = ({ seller, onSave, onCancel }: { seller?: Seller | null, onSa
 };
 
 export default function SellersPage() {
-    const [sellers, setSellers] = useState<Seller[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    // Use os dados e funções do AdminContext
+    const { sellers, isLoading, saveSeller, deleteSeller } = useAdminContext();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
 
-    const fetchSellers = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            const response = await fetch('/api/sellers');
-            if (!response.ok) throw new Error('Falha ao carregar vendedores.');
-            const data = await response.json();
-            setSellers(data);
-        } catch (error: any) {
-            toast({ variant: "destructive", title: "Erro", description: error.message });
-            setSellers([]); // Garante que sellers seja um array em caso de erro
-        } finally {
-            setIsLoading(false);
-        }
-    }, [toast]);
-
-    useEffect(() => {
-        fetchSellers();
-    }, [fetchSellers]);
-
     const handleSave = async (data: SellerFormData) => {
+        setIsSaving(true);
         try {
-            const url = data.id ? `/api/sellers/${data.id}` : '/api/register';
-            const method = data.id ? 'PUT' : 'POST';
-            const body = JSON.stringify({ ...data, role: 'seller' });
-
-            const response = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Falha ao salvar o vendedor.');
-            }
-            
+            await saveSeller(data, data.id);
             toast({ title: "Sucesso!", description: `Vendedor ${data.name} foi salvo.` });
             setIsFormOpen(false);
-            fetchSellers();
         } catch (error: any) {
             toast({ variant: "destructive", title: "Erro ao Salvar", description: error.message });
+        } finally {
+            setIsSaving(false);
         }
     };
 
     const handleDelete = async (id: string) => {
          if (!window.confirm("Tem certeza que deseja excluir este vendedor?")) return;
         try {
-            const response = await fetch(`/api/sellers/${id}`, { method: 'DELETE' });
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Falha ao excluir o vendedor.');
-            }
+            await deleteSeller(id);
             toast({ title: "Sucesso!", description: "Vendedor excluído." });
-            fetchSellers();
         } catch (error: any) {
              toast({ variant: "destructive", title: "Erro ao Excluir", description: error.message });
         }
@@ -144,12 +111,13 @@ export default function SellersPage() {
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Adicionar Vendedor
                     </Button>
-                   {isFormOpen && <SellerForm seller={selectedSeller} onSave={handleSave} onCancel={() => setIsFormOpen(false)} />}
+                   {isFormOpen && <SellerForm seller={selectedSeller} onSave={handleSave} onCancel={() => setIsFormOpen(false)} isSaving={isSaving}/>}
                 </Dialog>
             </div>
 
             <Card>
                 <CardContent className="mt-6">
+                    {/* A lógica de carregamento agora depende apenas do isLoading do contexto */}
                     {isLoading ? (
                         <div className="flex justify-center p-6"><Loader2 className="h-8 w-8 animate-spin" /></div>
                     ) : sellers && sellers.length > 0 ? (
@@ -178,7 +146,7 @@ export default function SellersPage() {
                             </TableBody>
                         </Table>
                     ) : (
-                        <div className="text-center p-6 text-gray-500">Nenhum vendedor encontrado.</div>
+                        <div className="text-center p-6 text-gray-500">Nenhum vendedor encontrado. Comece adicionando um novo.</div>
                     )}
                 </CardContent>
             </Card>

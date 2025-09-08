@@ -1,30 +1,58 @@
+// src/app/api/sprints/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function DELETE(request: Request, context: any) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
+interface IParams {
+  id?: string;
+}
 
+// Rota para ATUALIZAR (PUT) uma sprint existente
+export async function PUT(request: Request, { params }: { params: IParams }) {
   try {
-    const id = context.params.id;
+    const { id } = params;
+    const body = await request.json();
+    const { title, description, goal, prize, start_date, end_date } = body;
+
     if (!id) {
-      return NextResponse.json({ message: 'O ID da corridinha é obrigatório.' }, { status: 400 });
+      return new NextResponse('ID da sprint não encontrado', { status: 400 });
     }
 
-    const { rowCount } = await db.query('DELETE FROM daily_sprints WHERE id = $1', [id]);
+    const sprint = await db.dailySprint.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        goal,
+        prize,
+        start_date: new Date(start_date),
+        end_date: new Date(end_date),
+      },
+    });
 
-    if (rowCount === 0) {
-      return NextResponse.json({ message: 'Corridinha não encontrada.' }, { status: 404 });
-    }
-
-    return new NextResponse(null, { status: 204 }); // 204 No Content para sucesso na exclusão
+    return NextResponse.json(sprint);
   } catch (error) {
-    console.error('API Sprints DELETE Error:', error);
-    return NextResponse.json({ message: 'Erro ao excluir a corridinha.' }, { status: 500 });
+    console.error("[SPRINT_PUT]", error);
+    return new NextResponse("Erro interno", { status: 500 });
   }
+}
+
+// Rota para DELETAR (DELETE) uma sprint
+export async function DELETE(request: Request, { params }: { params: IParams }) {
+    try {
+        const { id } = params;
+
+        if (!id) {
+            return new NextResponse('ID da sprint não encontrado', { status: 400 });
+        }
+
+        await db.dailySprint.delete({
+            where: { id },
+        });
+
+        return new NextResponse(null, { status: 204 });
+
+    } catch (error) {
+        console.error("[SPRINT_DELETE]", error);
+        return new NextResponse("Erro interno", { status: 500 });
+    }
 }

@@ -1,68 +1,67 @@
+// src/app/api/sellers/[id]/route.ts
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { hash } from 'bcryptjs';
 
-const prisma = new PrismaClient();
+interface IParams {
+  id?: string;
+}
 
-// --- Atualizar Vendedor (PUT) ---
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
-
+// Rota para ATUALIZAR (PUT) um vendedor existente
+export async function PUT(request: Request, { params }: { params: IParams }) {
   try {
-    const id = params.id;
-    const { name, email } = await request.json();
+    const { id } = params;
+    const body = await request.json();
+    const { name, email, password, team_id, sales_value, points } = body;
 
-    if (!name || !email) {
-      return NextResponse.json({ message: 'Nome e email são obrigatórios.' }, { status: 400 });
+    if (!id) {
+      return new NextResponse('ID do vendedor não encontrado', { status: 400 });
     }
 
-    const updatedUser = await prisma.user.update({
+    // Prepara os dados para atualização
+    const updateData: any = {
+        name,
+        email,
+        team_id,
+        sales_value,
+        points
+    };
+
+    // Se uma nova senha for fornecida, faz o hash dela
+    if (password) {
+        const hashedPassword = await hash(password, 12);
+        updateData.password = hashedPassword;
+    }
+
+    const seller = await db.seller.update({
       where: { id },
-      data: { name, email },
+      data: updateData,
     });
 
-    return NextResponse.json(updatedUser, { status: 200 });
-
+    return NextResponse.json(seller);
   } catch (error) {
-    console.error('API Sellers PUT Error:', error);
-    // Adicionar verificação para erros específicos do Prisma, como registro não encontrado
-    if ((error as any).code === 'P2025') {
-        return NextResponse.json({ message: 'Vendedor não encontrado.' }, { status: 404 });
-    }
-    return NextResponse.json({ message: 'Erro ao atualizar o vendedor.' }, { status: 500 });
+    console.error("[SELLER_PUT]", error);
+    return new NextResponse("Erro interno", { status: 500 });
   }
 }
 
-// --- Excluir Vendedor (DELETE) ---
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
+// Rota para DELETAR (DELETE) um vendedor
+export async function DELETE(request: Request, { params }: { params: IParams }) {
+    try {
+        const { id } = params;
 
-  try {
-    const id = params.id;
+        if (!id) {
+            return new NextResponse('ID do vendedor não encontrado', { status: 400 });
+        }
 
-    // Usar uma transação para garantir que ambos os registros sejam removidos
-    await prisma.$transaction(async (prisma) => {
-        // O schema atual parece não ter uma tabela 'sellers' separada, 
-        // o usuário com role 'seller' é o vendedor. Apenas apagamos o usuário.
-        await prisma.user.delete({
+        await db.seller.delete({
             where: { id },
         });
-    });
 
-    return new NextResponse(null, { status: 204 });
+        return new NextResponse(null, { status: 204 });
 
-  } catch (error) {
-    console.error('API Sellers DELETE Error:', error);
-    if ((error as any).code === 'P2025') {
-        return NextResponse.json({ message: 'Vendedor não encontrado.' }, { status: 404 });
+    } catch (error) {
+        console.error("[SELLER_DELETE]", error);
+        return new NextResponse("Erro interno", { status: 500 });
     }
-    return NextResponse.json({ message: 'Erro ao excluir o vendedor.' }, { status: 500 });
-  }
 }
