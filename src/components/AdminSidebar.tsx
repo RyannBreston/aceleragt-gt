@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons/logo';
+import { useAdminContext } from '@/contexts/AdminContext';
 import { MobileSidebar } from './MobileSidebar';
 import {
   LayoutDashboard,
@@ -33,10 +34,15 @@ const navItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { admin } = useAdminContext();
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
   };
+
+  if (!admin) {
+    return <div className="hidden lg:flex w-64 flex-shrink-0" />;
+  }
 
   return (
     <>
