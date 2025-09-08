@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card'; // Importação adicionada
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,6 @@ import { PlusCircle, MoreHorizontal, Loader2, Edit, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import type { Seller } from '@/lib/types';
 
-// Esquema de validação para o formulário de vendedor
 const sellerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
@@ -29,7 +28,6 @@ const sellerSchema = z.object({
 
 type SellerFormData = z.infer<typeof sellerSchema>;
 
-// --- Componente do Formulário de Vendedor ---
 const SellerForm = ({ seller, onSave, onCancel }: { seller?: Seller | null, onSave: (data: SellerFormData) => void, onCancel: () => void }) => {
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<SellerFormData>({
         resolver: zodResolver(sellerSchema),
@@ -71,8 +69,6 @@ const SellerForm = ({ seller, onSave, onCancel }: { seller?: Seller | null, onSa
     );
 };
 
-
-// --- Página Principal de Gerenciamento de Vendedores ---
 export default function SellersPage() {
     const [sellers, setSellers] = useState<Seller[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +85,7 @@ export default function SellersPage() {
             setSellers(data);
         } catch (error: any) {
             toast({ variant: "destructive", title: "Erro", description: error.message });
+            setSellers([]); // Garante que sellers seja um array em caso de erro
         } finally {
             setIsLoading(false);
         }
@@ -154,8 +151,8 @@ export default function SellersPage() {
             <Card>
                 <CardContent className="mt-6">
                     {isLoading ? (
-                        <div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
-                    ) : (
+                        <div className="flex justify-center p-6"><Loader2 className="h-8 w-8 animate-spin" /></div>
+                    ) : sellers && sellers.length > 0 ? (
                         <Table>
                             <TableHeader><TableRow>
                                 <TableHead>Nome</TableHead>
@@ -180,6 +177,8 @@ export default function SellersPage() {
                                 ))}
                             </TableBody>
                         </Table>
+                    ) : (
+                        <div className="text-center p-6 text-gray-500">Nenhum vendedor encontrado.</div>
                     )}
                 </CardContent>
             </Card>

@@ -13,10 +13,8 @@ import { Loader2, PlusCircle, Trash2, Edit, ToggleLeft, ToggleRight } from 'luci
 import { DailySprint, Seller } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
-// Tipo para os dados do formulário, omitindo campos gerados automaticamente
 type SprintFormData = Omit<DailySprint, 'id' | 'created_at' | 'is_active'>;
 
-// --- Componente do Formulário de Sprint ---
 const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null, onSave: (data: SprintFormData) => void, onCancel: () => void }) => {
     const { sellers } = useAdminContext();
     const [title, setTitle] = useState(sprint?.title || '');
@@ -76,8 +74,6 @@ const SprintForm = ({ sprint, onSave, onCancel }: { sprint?: DailySprint | null,
     );
 };
 
-
-// --- Página Principal de Sprints ---
 export default function SprintsPage() {
     const { sprints, isLoading, deleteSprint, toggleSprint, saveSprint } = useAdminContext();
     const { toast } = useToast();
@@ -122,15 +118,14 @@ export default function SprintsPage() {
         }
     };
 
-    if (isLoading && !sprints) { // Adjusted loading state
+    // Espera até que os dados estejam disponíveis
+    if (isLoading || !sprints) {
         return (
             <div className="flex h-full w-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
-
-    const sprintList = Array.isArray(sprints) ? sprints : [];
 
     return (
         <div className="container mx-auto p-4">
@@ -155,11 +150,11 @@ export default function SprintsPage() {
                 </Dialog>
             </div>
 
-            {sprintList.length === 0 ? (
-                <p>Nenhuma corridinha encontrada.</p>
+            {sprints.length === 0 ? (
+                <div className="text-center p-6 text-gray-500">Nenhuma corridinha encontrada.</div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sprintList.map((sprint) => (
+                    {sprints.map((sprint) => (
                         <Card key={sprint.id}>
                             <CardHeader>
                                 <CardTitle>{sprint.title}</CardTitle>
