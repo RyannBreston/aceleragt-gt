@@ -1,6 +1,7 @@
+// src/contexts/AdminContext.tsx
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { DailySprint, Mission, Seller, Goals } from '@/lib/types';
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,13 +12,13 @@ interface AdminContextType {
   goals: Goals | null;
   isLoading: boolean;
   refetch: () => void;
-  updateSettings: (data: { sellers: Seller[], goals: any }) => Promise<void>;
-  saveSprint: (data: any, id?: string) => Promise<void>;
+  updateSettings: (data: { sellers: Seller[], goals: Goals['data'] }) => Promise<void>;
+  saveSprint: (data: Partial<DailySprint>, id?: string) => Promise<void>;
   deleteSprint: (id: string) => Promise<void>;
   toggleSprint: (sprint: DailySprint, isActive: boolean) => Promise<void>;
-  saveSeller: (data: any, id?: string) => Promise<void>;
+  saveSeller: (data: Partial<Seller>, id?: string) => Promise<void>;
   deleteSeller: (id: string) => Promise<void>;
-  saveMission: (data: any, id?: string) => Promise<void>;
+  saveMission: (data: Partial<Mission>, id?: string) => Promise<void>;
   deleteMission: (id: string) => Promise<void>;
 }
 
@@ -31,7 +32,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!isLoading) setIsLoading(true);
     try {
       const response = await fetch('/api/admin');
@@ -45,10 +46,10 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
       setGoals(data.goals || null);
     } catch (error) {
       console.error('Falha ao carregar dados do admin:', error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro de Rede", 
-        description: "Não foi possível carregar os dados do painel." 
+      toast({
+        variant: "destructive",
+        title: "Erro de Rede",
+        description: "Não foi possível carregar os dados do painel."
       });
       setSellers([]);
       setMissions([]);
@@ -57,152 +58,120 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading, toast]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const apiRequest = async (url: string, method: string, body?: any) => {
+  const apiRequest = async (url: string, method: string, body?: object) => {
     try {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Falha na operação' }));
         throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
       }
-      
+
       if (response.status === 204) return null;
       return response.json();
     } catch (error) {
       console.error(`Erro na requisição ${method} ${url}:`, error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erro na Operação", 
-        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado." 
+      toast({
+        variant: "destructive",
+        title: "Erro na Operação",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado."
       });
       throw error;
     }
   };
 
-  const saveSeller = async (data: any, id?: string) => {
-    try {
-      await apiRequest(
-        id ? `/api/sellers/${id}` : '/api/register', 
-        id ? 'PUT' : 'POST', 
-        { ...data, role: 'seller' }
-      );
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: `Vendedor ${id ? 'atualizado' : 'criado'} com sucesso.` 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+  const saveSeller = async (data: Partial<Seller>, id?: string) => {
+    await apiRequest(
+      id ? `/api/sellers/${id}` : '/api/register',
+      id ? 'PUT' : 'POST',
+      { ...data, role: 'seller' }
+    );
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: `Vendedor ${id ? 'atualizado' : 'criado'} com sucesso.`
+    });
   };
 
   const deleteSeller = async (id: string) => {
-    try {
-      await apiRequest(`/api/sellers/${id}`, 'DELETE');
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: "Vendedor removido com sucesso." 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+    await apiRequest(`/api/sellers/${id}`, 'DELETE');
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: "Vendedor removido com sucesso."
+    });
   };
 
-  const saveSprint = async (data: any, id?: string) => {
-    try {
-      await apiRequest(
-        id ? `/api/sprints/${id}` : '/api/sprints', 
-        id ? 'PUT' : 'POST', 
-        data
-      );
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: `Sprint ${id ? 'atualizado' : 'criado'} com sucesso.` 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+  const saveSprint = async (data: Partial<DailySprint>, id?: string) => {
+    await apiRequest(
+      id ? `/api/sprints/${id}` : '/api/sprints',
+      id ? 'PUT' : 'POST',
+      data
+    );
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: `Sprint ${id ? 'atualizado' : 'criado'} com sucesso.`
+    });
   };
 
   const deleteSprint = async (id: string) => {
-    try {
-      await apiRequest(`/api/sprints/${id}`, 'DELETE');
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: "Sprint removido com sucesso." 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+    await apiRequest(`/api/sprints/${id}`, 'DELETE');
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: "Sprint removido com sucesso."
+    });
   };
 
   const toggleSprint = async (sprint: DailySprint, is_active: boolean) => {
-    try {
-      await apiRequest(`/api/sprints/${sprint.id}/toggle`, 'PUT', { is_active });
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: `Sprint ${is_active ? 'ativado' : 'desativado'} com sucesso.` 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+    await apiRequest(`/api/sprints/${sprint.id}/toggle`, 'PUT', { is_active });
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: `Sprint ${is_active ? 'ativado' : 'desativado'} com sucesso.`
+    });
   };
 
-  const saveMission = async (data: any, id?: string) => {
-    try {
-      await apiRequest(
-        id ? `/api/missions/${id}` : '/api/missions', 
-        id ? 'PUT' : 'POST', 
-        data
-      );
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: `Missão ${id ? 'atualizada' : 'criada'} com sucesso.` 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+  const saveMission = async (data: Partial<Mission>, id?: string) => {
+    await apiRequest(
+      id ? `/api/missions/${id}` : '/api/missions',
+      id ? 'PUT' : 'POST',
+      data
+    );
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: `Missão ${id ? 'atualizada' : 'criada'} com sucesso.`
+    });
   };
 
   const deleteMission = async (id: string) => {
-    try {
-      await apiRequest(`/api/missions/${id}`, 'DELETE');
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: "Missão removida com sucesso." 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+    await apiRequest(`/api/missions/${id}`, 'DELETE');
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: "Missão removida com sucesso."
+    });
   };
 
-  const updateSettings = async (data: { sellers: Seller[], goals: any }) => {
-    try {
-      await apiRequest('/api/settings', 'PUT', data);
-      await fetchData();
-      toast({ 
-        title: "Sucesso!", 
-        description: "Configurações salvas com sucesso." 
-      });
-    } catch (error) {
-      // Erro já tratado no apiRequest
-    }
+  const updateSettings = async (data: { sellers: Seller[], goals: Goals['data'] }) => {
+    await apiRequest('/api/settings', 'PUT', data);
+    await fetchData();
+    toast({
+      title: "Sucesso!",
+      description: "Configurações salvas com sucesso."
+    });
   };
 
   return (

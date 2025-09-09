@@ -1,13 +1,14 @@
 // src/app/api/sellers/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma'; // Correção na importação
+import { Prisma } from '@prisma/client';
 
 // Schema de validação para atualização de vendedor
 const updateSellerSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").optional(),
   email: z.string().email("Email inválido").optional(),
-  phone: z.string().optional(),
+  phone: z.string().optional().nullable(),
   sales_value: z.number().min(0, "Valor de vendas deve ser positivo").optional(),
   ticket_average: z.number().min(0, "Ticket médio deve ser positivo").optional(),
   pa: z.number().min(0, "PA deve ser positivo").optional(),
@@ -23,18 +24,20 @@ const updateSellerSchema = z.object({
 const uuidSchema = z.string().uuid("ID deve ser um UUID válido");
 
 // Função helper para lidar com erros do Prisma
-function handlePrismaError(error: any) {
-  if (error.code === 'P2002') {
-    return NextResponse.json(
-      { error: 'Email já está em uso' },
-      { status: 409 }
-    );
-  }
-  if (error.code === 'P2025') {
-    return NextResponse.json(
-      { error: 'Vendedor não encontrado' },
-      { status: 404 }
-    );
+function handlePrismaError(error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Email já está em uso' },
+        { status: 409 }
+      );
+    }
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Vendedor não encontrado' },
+        { status: 404 }
+      );
+    }
   }
   console.error('Erro do Prisma:', error);
   return NextResponse.json(
@@ -49,7 +52,6 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Validar UUID
     const validationResult = uuidSchema.safeParse(params.id);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -58,33 +60,23 @@ export async function GET(
       );
     }
 
-    const seller = await prisma.seller.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: params.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        sales_value: true,
-        ticket_average: true,
-        pa: true,
-        points: true,
-        role: true,
-        is_active: true,
-        created_at: true,
-        updated_at: true,
-        // Não incluir campos sensíveis como password hash
+      include: {
+        seller: true,
       },
     });
 
-    if (!seller) {
+    if (!user || !user.seller) {
       return NextResponse.json(
         { error: 'Vendedor não encontrado' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(seller);
+    const { seller, ...userData } = user;
+
+    return NextResponse.json({ ...userData, ...seller });
   } catch (error) {
     console.error('Falha ao buscar vendedor:', error);
     return NextResponse.json(
@@ -100,7 +92,6 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Validar UUID
     const uuidValidation = uuidSchema.safeParse(params.id);
     if (!uuidValidation.success) {
       return NextResponse.json(
@@ -109,7 +100,6 @@ export async function PUT(
       );
     }
 
-    // Validar corpo da requisição
     const body = await request.json().catch(() => null);
     if (!body) {
       return NextResponse.json(
@@ -121,50 +111,33 @@ export async function PUT(
     const validationResult = updateSellerSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
-          error: 'Dados inválidos', 
-          details: validationResult.error.errors 
+        {
+          error: 'Dados inválidos',
+          details: validationResult.error.errors
         },
         { status: 400 }
       );
     }
+    
+    const { name, email, role, ...sellerData } = validationResult.data;
 
-    // Verificar se o vendedor existe antes de atualizar
-    const existingSeller = await prisma.seller.findUnique({
-      where: { id: params.id },
+    const updatedUser = await prisma.user.update({
+        where: { id: params.id },
+        data: {
+            name,
+            email,
+            role,
+            seller: {
+                update: sellerData
+            }
+        },
+        include: {
+            seller: true
+        }
     });
 
-    if (!existingSeller) {
-      return NextResponse.json(
-        { error: 'Vendedor não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Atualizar vendedor
-    const updatedSeller = await prisma.seller.update({
-      where: { id: params.id },
-      data: {
-        ...validationResult.data,
-        updated_at: new Date(),
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        sales_value: true,
-        ticket_average: true,
-        pa: true,
-        points: true,
-        role: true,
-        is_active: true,
-        updated_at: true,
-      },
-    });
-
-    return NextResponse.json(updatedSeller);
-  } catch (error: any) {
+    return NextResponse.json(updatedUser);
+  } catch (error) {
     return handlePrismaError(error);
   }
 }
@@ -175,7 +148,6 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Validar UUID
     const validationResult = uuidSchema.safeParse(params.id);
     if (!validationResult.success) {
       return NextResponse.json(
@@ -184,48 +156,12 @@ export async function DELETE(
       );
     }
 
-    // Verificar se o vendedor existe
-    const existingSeller = await prisma.seller.findUnique({
+    await prisma.user.delete({
       where: { id: params.id },
     });
 
-    if (!existingSeller) {
-      return NextResponse.json(
-        { error: 'Vendedor não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Soft delete ao invés de hard delete (opcional)
-    const isHardDelete = request.nextUrl.searchParams.get('hard') === 'true';
-    
-    if (isHardDelete) {
-      // Hard delete - remove completamente
-      await prisma.seller.delete({
-        where: { id: params.id },
-      });
-    } else {
-      // Soft delete - apenas marca como inativo
-      await prisma.seller.update({
-        where: { id: params.id },
-        data: { 
-          is_active: false,
-          updated_at: new Date(),
-        },
-      });
-    }
-
     return new NextResponse(null, { status: 204 });
-  } catch (error: any) {
+  } catch (error) {
     return handlePrismaError(error);
   }
-}
-
-// PATCH - Atualização parcial (alternativa ao PUT)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  // Reutilizar lógica do PUT para PATCH
-  return PUT(request, { params });
 }
