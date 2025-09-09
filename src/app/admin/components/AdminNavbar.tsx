@@ -43,11 +43,6 @@ const navigation = [
     href: "/admin/sprints",
     icon: Zap,
   },
-  {
-    name: "Relatórios",
-    href: "/admin/reports",
-    icon: BarChart3,
-  },
 ];
 
 export default function AdminNavbar() {
