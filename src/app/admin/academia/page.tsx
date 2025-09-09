@@ -3,11 +3,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen } from 'lucide-react';
-import { useSellerContext } from '@/contexts/SellerContext';
+import { useAdminContext } from '@/contexts/AdminContext';
 import { Loader2 } from 'lucide-react';
 
 export default function AcademiaPage() {
-  const { isLoading } = useSellerContext();
+  const { isLoading } = useAdminContext();
 
   if (isLoading) {
     return (

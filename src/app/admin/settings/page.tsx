@@ -84,10 +84,10 @@ const gamificationSchema = z.object({
 const formSchema = z.object({
   sellers: z.array(sellerPerformanceSchema),
   goals: z.object({
-    salesValue: metricGoalsSchema.optional(),
-    ticketAverage: metricGoalsSchema.optional(),
-    pa: metricGoalsSchema.optional(),
-    points: metricGoalsSchema.optional(),
+    salesValue: metricGoalsSchema,
+    ticketAverage: metricGoalsSchema,
+    pa: metricGoalsSchema,
+    points: metricGoalsSchema,
     gamification: gamificationSchema,
     teamGoalBonus: optionalNumber,
   }),
@@ -515,14 +515,15 @@ export default function SettingsPage() {
             }));
             
             const goalsData = contextGoals?.data || {};
+            const emptyMetric = { metinha: {}, meta: {}, metona: {}, lendaria: {} };
 
             const formData: FormData = {
                 sellers: sellersData,
                 goals: {
-                    salesValue: (goalsData as any)?.salesValue,
-                    ticketAverage: (goalsData as any)?.ticketAverage,
-                    pa: (goalsData as any)?.pa,
-                    points: (goalsData as any)?.points,
+                    salesValue: (goalsData as any)?.salesValue || emptyMetric,
+                    ticketAverage: (goalsData as any)?.ticketAverage || emptyMetric,
+                    pa: (goalsData as any)?.pa || emptyMetric,
+                    points: (goalsData as any)?.points || emptyMetric,
                     teamGoalBonus: (goalsData as any)?.teamGoalBonus,
                     gamification: {
                         missions: (goalsData as any)?.gamification?.missions ?? true,

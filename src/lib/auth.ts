@@ -11,7 +11,6 @@ import bcrypt from 'bcryptjs';
 const generatedSecret = "a3b9f8e2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4";
 
 export const authOptions: AuthOptions = {
-  trustHost: true,
   secret: process.env.NEXTAUTH_SECRET || generatedSecret,
   pages: {
     signIn: '/login',
