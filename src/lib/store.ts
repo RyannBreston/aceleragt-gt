@@ -1,87 +1,133 @@
-// src/lib/prisma.ts
-import { PrismaClient } from '@prisma/client';
+// src/lib/store.ts
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 
-// Declara uma variável no escopo global para armazenar a instância do PrismaClient.
-// Isso evita que o hot-reloading do Next.js crie múltiplas instâncias em desenvolvimento.
-declare global {
-  var prisma: PrismaClient | undefined;
-}
-
-// Configuração do PrismaClient com opções otimizadas
-const createPrismaClient = () => {
-  return new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    errorFormat: 'pretty',
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
-};
-
-// Cria a instância do Prisma, reutilizando a que já existe (global.prisma) em ambiente de desenvolvimento,
-// ou criando uma nova em produção.
-export const prisma = globalThis.prisma ?? createPrismaClient();
-
-// Em ambiente de desenvolvimento, armazena a instância criada na variável global para
-// que ela seja reutilizada nas próximas recargas.
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.prisma = prisma;
-}
-
-// Graceful shutdown - desconecta do banco quando a aplicação é encerrada
-if (typeof window === 'undefined') {
-  process.on('beforeExit', async () => {
-    await prisma.$disconnect();
-  });
-
-  process.on('SIGINT', async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    await prisma.$disconnect();
-    process.exit(0);
-  });
-}
-
-// Exporta a instância para ser usada no restante do seu projeto.
-export default prisma;
-
-// Função helper para verificar conexão com o banco
-export const checkDatabaseConnection = async () => {
-  try {
-    await prisma.$connect();
-    console.log('✅ Database connected successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    return false;
-  }
-};
-
-// Função helper para executar queries com retry
-export const executeWithRetry = async <T>(
-  operation: () => Promise<T>,
-  maxRetries = 3,
-  delay = 1000
-): Promise<T> => {
-  let lastError: Error | null = null;
+// Definição do tipo para o estado e ações
+type AdminStore = {
+  // Estado
+  isAdmin: boolean;
+  isLoading: boolean;
+  lastLoginTime: number | null;
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error as Error;
-      
-      if (attempt < maxRetries) {
-        console.warn(`Database operation failed (attempt ${attempt}/${maxRetries}):`, error);
-        await new Promise(resolve => setTimeout(resolve, delay * attempt));
+  // Ações
+  setIsAdmin: (isAdmin: boolean) => void;
+  setLoading: (isLoading: boolean) => void;
+  updateLastLogin: () => void;
+  reset: () => void;
+  
+  // Computed values
+  isSessionValid: () => boolean;
+};
+
+// Estado inicial
+const initialState = {
+  isAdmin: false,
+  isLoading: false,
+  lastLoginTime: null,
+};
+
+// Store principal com middleware de persistência e devtools
+export const useAdminStore = create<AdminStore>()(
+  devtools(
+    persist(
+      (set, get) => ({
+        ...initialState,
+        
+        // Ações
+        setIsAdmin: (isAdmin: boolean) => {
+          set(
+            { 
+              isAdmin,
+              lastLoginTime: isAdmin ? Date.now() : null 
+            },
+            false,
+            'setIsAdmin'
+          );
+        },
+        
+        setLoading: (isLoading: boolean) => {
+          set({ isLoading }, false, 'setLoading');
+        },
+        
+        updateLastLogin: () => {
+          set({ lastLoginTime: Date.now() }, false, 'updateLastLogin');
+        },
+        
+        reset: () => {
+          set(initialState, false, 'reset');
+        },
+        
+        // Computed values
+        isSessionValid: () => {
+          const { isAdmin, lastLoginTime } = get();
+          if (!isAdmin || !lastLoginTime) return false;
+          
+          // Sessão válida por 24 horas (86400000 ms)
+          const sessionDuration = 24 * 60 * 60 * 1000;
+          return Date.now() - lastLoginTime < sessionDuration;
+        },
+      }),
+      {
+        name: 'admin-store', // nome único para localStorage
+        storage: createJSONStorage(() => {
+          // Usar sessionStorage ao invés de localStorage para maior segurança
+          if (typeof window !== 'undefined') {
+            return sessionStorage;
+          }
+          return {
+            getItem: () => null,
+            setItem: () => {},
+            removeItem: () => {},
+          };
+        }),
+        partialize: (state) => ({
+          // Apenas persistir campos específicos (não isLoading)
+          isAdmin: state.isAdmin,
+          lastLoginTime: state.lastLoginTime,
+        }),
       }
+    ),
+    {
+      name: 'admin-store', // nome para Redux DevTools
+      enabled: process.env.NODE_ENV === 'development',
     }
-  }
+  )
+);
+
+// Hook personalizado com funcionalidades extras
+export const useAdminAuth = () => {
+  const store = useAdminStore();
   
-  throw lastError;
+  return {
+    ...store,
+    
+    // Método para login seguro
+    login: () => {
+      store.setIsAdmin(true);
+      store.updateLastLogin();
+    },
+    
+    // Método para logout
+    logout: () => {
+      store.reset();
+    },
+    
+    // Verificar se está autenticado e sessão é válida
+    isAuthenticated: () => {
+      return store.isAdmin && store.isSessionValid();
+    },
+  };
 };
+
+// Selector hooks para performance otimizada
+export const useIsAdmin = () => useAdminStore((state) => state.isAdmin);
+export const useIsLoading = () => useAdminStore((state) => state.isLoading);
+export const useAdminActions = () => useAdminStore((state) => ({
+  setIsAdmin: state.setIsAdmin,
+  setLoading: state.setLoading,
+  reset: state.reset,
+}));
+
+// Tipo para export (útil para outros arquivos)
+export type { AdminStore };
