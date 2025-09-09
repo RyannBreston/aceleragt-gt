@@ -22,6 +22,7 @@ export interface Mission {
   points: number;
   type?: string;
   goal?: number;
+  prize?: number; // Adicionado para corrigir o erro de tipo
   course_id?: string;
 }
 

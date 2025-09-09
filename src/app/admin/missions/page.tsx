@@ -33,7 +33,7 @@ type MissionFormData = z.infer<typeof missionSchema>;
 const MissionForm = ({ mission, onSave, onCancel, isSaving }: { mission?: Mission | null, onSave: (data: MissionFormData) => void, onCancel: () => void, isSaving: boolean }) => {
     const { register, handleSubmit, formState: { errors } } = useForm<MissionFormData>({
         resolver: zodResolver(missionSchema),
-        defaultValues: mission ? { ...mission, goal: String(mission.goal), prize: String(mission.prize)}: { title: '', description: '', goal: 0, prize: 0 },
+        defaultValues: mission || { title: '', description: '', goal: 0, prize: 0 },
     });
 
     return (

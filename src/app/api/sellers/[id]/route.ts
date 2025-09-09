@@ -1,7 +1,7 @@
 // src/app/api/sellers/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma'; // Correção na importação
+import { prisma } from '@/lib/prisma'; // Ensuring named import
 import { Prisma } from '@prisma/client';
 
 // Schema de validação para atualização de vendedor
@@ -55,7 +55,7 @@ export async function GET(
     const validationResult = uuidSchema.safeParse(params.id);
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: validationResult.error.errors },
+        { error: 'ID inválido', details: validationResult.error.format() },
         { status: 400 }
       );
     }
@@ -95,12 +95,12 @@ export async function PUT(
     const uuidValidation = uuidSchema.safeParse(params.id);
     if (!uuidValidation.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: uuidValidation.error.errors },
+        { error: 'ID inválido', details: uuidValidation.error.format() },
         { status: 400 }
       );
     }
 
-    const body = await request.json().catch(() => null);
+    const body = await request.json();
     if (!body) {
       return NextResponse.json(
         { error: 'Corpo da requisição inválido' },
@@ -113,7 +113,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error: 'Dados inválidos',
-          details: validationResult.error.errors
+          details: validationResult.error.format()
         },
         { status: 400 }
       );
@@ -151,7 +151,7 @@ export async function DELETE(
     const validationResult = uuidSchema.safeParse(params.id);
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: validationResult.error.errors },
+        { error: 'ID inválido', details: validationResult.error.format() },
         { status: 400 }
       );
     }

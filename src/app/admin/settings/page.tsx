@@ -489,49 +489,14 @@ export default function SettingsPage() {
         defaultValues: { 
             sellers: [], 
             goals: {
-                salesValue: {
-                    metinha: { threshold: undefined, prize: undefined },
-                    meta: { threshold: undefined, prize: undefined },
-                    metona: { threshold: undefined, prize: undefined },
-                    lendaria: { threshold: undefined, prize: undefined },
-                    performanceBonus: { per: undefined, prize: undefined },
-                    topScorerPrize: undefined,
-                },
-                ticketAverage: {
-                    metinha: { threshold: undefined, prize: undefined },
-                    meta: { threshold: undefined, prize: undefined },
-                    metona: { threshold: undefined, prize: undefined },
-                    lendaria: { threshold: undefined, prize: undefined },
-                    performanceBonus: { per: undefined, prize: undefined },
-                    topScorerPrize: undefined,
-                },
-                pa: {
-                    metinha: { threshold: undefined, prize: undefined },
-                    meta: { threshold: undefined, prize: undefined },
-                    metona: { threshold: undefined, prize: undefined },
-                    lendaria: { threshold: undefined, prize: undefined },
-                    performanceBonus: { per: undefined, prize: undefined },
-                    topScorerPrize: undefined,
-                },
-                points: {
-                    metinha: { threshold: undefined, prize: undefined },
-                    meta: { threshold: undefined, prize: undefined },
-                    metona: { threshold: undefined, prize: undefined },
-                    lendaria: { threshold: undefined, prize: undefined },
-                    performanceBonus: { per: undefined, prize: undefined },
-                    topScorerPrize: undefined,
-                },
+                salesValue: { metinha: {}, meta: {}, metona: {}, lendaria: {} },
+                ticketAverage: { metinha: {}, meta: {}, metona: {}, lendaria: {} },
+                pa: { metinha: {}, meta: {}, metona: {}, lendaria: {} },
+                points: { metinha: {}, meta: {}, metona: {}, lendaria: {} },
                 gamification: {
-                    missions: true,
-                    academia: true,
-                    quiz: true,
-                    ofertas: true,
-                    loja: true,
-                    ranking: true,
-                    sprints: true,
-                    escala: true,
+                    missions: true, academia: true, quiz: true, ofertas: true,
+                    loja: true, ranking: true, sprints: true, escala: true,
                 },
-                teamGoalBonus: undefined,
             }
         },
     });
@@ -550,21 +515,25 @@ export default function SettingsPage() {
             }));
             
             const goalsData = contextGoals?.data || {};
+
             const formData: FormData = {
                 sellers: sellersData,
                 goals: {
-                    ...goalsData,
+                    salesValue: (goalsData as any)?.salesValue,
+                    ticketAverage: (goalsData as any)?.ticketAverage,
+                    pa: (goalsData as any)?.pa,
+                    points: (goalsData as any)?.points,
+                    teamGoalBonus: (goalsData as any)?.teamGoalBonus,
                     gamification: {
-                        missions: true,
-                        academia: true,
-                        quiz: true,
-                        ofertas: true,
-                        loja: true,
-                        ranking: true,
-                        sprints: true,
-                        escala: true,
-                        ...goalsData.gamification,
-                    }
+                        missions: (goalsData as any)?.gamification?.missions ?? true,
+                        academia: (goalsData as any)?.gamification?.academia ?? true,
+                        quiz: (goalsData as any)?.gamification?.quiz ?? true,
+                        ofertas: (goalsData as any)?.gamification?.ofertas ?? true,
+                        loja: (goalsData as any)?.gamification?.loja ?? true,
+                        ranking: (goalsData as any)?.gamification?.ranking ?? true,
+                        sprints: (goalsData as any)?.gamification?.sprints ?? true,
+                        escala: (goalsData as any)?.gamification?.escala ?? true,
+                    },
                 }
             };
             reset(formData);
@@ -572,11 +541,27 @@ export default function SettingsPage() {
     }, [contextSellers, contextGoals, reset]);
 
     const onSubmit = async (data: FormData) => {
-        console.log('Dados do formulário:', data); // Debug
+        if (!contextSellers) return;
+        
         setIsSubmitting(true);
+
+        // Enrich seller data with full context before submitting
+        const enrichedSellers = data.sellers.map(formSeller => {
+            const contextSeller = contextSellers.find(cs => cs.id === formSeller.id);
+            return { 
+                ...(contextSeller || {}),
+                ...formSeller,
+            };
+        });
+
+        const finalData = {
+            ...data,
+            sellers: enrichedSellers as Seller[],
+        };
+
         try {
-            await updateSettings(data);
-            reset(data); // Reseta o formulário com os novos dados salvos, definindo isDirty para false
+            await updateSettings(finalData);
+            reset(finalData); // Reset form with the new saved data
             toast({
                 title: "Sucesso!",
                 description: "Configurações salvas com sucesso."

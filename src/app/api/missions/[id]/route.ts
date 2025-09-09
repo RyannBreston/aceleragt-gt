@@ -1,176 +1,120 @@
-// src/app/api/sellers/[id]/route.ts
+// src/app/api/missions/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma'; // Correção: Importação correta
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
-// Schema de validação para atualização de vendedor
-const updateSellerSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório").optional(),
-  email: z.string().email("Email inválido").optional(),
-  phone: z.string().optional(),
-  sales_value: z.number().min(0, "Valor de vendas deve ser positivo").optional(),
-  ticket_average: z.number().min(0, "Ticket médio deve ser positivo").optional(),
-  pa: z.number().min(0, "PA deve ser positivo").optional(),
-  points: z.number().min(0, "Pontos devem ser positivos").optional(),
-  role: z.enum(['seller', 'admin']).optional(),
-  is_active: z.boolean().optional(),
-}).refine(
-  (data) => Object.keys(data).length > 0,
-  { message: "Pelo menos um campo deve ser fornecido para atualização" }
-);
+// Schema para validar o ID da missão (CUID)
+const idSchema = z.string().cuid("ID da missão inválido");
 
-// Validação de UUID
-const uuidSchema = z.string().uuid("ID deve ser um UUID válido");
+// Schema para validar os dados de atualização da missão
+const updateMissionSchema = z.object({
+  title: z.string().min(1, "O título é obrigatório").optional(),
+  description: z.string().optional().nullable(),
+  points: z.number().int().min(0, "Os pontos devem ser um número positivo").optional(),
+  type: z.string().optional().nullable(),
+  goal: z.number().min(0, "O objetivo deve ser um número positivo").optional().nullable(),
+  prize: z.number().min(0, "O prêmio deve ser um número positivo").optional().nullable(),
+  course_id: z.string().cuid("ID do curso inválido").optional().nullable(),
+}).refine(data => Object.keys(data).length > 0, {
+  message: "Pelo menos um campo deve ser fornecido para a atualização"
+});
 
-// Função helper para lidar com erros do Prisma
-function handlePrismaError(error: unknown) {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    switch ((error as { code: string }).code) {
-      case 'P2002':
-        return NextResponse.json(
-          { error: 'Email já está em uso' },
-          { status: 409 }
-        );
-      case 'P2025':
-        return NextResponse.json(
-          { error: 'Vendedor não encontrado' },
-          { status: 404 }
-        );
-    }
+// Função helper para lidar com erros
+const handleError = (error: unknown) => {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+    return NextResponse.json({ error: 'Missão não encontrada' }, { status: 404 });
   }
-  console.error('Erro do Prisma:', error);
-  return NextResponse.json(
-    { error: 'Erro interno do servidor' },
-    { status: 500 }
-  );
-}
+  console.error('Erro na operação com a missão:', error);
+  return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+};
 
-// GET - Obter um vendedor específico
+// GET - Obter uma missão específica
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
   try {
-    // Validar UUID
-    const validationResult = uuidSchema.safeParse(params.id);
+    const validationResult = idSchema.safeParse(id);
     if (!validationResult.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: validationResult.error.errors },
+        { error: 'ID inválido', details: validationResult.error.format() },
         { status: 400 }
       );
     }
 
-    const seller = await prisma.seller.findUnique({
-      where: { id: params.id },
-      include: {
-        user: true,
-      },
+    const mission = await prisma.mission.findUnique({
+      where: { id: validationResult.data },
     });
 
-    if (!seller) {
-      return NextResponse.json(
-        { error: 'Vendedor não encontrado' },
-        { status: 404 }
-      );
+    if (!mission) {
+      return NextResponse.json({ error: 'Missão não encontrada' }, { status: 404 });
     }
 
-    const { user, ...sellerData } = seller;
-    const response = {
-      ...sellerData,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    };
-
-    return NextResponse.json(response);
+    return NextResponse.json(mission);
   } catch (error) {
-    console.error('Falha ao buscar vendedor:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
+    return handleError(error);
   }
 }
 
-// PUT - Atualizar um vendedor
+// PUT - Atualizar uma missão
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
   try {
-    // Validar UUID
-    const uuidValidation = uuidSchema.safeParse(params.id);
-    if (!uuidValidation.success) {
+    const idValidation = idSchema.safeParse(id);
+    if (!idValidation.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: uuidValidation.error.errors },
+        { error: 'ID da missão inválido', details: idValidation.error.format() },
         { status: 400 }
       );
     }
 
-    // Validar corpo da requisição
-    const body = await request.json().catch(() => null);
-    if (!body) {
-      return NextResponse.json(
-        { error: 'Corpo da requisição inválido' },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const validationResult = updateMissionSchema.safeParse(body);
 
-    const validationResult = updateSellerSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        {
-          error: 'Dados inválidos',
-          details: validationResult.error.errors
-        },
+        { error: 'Dados para atualização inválidos', details: validationResult.error.format() },
         { status: 400 }
       );
     }
 
-    const { name, email, role, ...sellerData } = validationResult.data;
-
-    const updatedSeller = await prisma.user.update({
-      where: { id: params.id },
-      data: {
-        name,
-        email,
-        role,
-        seller: {
-          update: sellerData,
-        },
-      },
-      include: {
-        seller: true,
-      },
+    const updatedMission = await prisma.mission.update({
+      where: { id: idValidation.data },
+      data: validationResult.data,
     });
 
-    return NextResponse.json(updatedSeller);
+    return NextResponse.json(updatedMission);
   } catch (error) {
-    return handlePrismaError(error);
+    return handleError(error);
   }
 }
 
-// DELETE - Deletar um vendedor
+// DELETE - Deletar uma missão
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const { id } = params;
   try {
-    // Validar UUID
-    const validationResult = uuidSchema.safeParse(params.id);
-    if (!validationResult.success) {
+    const idValidation = idSchema.safeParse(id);
+    if (!idValidation.success) {
       return NextResponse.json(
-        { error: 'ID inválido', details: validationResult.error.errors },
+        { error: 'ID da missão inválido', details: idValidation.error.format() },
         { status: 400 }
       );
     }
 
-    await prisma.user.delete({
-      where: { id: params.id },
+    await prisma.mission.delete({
+      where: { id: idValidation.data },
     });
 
-    return new NextResponse(null, { status: 204 });
+    return new NextResponse(null, { status: 204 }); // No Content
   } catch (error) {
-    return handlePrismaError(error);
+    return handleError(error);
   }
 }
