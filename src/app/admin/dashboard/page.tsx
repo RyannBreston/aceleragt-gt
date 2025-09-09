@@ -3,11 +3,10 @@
 import React from 'react';
 import { useAdminContext } from '@/contexts/AdminContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Users, Target, Rocket, Banknote } from 'lucide-react';
-import SalesOverviewChart from '@/components/SalesOverviewChart';
-import SalesTable from '@/components/sales-table';
+import { Loader2, Users, Target, Rocket, Banknote, BarChart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import ComingSoon from '@/components/ComingSoon';
 
 export default function AdminDashboardPage() {
   const { sellers, missions, sprints, goals, isLoading } = useAdminContext();
@@ -74,16 +73,18 @@ export default function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader><CardTitle>Visão Geral de Vendas</CardTitle></CardHeader>
-          <CardContent><SalesOverviewChart sellers={sellers} /></CardContent>
-        </Card>
-        <Card>
-           <CardHeader><CardTitle>Ranking de Vendedores</CardTitle></CardHeader>
-          <CardContent><SalesTable sellers={sellers} /></CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Visão Geral de Vendas e Ranking</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ComingSoon
+            title="Em Breve"
+            description="Estamos trabalhando para trazer mais visualizações e dados para você."
+            icon={<BarChart className="h-8 w-8 text-primary" />}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

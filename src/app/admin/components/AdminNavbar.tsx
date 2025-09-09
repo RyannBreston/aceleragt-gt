@@ -12,7 +12,6 @@ import {
   Target, 
   Zap, 
   Menu,
-  BarChart3,
   Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";

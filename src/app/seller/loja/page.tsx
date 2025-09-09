@@ -1,28 +1,15 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gem } from 'lucide-react';
+import ComingSoon from '@/components/ComingSoon';
+import { Store } from 'lucide-react';
 
-export default function SellerLojaPage() {
-  // A lógica para buscar e exibir produtos viria de uma nova API
-  // e seria gerida pelo SellerContext.
-
+export default function LojaPage() {
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
-        <Gem /> Loja de Prémios
-      </h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Em Breve</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>
-            A funcionalidade da loja de prémios, onde você poderá trocar os seus pontos, será implementada aqui na nova arquitetura.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <ComingSoon
+      title="Loja"
+      description="Navegue pelos produtos e prêmios disponíveis para resgate."
+      icon={<Store className="h-8 w-8 text-primary" />}
+    />
   );
 }
