@@ -10,10 +10,21 @@ import { formatCurrency } from '@/lib/utils';
 function SellerDashboardContent() {
   const { currentSeller, goals, isLoading } = useSellerContext();
 
-  if (isLoading || !currentSeller) {
+  if (isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!currentSeller) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center h-full">
+        <h2 className="text-xl font-semibold">Nenhum sprint ativo</h2>
+        <p className="text-muted-foreground mt-2">
+          De momento, não está associado a nenhum sprint. Fale com o seu administrador.
+        </p>
       </div>
     );
   }

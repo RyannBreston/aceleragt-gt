@@ -1,13 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { calculateSellerPrizes } from '@/lib/client-utils';
 import type { Seller, Goals, Mission, DailySprint, SellerWithPrizes } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface SellerContextType {
-  sellers: Seller[]; // <-- Crucial: Armazena a lista de TODOS os vendedores para o ranking
+  sellers: Seller[];
   goals: Goals | null;
   missions: Mission[];
   currentSeller: SellerWithPrizes | null;
@@ -32,58 +32,55 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const userId = session?.user?.id;
   const isSeller = status === 'authenticated' && session?.user?.role === 'seller';
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!isSeller) {
-        setIsLoading(false);
-        return;
+  const fetchData = useCallback(async () => {
+    if (!isSeller) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const [sellersRes, goalsRes, missionsRes, sprintsRes] = await Promise.all([
+        fetch('/api/sellers'),
+        fetch('/api/goals'),
+        fetch('/api/missions'),
+        fetch('/api/sprints'),
+      ]);
+
+      if (!sellersRes.ok || !goalsRes.ok || !missionsRes.ok || !sprintsRes.ok) {
+        throw new Error('Falha ao carregar os dados da aplicação.');
       }
 
-      setIsLoading(true);
-      try {
-        // Busca todos os dados necessários para a experiência do vendedor
-        const [sellersRes, goalsRes, missionsRes, sprintsRes] = await Promise.all([
-          fetch('/api/sellers'),
-          fetch('/api/goals'),
-          fetch('/api/missions'),
-          fetch('/api/sprints'),
-        ]);
+      const sellersData = await sellersRes.json();
+      const goalsData = await goalsRes.json();
+      const missionsData = await missionsRes.json();
+      const sprintsData = await sprintsRes.json();
 
-        if (!sellersRes.ok || !goalsRes.ok || !missionsRes.ok || !sprintsRes.ok) {
-          throw new Error('Falha ao carregar os dados da aplicação.');
-        }
+      setSellers(sellersData);
+      setGoals(goalsData);
+      setMissions(missionsData);
 
-        const sellersData = await sellersRes.json();
-        const goalsData = await goalsRes.json();
-        const missionsData = await missionsRes.json();
-        const sprintsData = await sprintsRes.json();
-
-        setSellers(sellersData); // <-- Armazena a lista completa de vendedores
-        setGoals(goalsData);
-        setMissions(missionsData);
-        
-        const active = sprintsData.find((sprint: DailySprint) => sprint.is_active && sprint.participant_ids.includes(userId!));
+      if (userId) {
+        const active = sprintsData.find((sprint: DailySprint) => sprint.is_active && sprint.participant_ids.includes(userId));
         setActiveSprint(active || null);
-
-      } catch (error) {
-        if (error instanceof Error) {
-          toast({ variant: 'destructive', title: 'Erro de Rede', description: error.message });
-        } else {
-          toast({ variant: 'destructive', title: 'Erro de Rede', description: 'Ocorreu um erro desconhecido.' });
-        }
-      } finally {
-        setIsLoading(false);
       }
-    };
 
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+      toast({ variant: 'destructive', title: 'Erro de Rede', description: errorMessage });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isSeller, userId, toast]);
+
+  useEffect(() => {
     if (status !== 'loading') {
       fetchData();
     }
-  }, [isSeller, status, userId, toast]);
+  }, [status, fetchData]);
 
   useEffect(() => {
-    // Calcula os dados específicos do vendedor logado
-    if (userId && sellers.length > 0 && goals && activeSprint) {
+    if (userId && sellers.length > 0 && goals) {
       const sellerData = sellers.find(s => s.id === userId);
       if (sellerData) {
         const sellerWithPrizes = calculateSellerPrizes(sellerData, sellers, goals);
@@ -92,7 +89,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
     } else {
       setCurrentSeller(null);
     }
-  }, [userId, sellers, goals, activeSprint]);
+  }, [userId, sellers, goals]);
 
   const contextValue: SellerContextType = useMemo(() => ({
     sellers, goals, missions, currentSeller, activeSprint,

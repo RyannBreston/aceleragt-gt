@@ -33,7 +33,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
-    if (!isLoading) setIsLoading(true);
+    setIsLoading(true);
     try {
       const response = await fetch('/api/admin');
       if (!response.ok) {
@@ -58,7 +58,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, toast]);
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
