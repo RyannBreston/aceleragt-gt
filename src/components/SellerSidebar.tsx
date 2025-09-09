@@ -16,7 +16,8 @@ import {
   Zap,
   BookOpen,
   Calendar,
-  User
+  User,
+  Loader2,
 } from 'lucide-react';
 
 const navItems = [
@@ -32,47 +33,54 @@ const navItems = [
 
 export default function SellerSidebar() {
   const pathname = usePathname();
-  const { currentSeller } = useSellerContext();
+  const { currentSeller, isLoading } = useSellerContext();
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
   };
 
-  if (!currentSeller) {
-    // Renderiza um placeholder para evitar que o layout "salte"
-    return <div className="hidden lg:flex w-64 flex-shrink-0" />;
-  }
+  const renderContent = () => (
+    <>
+      <div className="p-4 border-b">
+        <Link href="/seller/dashboard" className="flex items-center gap-2">
+          <Logo />
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <span className="font-semibold">{currentSeller?.name.split(' ')[0]}</span>
+          )}
+        </Link>
+      </div>
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href} passHref>
+            <Button
+              variant={pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              disabled={isLoading}
+            >
+              <item.icon className="mr-2 h-4 w-4" />
+              {item.label}
+            </Button>
+          </Link>
+        ))}
+      </nav>
+      <div className="p-4 border-t">
+        <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Sair
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <>
       <aside className="hidden lg:flex flex-col w-64 border-r bg-card text-card-foreground">
-        <div className="p-4 border-b">
-          <Link href="/seller/dashboard" className="flex items-center gap-2">
-            <Logo />
-            <span className="font-semibold">{currentSeller.name.split(' ')[0]}</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {navItems.map((item) => (
-            <Link key={item.href} href={item.href} passHref>
-              <Button
-                variant={pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-              >
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.label}
-              </Button>
-            </Link>
-          ))}
-        </nav>
-        <div className="p-4 border-t">
-          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
-        </div>
+        {renderContent()}
       </aside>
       <div className="lg:hidden">
+        {/* A `MobileSidebar` já tem um estado de carregamento interno se necessário */}
         <MobileSidebar navItems={navItems} onLogout={handleLogout} />
       </div>
     </>

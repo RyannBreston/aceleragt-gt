@@ -67,7 +67,7 @@ const sellerPerformanceSchema = z.object({
   sales_value: z.coerce.number().min(0, "Deve ser positivo."),
   ticket_average: z.coerce.number().min(0, "Deve ser positivo."),
   pa: z.coerce.number().min(0, "Deve ser positivo."),
-  points: z.coerce.number().min(0, "Deve ser positivo."),
+  points: z.coerce.number().int("Deve ser um número inteiro.").min(0, "Deve ser positivo."),
 });
 
 const gamificationSchema = z.object({
@@ -186,7 +186,7 @@ const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, 
                                                     type="number" 
                                                     {...rest} 
                                                     value={value?.toString() ?? ''} 
-                                                    onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+                                                    onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -543,32 +543,35 @@ export default function SettingsPage() {
 
     const onSubmit = async (data: FormData) => {
         if (!contextSellers) return;
-        
+    
         setIsSubmitting(true);
-
-        // Enrich seller data with full context before submitting
-        const enrichedSellers = data.sellers.map(formSeller => {
-            const contextSeller = contextSellers.find(cs => cs.id === formSeller.id);
-            return { 
-                ...(contextSeller || {}),
-                ...formSeller,
+    
+        // Mapeia os dados de performance do formulário para fácil acesso pelo ID
+        const performanceDataMap = new Map(data.sellers.map(s => [s.id, s]));
+    
+        // Cria o array de vendedores completo, combinando os dados do contexto com os do formulário
+        const updatedSellers: Seller[] = contextSellers.map(seller => {
+            const performanceData = performanceDataMap.get(seller.id);
+            return {
+                ...seller, // Mantém todos os dados originais do vendedor (incl. email, role)
+                ...performanceData, // Sobrescreve com os dados de performance atualizados
             };
         });
-
+    
         const finalData = {
-            ...data,
-            sellers: enrichedSellers as Seller[],
+            sellers: updatedSellers,
+            goals: data.goals,
         };
-
+    
         try {
-            await updateSettings(finalData);
-            reset(finalData); // Reset form with the new saved data
+            await updateSettings(finalData as any); // Aserção de tipo para corresponder à API
+            reset(data); 
             toast({
                 title: "Sucesso!",
                 description: "Configurações salvas com sucesso."
             });
         } catch (error: any) {
-            console.error('Erro ao salvar:', error); // Debug
+            console.error('Erro ao salvar:', error);
             toast({ 
                 variant: "destructive", 
                 title: "Erro ao Salvar", 
