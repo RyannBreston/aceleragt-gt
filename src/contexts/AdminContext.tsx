@@ -1,4 +1,3 @@
-// src/contexts/AdminContext.tsx
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -35,7 +34,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin');
+      const response = await fetch('/api/admin', { cache: 'no-store' }); // Adicionado cache: no-store
       if (!response.ok) {
         throw new Error('A resposta da rede não foi boa');
       }
@@ -167,11 +166,7 @@ export const AdminProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSettings = async (data: { sellers: Seller[], goals: Goals['data'] }) => {
     await apiRequest('/api/settings', 'PUT', data);
-    await fetchData();
-    toast({
-      title: "Sucesso!",
-      description: "Configurações salvas com sucesso."
-    });
+    await fetchData(); // Re-fetch data after updating
   };
 
   return (
