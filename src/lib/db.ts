@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 // Verificação mais robusta das variáveis de ambiente
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -18,7 +18,7 @@ export const db = {
   query: (text: string, params?: (string | number | boolean | Date)[]) => pool.query(text, params),
   getClient: () => pool.connect(),
   // Adicionando método para transações
-  transaction: async (callback: (client: any) => Promise<any>) => {
+  transaction: async <T>(callback: (client: PoolClient) => Promise<T>): Promise<T> => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
