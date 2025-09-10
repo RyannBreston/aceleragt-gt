@@ -18,7 +18,7 @@ export const db = {
   query: (text: string, params?: (string | number | boolean | Date)[]) => pool.query(text, params),
   getClient: () => pool.connect(),
   // Adicionando método para transações
-  transaction: async (callback: (client: any) => Promise<any>) => {
+  transaction: async (callback: (client: PoolClient) => Promise<unknown>) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -33,3 +33,6 @@ export const db = {
     }
   }
 };
+
+// Exportação do tipo PoolClient
+import { PoolClient } from 'pg';
