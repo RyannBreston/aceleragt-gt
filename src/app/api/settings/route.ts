@@ -4,52 +4,89 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { z } from 'zod';
+
+// Input validation schema
+const settingsSchema = z.object({
+  sellers: z.array(z.object({
+    id: z.string().uuid('ID inválido'),
+    sales_value: z.number().min(0).optional(),
+    ticket_average: z.number().min(0).optional(),
+    pa: z.number().min(0).optional(),
+    points: z.number().min(0).optional(),
+  })),
+  goals: z.record(z.unknown()).optional(),
+});
 
 export async function PUT(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
-
   try {
-    const { sellers, goals } = await request.json();
-
-    if (!Array.isArray(sellers) || !goals) {
-      return NextResponse.json({ message: 'Dados de vendedores e metas são obrigatórios.' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      );
     }
 
-    // Utiliza uma transação do Prisma para garantir a consistência dos dados
+    const body = await request.json();
+    const validatedData = settingsSchema.parse(body);
+    const { sellers, goals } = validatedData;
+
+    if (!Array.isArray(sellers) || sellers.length === 0) {
+      return NextResponse.json(
+        { error: 'Lista de vendedores é obrigatória' },
+        { status: 400 }
+      );
+    }
+
+    // Use transaction for data consistency
     await prisma.$transaction(async (tx) => {
-      // 1. Atualiza cada vendedor em um loop
+      // Update each seller
       for (const seller of sellers) {
         await tx.seller.update({
           where: { id: seller.id },
           data: {
-            sales_value: seller.sales_value,
-            ticket_average: seller.ticket_average,
-            pa: seller.pa,
-            points: seller.points,
+            ...(seller.sales_value !== undefined && { sales_value: seller.sales_value }),
+            ...(seller.ticket_average !== undefined && { ticket_average: seller.ticket_average }),
+            ...(seller.pa !== undefined && { pa: seller.pa }),
+            ...(seller.points !== undefined && { points: seller.points }),
           },
         });
       }
 
-      // 2. Atualiza (ou cria, se não existir) o registro de metas
-      await tx.goals.upsert({
-        where: { id: 'main' },
-        update: {
-          data: goals,
-        },
-        create: {
-          id: 'main',
-          data: goals,
-        },
-      });
+      // Update or create goals if provided
+      if (goals) {
+        await tx.goals.upsert({
+          where: { id: 'main' },
+          update: {
+            data: goals,
+          },
+          create: {
+            id: 'main',
+            data: goals,
+          },
+        });
+      }
     });
 
-    return NextResponse.json({ message: 'Configurações salvas com sucesso.' });
+    return NextResponse.json({ 
+      message: 'Configurações salvas com sucesso',
+      success: true 
+    });
 
   } catch (error) {
     console.error('API Settings PUT Error:', error);
-    return NextResponse.json({ message: 'Erro interno ao salvar as configurações.' }, { status: 500 });
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Dados inválidos', details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Erro interno ao salvar as configurações' },
+      { status: 500 }
+    );
   }
 }

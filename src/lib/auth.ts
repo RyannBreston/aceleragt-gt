@@ -3,17 +3,18 @@
 import { AuthOptions, User as NextAuthUser, Session } from 'next-auth';
 import { JWT } from 'next-auth/jwt';
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from '@/lib/prisma'; // Alterado: Importa a instância compartilhada
+import { prisma } from '@/lib/prisma';
+import { env } from '@/lib/env';
 import bcrypt from 'bcryptjs';
 
-// Removido: const prisma = new PrismaClient();
-
-const generatedSecret = "a3b9f8e2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4e6f2c1d0a7b4";
-
 export const authOptions: AuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET || generatedSecret,
+  secret: env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/login',
+  },
+  session: {
+    strategy: 'jwt',
+    maxAge: 24 * 60 * 60, // 24 hours
   },
   callbacks: {
     async jwt({ token, user }: { token: JWT; user: NextAuthUser | null; }) {
@@ -39,44 +40,35 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log("--- Authorize function started ---");
         if (!credentials || !credentials.email || !credentials.password) {
-          console.log("Authorize failed: Missing credentials.");
           return null;
         }
-
-        console.log(`Attempting to authorize user: ${credentials.email}`);
 
         try {
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
           });
 
-          if (!user) {
-            console.log(`Authorize failed: User with email ${credentials.email} not found.`);
-            return null;
-          }
-
-          console.log(`User found: ${user.name} (${user.email}). Checking password...`);
-
-          if (!user.password) {
-            console.log(`Authorize failed: User ${user.email} does not have a password set.`);
+          if (!user || !user.password) {
             return null;
           }
 
           const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password);
 
           if (isPasswordCorrect) {
-            console.log("Password correct. Authorization successful.");
-            return { id: user.id, name: user.name, email: user.email, role: user.role };
+            return { 
+              id: user.id, 
+              name: user.name, 
+              email: user.email, 
+              role: user.role 
+            };
           }
 
-          console.log("Authorize failed: Incorrect password.");
           return null;
 
         } catch (error) {
-            console.error("Error during authorization process:", error);
-            return null;
+          console.error("Authorization error:", error);
+          return null;
         }
       }
     })

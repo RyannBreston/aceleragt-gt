@@ -1,12 +1,48 @@
 // src/app/api/sellers/route.ts
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma'; // Correção: Usando Prisma
+import { prisma } from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { getServerSession } from 'next-auth';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcrypt';
+import { z } from 'zod';
 
-// Função GET para buscar todos os Vendedores
+// Input validation schemas
+const createSellerSchema = z.object({
+  name: z.string().min(1, 'Nome é obrigatório'),
+  email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+});
+
+const updateSellerSchema = z.object({
+  id: z.string().uuid('ID inválido'),
+  name: z.string().min(1, 'Nome é obrigatório').optional(),
+  email: z.string().email('Email inválido').optional(),
+  sales_value: z.number().min(0).optional(),
+  ticket_average: z.number().min(0).optional(),
+  pa: z.number().min(0).optional(),
+  points: z.number().min(0).optional(),
+  extra_points: z.number().min(0).optional(),
+});
+
+// Error handling helper
+function handleError(error: unknown, defaultMessage: string) {
+  console.error('API Error:', error);
+  
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: 'Dados inválidos', details: error.errors },
+      { status: 400 }
+    );
+  }
+  
+  return NextResponse.json(
+    { error: defaultMessage },
+    { status: 500 }
+  );
+}
+
+// GET - Buscar todos os vendedores
 export async function GET() {
   try {
     const sellersFromDb = await prisma.seller.findMany({
@@ -40,35 +76,43 @@ export async function GET() {
 
     return NextResponse.json(sellers);
   } catch (error) {
-    console.error('API Sellers GET Error:', error);
-    return NextResponse.json({ message: 'Erro ao buscar vendedores.' }, { status: 500 });
+    return handleError(error, 'Erro ao buscar vendedores');
   }
 }
 
-// Função POST para criar um novo Vendedor
+// POST - Criar novo vendedor
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== 'admin') {
-    return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
-  }
-
   try {
-    const { name, email, password } = await request.json();
-
-    if (!name || !email || !password || password.length < 6) {
-      return NextResponse.json({ message: 'Dados inválidos. Nome, e-mail e uma senha com pelo menos 6 caracteres são obrigatórios.' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      );
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const body = await request.json();
+    const validatedData = createSellerSchema.parse(body);
+    const { name, email, password } = validatedData;
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({ 
+      where: { email },
+      select: { id: true }
+    });
+    
     if (existingUser) {
-      return NextResponse.json({ message: 'Este e-mail já está em uso.' }, { status: 409 });
+      return NextResponse.json(
+        { error: 'Este email já está em uso' },
+        { status: 409 }
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newId = uuidv4();
 
-    // Transação para criar User e Seller juntos
-    await prisma.$transaction(async (tx) => {
+    // Transaction to create user and seller atomically
+    const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           id: newId,
@@ -78,56 +122,97 @@ export async function POST(request: Request) {
           role: 'seller',
         }
       });
+      
       await tx.seller.create({
         data: {
           id: user.id,
         }
       });
+
+      return { id: user.id, name: user.name, email: user.email, role: user.role };
     });
 
-    return NextResponse.json({ id: newId, name, email, role: 'seller' }, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
 
   } catch (error) {
-    console.error('API Sellers POST Error:', error);
-    return NextResponse.json({ message: 'Erro interno ao criar o vendedor.' }, { status: 500 });
+    return handleError(error, 'Erro interno ao criar vendedor');
   }
 }
 
-// Função PUT para atualizar um Vendedor
+// PUT - Atualizar vendedor
 export async function PUT(request: Request) {
+  try {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'admin') {
-        return NextResponse.json({ message: 'Não autorizado.' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Acesso negado' },
+        { status: 403 }
+      );
     }
 
-    try {
-        const { id, name, email, sales_value, ticket_average, pa, points, extra_points } = await request.json();
+    const body = await request.json();
+    const validatedData = updateSellerSchema.parse(body);
+    const { id, name, email, sales_value, ticket_average, pa, points, extra_points } = validatedData;
 
-        if (!id) {
-            return NextResponse.json({ message: 'O ID do vendedor é obrigatório.' }, { status: 400 });
-        }
+    // Check if seller exists
+    const existingSeller = await prisma.seller.findUnique({
+      where: { id },
+      select: { id: true }
+    });
 
-        await prisma.$transaction(async (tx) => {
-          await tx.user.update({
-            where: { id },
-            data: { name, email },
-          });
-          await tx.seller.update({
-            where: { id },
-            data: {
-              sales_value: sales_value || 0,
-              ticket_average: ticket_average || 0,
-              pa: pa || 0,
-              points: points || 0,
-              extra_points: extra_points || 0,
-            },
-          });
+    if (!existingSeller) {
+      return NextResponse.json(
+        { error: 'Vendedor não encontrado' },
+        { status: 404 }
+      );
+    }
+
+    // Check email uniqueness if updating email
+    if (email) {
+      const emailExists = await prisma.user.findFirst({
+        where: { 
+          email,
+          id: { not: id }
+        },
+        select: { id: true }
+      });
+
+      if (emailExists) {
+        return NextResponse.json(
+          { error: 'Este email já está em uso por outro usuário' },
+          { status: 409 }
+        );
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Update user data if provided
+      if (name || email) {
+        await tx.user.update({
+          where: { id },
+          data: {
+            ...(name && { name }),
+            ...(email && { email }),
+          },
         });
+      }
 
-        return NextResponse.json({ message: 'Vendedor atualizado com sucesso.' });
+      // Update seller data
+      await tx.seller.update({
+        where: { id },
+        data: {
+          ...(sales_value !== undefined && { sales_value }),
+          ...(ticket_average !== undefined && { ticket_average }),
+          ...(pa !== undefined && { pa }),
+          ...(points !== undefined && { points }),
+          ...(extra_points !== undefined && { extra_points }),
+        },
+      });
+    });
 
-    } catch (error) {
-        console.error('API Sellers PUT Error:', error);
-        return NextResponse.json({ message: 'Erro ao atualizar o vendedor.' }, { status: 500 });
-    }
+    return NextResponse.json({ message: 'Vendedor atualizado com sucesso' });
+
+  } catch (error) {
+    return handleError(error, 'Erro ao atualizar vendedor');
+  }
 }

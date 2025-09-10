@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Vercel deployment optimizations
+  output: process.env.VERCEL ? 'standalone' : undefined,
+  
   images: {
     remotePatterns: [
       {
@@ -15,21 +18,26 @@ const nextConfig = {
         hostname: "img.clerk.com",
       },
     ],
+    // Optimize for serverless
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60,
   },
   
-  // Configurações adicionais recomendadas
+  // Performance optimizations for Vercel
   experimental: {
-    // Melhora a performance de builds
+    // Optimize package imports for better bundling
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    // Enable serverComponentsExternalPackages for Prisma
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
   },
   
-  // Configurações de performance
+  // Compiler optimizations
   compiler: {
-    // Remove console.logs em produção
+    // Remove console.logs in production for better performance
     removeConsole: process.env.NODE_ENV === 'production',
   },
   
-  // Headers de segurança
+  // Security headers
   async headers() {
     return [
       {
@@ -47,24 +55,59 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
+          },
         ],
       },
     ];
   },
   
-  // Configuração de webpack para melhor bundling
+  // API route configuration for serverless
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: '/api/:path*',
+      },
+    ];
+  },
+  
+  // Webpack optimizations for Vercel
   webpack: (config, { isServer }) => {
-    // Otimizações específicas
+    // Client-side optimizations
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
         tls: false,
+        crypto: false,
       };
     }
     
+    // Optimize bundle size
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      },
+    };
+    
     return config;
+  },
+  
+  // Environment variables validation
+  env: {
+    NODE_ENV: process.env.NODE_ENV,
   },
 };
 

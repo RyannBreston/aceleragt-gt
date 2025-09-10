@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 
 export default withAuth(
-  // `withAuth` aprimora o seu `Request` com o token do utilizador.
   function middleware(req: NextRequestWithAuth) {
     const { token } = req.nextauth;
     const { pathname } = req.nextUrl;
@@ -10,7 +9,16 @@ export default withAuth(
     const isLoggedIn = !!token;
     const userRole = token?.role;
 
-    // Se o utilizador está logado e acede à página inicial, redireciona para o dashboard correto
+    // CORS headers for API routes
+    if (pathname.startsWith('/api/')) {
+      const response = NextResponse.next();
+      response.headers.set('Access-Control-Allow-Origin', '*');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      return response;
+    }
+
+    // Redirect logic for authenticated users
     if (isLoggedIn && pathname === '/') {
       if (userRole === 'admin') {
         return NextResponse.redirect(new URL('/admin/dashboard', req.url));
@@ -20,33 +28,36 @@ export default withAuth(
       }
     }
 
-    // Se o utilizador for admin e tentar aceder a uma rota de vendedor, redireciona para o dashboard de admin
+    // Role-based access control
     if (isLoggedIn && userRole === 'admin' && pathname.startsWith('/seller')) {
       return NextResponse.redirect(new URL('/admin/dashboard', req.url));
     }
 
-    // Se o utilizador for vendedor e tentar aceder a uma rota de admin, redireciona para o dashboard de vendedor
     if (isLoggedIn && userRole === 'seller' && pathname.startsWith('/admin')) {
       return NextResponse.redirect(new URL('/seller/dashboard', req.url));
     }
-
-    // Se o utilizador não estiver logado e tentar aceder a uma rota protegida,
-    // o `withAuth` já o redireciona para a página de login definida nas `authOptions`.
 
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token, // Retorna true se o token existir (utilizador logado)
+      authorized: ({ token, req }) => {
+        // Allow API routes without authentication check here
+        if (req.nextUrl.pathname.startsWith('/api/')) {
+          return true;
+        }
+        return !!token;
+      },
     },
   }
 );
 
-// Define quais as rotas que serão protegidas pelo middleware
+// Optimize matcher for better performance
 export const config = {
   matcher: [
-    '/', // Adicionado para proteger a rota raiz
+    '/',
     '/admin/:path*',
     '/seller/:path*',
+    '/api/:path*',
   ],
 };

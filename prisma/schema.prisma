@@ -1,10 +1,15 @@
 generator client {
   provider = "prisma-client-js"
+  // Optimize for serverless deployments
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
+  previewFeatures = ["jsonProtocol"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Enable connection pooling for serverless
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
