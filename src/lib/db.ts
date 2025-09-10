@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 // Verificação mais robusta das variáveis de ambiente
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -33,6 +33,3 @@ export const db = {
     }
   }
 };
-
-// Exportação do tipo PoolClient
-import { PoolClient } from 'pg';
