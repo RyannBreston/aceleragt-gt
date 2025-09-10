@@ -621,7 +621,7 @@ export default function SettingsPage() {
                 )}
             </div>
             <Form {...form}>
-                <form>
+                <form onSubmit={handleSubmit(onSubmit)}>
                     <Tabs defaultValue="lancamentos" className="w-full">
                         <TabsList>
                             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>
