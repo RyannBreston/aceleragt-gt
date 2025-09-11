@@ -17,12 +17,14 @@ import {
   LogOut,
   Rocket,
   Calendar,
-  BookOpen
+  BookOpen,
+  Store // Adicionado
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/sellers', label: 'Vendedores', icon: Users },
+  { href: '/admin/stores', label: 'Lojas', icon: Store }, // Adicionado
   { href: '/admin/missions', label: 'Missões', icon: Target },
   { href: '/admin/sprints', label: 'Corridinhas', icon: Rocket },
   { href: '/admin/ranking', label: 'Ranking', icon: Trophy },

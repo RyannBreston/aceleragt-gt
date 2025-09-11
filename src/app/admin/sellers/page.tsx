@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,15 @@ import { PlusCircle, MoreHorizontal, Loader2, Edit, Trash2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import type { Seller } from '@/lib/types';
 import { useAdminContext } from '@/contexts/AdminContext'; // Importe o contexto
+import { Select } from 'react-day-picker';
+import { SelectContent, SelectItem, SelectTrigger, SelectValue } from '@radix-ui/react-select';
 
 const sellerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }).optional(),
+  storeId: z.string().min(1, { message: 'Selecione uma loja.' }),
 }).refine(data => !!data.id || !!data.password, {
     message: 'A senha é obrigatória para novos vendedores.',
     path: ['password'],
@@ -30,10 +33,10 @@ const sellerSchema = z.object({
 type SellerFormData = z.infer<typeof sellerSchema>;
 
 // O formulário permanece em grande parte o mesmo, não precisa de alterações imediatas
-const SellerForm = ({ seller, onSave, onCancel, isSaving }: { seller?: Seller | null, onSave: (data: SellerFormData) => void, onCancel: () => void, isSaving: boolean }) => {
-    const { register, handleSubmit, formState: { errors } } = useForm<SellerFormData>({
+const SellerForm = ({ seller, stores, onSave, onCancel, isSaving }: { seller?: Seller | null; stores: { id: string; name: string }[]; onSave: (data: SellerFormData) => void; onCancel: () => void; isSaving: boolean }) => {
+    const { register, handleSubmit, control, formState: { errors } } = useForm<SellerFormData>({
         resolver: zodResolver(sellerSchema),
-        defaultValues: { id: seller?.id, name: seller?.name || '', email: seller?.email || '' },
+        defaultValues: { id: seller?.id, name: seller?.name || '', email: seller?.email || '', storeId: seller?.storeId || '' },
     });
 
     return (
@@ -59,6 +62,24 @@ const SellerForm = ({ seller, onSave, onCancel, isSaving }: { seller?: Seller | 
                         {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
                     </div>
                 )}
+                <div className="space-y-2">
+                    <Label htmlFor="storeId">Loja</Label>
+                    <Controller
+                        name="storeId"
+                        control={control}
+                        render={({ field }) => (
+                            <Select onVolumeChange={field.onChange} value={field.value}>
+                                <SelectTrigger id="storeId"><SelectValue placeholder="Selecione a loja" /></SelectTrigger>
+                                <SelectContent>
+                                    {stores.map(store => (
+                                        <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    />
+                    {errors.storeId && <p className="text-sm text-red-500">{errors.storeId.message}</p>}
+                </div>
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
                     <Button type="submit" disabled={isSaving}>
@@ -78,6 +99,22 @@ export default function SellersPage() {
     const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const { toast } = useToast();
+    const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
+
+    useEffect(() => {
+        // Fetch stores from API
+        const fetchStores = async () => {
+            try {
+                const response = await fetch('/api/stores');
+                const data = await response.json();
+                setStores(data);
+            } catch (error) {
+                console.error('Failed to fetch stores', error);
+            }
+        };
+
+        fetchStores();
+    }, []);
 
     const handleSave = async (data: SellerFormData) => {
         setIsSaving(true);
@@ -111,7 +148,7 @@ export default function SellersPage() {
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Adicionar Vendedor
                     </Button>
-                   {isFormOpen && <SellerForm seller={selectedSeller} onSave={handleSave} onCancel={() => setIsFormOpen(false)} isSaving={isSaving}/>}
+                   {isFormOpen && <SellerForm seller={selectedSeller} stores={stores} onSave={handleSave} onCancel={() => setIsFormOpen(false)} isSaving={isSaving}/>}
                 </Dialog>
             </div>
 
@@ -125,6 +162,7 @@ export default function SellersPage() {
                             <TableHeader><TableRow>
                                 <TableHead>Nome</TableHead>
                                 <TableHead>Email</TableHead>
+                                <TableHead>Loja</TableHead>
                                 <TableHead className="text-right">Ações</TableHead>
                             </TableRow></TableHeader>
                             <TableBody>
@@ -132,6 +170,7 @@ export default function SellersPage() {
                                     <TableRow key={seller.id}>
                                         <TableCell className="font-medium">{seller.name}</TableCell>
                                         <TableCell>{seller.email}</TableCell>
+                                        <TableCell>{seller.storeId}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>

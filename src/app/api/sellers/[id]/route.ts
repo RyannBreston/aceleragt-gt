@@ -1,18 +1,18 @@
 // src/app/api/sellers/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma'; // Correção na importação
+import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 
-// Schema de validação para atualização de vendedor
+// Schema para atualização de vendedor
 const updateSellerSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório").optional(),
-  email: z.string().email("Email inválido").optional(),
+  name: z.string().min(1).optional(),
+  email: z.string().email().optional(),
   phone: z.string().optional().nullable(),
-  sales_value: z.number().min(0, "Valor de vendas deve ser positivo").optional(),
-  ticket_average: z.number().min(0, "Ticket médio deve ser positivo").optional(),
-  pa: z.number().min(0, "PA deve ser positivo").optional(),
-  points: z.number().min(0, "Pontos devem ser positivos").optional(),
+  sales_value: z.number().min(0).optional(),
+  ticket_average: z.number().min(0).optional(),
+  pa: z.number().min(0).optional(),
+  points: z.number().min(0).optional(),
   role: z.enum(['seller', 'admin']).optional(),
   is_active: z.boolean().optional(),
 }).refine(
@@ -23,7 +23,7 @@ const updateSellerSchema = z.object({
 // Validação de UUID
 const uuidSchema = z.string().uuid("ID deve ser um UUID válido");
 
-// Função helper para lidar com erros do Prisma
+// Função para tratamento de erros do Prisma
 function handlePrismaError(error: unknown) {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
@@ -46,7 +46,7 @@ function handlePrismaError(error: unknown) {
   );
 }
 
-// GET - Obter um vendedor específico
+// GET - Buscar vendedor por ID
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -62,9 +62,7 @@ export async function GET(
 
     const user = await prisma.user.findUnique({
       where: { id: params.id },
-      include: {
-        seller: true,
-      },
+      include: { seller: true },
     });
 
     if (!user || !user.seller) {
@@ -75,18 +73,13 @@ export async function GET(
     }
 
     const { seller, ...userData } = user;
-
     return NextResponse.json({ ...userData, ...seller });
   } catch (error) {
-    console.error('Falha ao buscar vendedor:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
 }
 
-// PUT - Atualizar um vendedor
+// PUT - Atualizar vendedor
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -111,38 +104,32 @@ export async function PUT(
     const validationResult = updateSellerSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        {
-          error: 'Dados inválidos',
-          details: validationResult.error.errors
-        },
+        { error: 'Dados inválidos', details: validationResult.error.errors },
         { status: 400 }
       );
     }
-    
+
     const { name, email, role, ...sellerData } = validationResult.data;
 
     const updatedUser = await prisma.user.update({
-        where: { id: params.id },
-        data: {
-            name,
-            email,
-            role,
-            seller: {
-                update: sellerData
-            }
-        },
-        include: {
-            seller: true
-        }
+      where: { id: params.id },
+      data: {
+        name,
+        email,
+        role,
+        seller: { update: sellerData }
+      },
+      include: { seller: true }
     });
 
-    return NextResponse.json(updatedUser);
+    const { seller, ...userData } = updatedUser;
+    return NextResponse.json({ ...userData, ...seller });
   } catch (error) {
     return handlePrismaError(error);
   }
 }
 
-// DELETE - Deletar um vendedor
+// DELETE - Remover vendedor
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -156,11 +143,22 @@ export async function DELETE(
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Vendedor não encontrado' },
+        { status: 404 }
+      );
+    }
+
     await prisma.user.delete({
       where: { id: params.id },
     });
 
-    return new NextResponse(null, { status: 204 });
+    return NextResponse.json(null, { status: 204 });
   } catch (error) {
     return handlePrismaError(error);
   }

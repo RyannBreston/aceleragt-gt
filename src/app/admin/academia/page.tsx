@@ -2,20 +2,14 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen } from 'lucide-react';
-import { useSellerContext } from '@/contexts/SellerContext';
-import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export default function AcademiaPage() {
-  const { isLoading } = useSellerContext();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
+  const courses = React.useMemo(() => [
+    { id: 'course1', title: 'Introdução às Vendas', description: 'Aprenda os fundamentos...', imageUrl: '' },
+    { id: 'course2', title: 'Técnicas Avançadas', description: 'Aprofunde-se em estratégias...', imageUrl: '' },
+    { id: 'course3', title: 'Gestão de Tempo', description: 'Otimize seu dia...', imageUrl: '' }
+  ], []);
 
   return (
     <div className="container mx-auto p-4">
@@ -23,19 +17,19 @@ export default function AcademiaPage() {
         <h1 className="text-2xl font-bold">Academia</h1>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <BookOpen className="mr-2" />
-            Cursos e Treinamentos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>
-            A funcionalidade da academia será implementada aqui na nova arquitetura.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+        {courses.map(course => (
+          <Card key={course.id} className="hover:shadow-lg transition-shadow">
+            <CardHeader>
+              <CardTitle>{course.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">{course.description}</p>
+              <Button variant="outline" className="mt-4">Acessar</Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

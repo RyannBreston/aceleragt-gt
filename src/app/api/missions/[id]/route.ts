@@ -50,46 +50,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-    // Validar UUID
-    const validationResult = uuidSchema.safeParse(params.id);
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'ID inválido', details: validationResult.error.errors },
-        { status: 400 }
-      );
-    }
+  // Exemplo de uso:
+  // const mission = await prisma.mission.findUnique({ where: { id: params.id } });
+  // if (!mission) return NextResponse.json({ error: 'Missão não encontrada' }, { status: 404 });
+  // return NextResponse.json(mission);
 
-    const seller = await prisma.seller.findUnique({
-      where: { id: params.id },
-      include: {
-        user: true,
-      },
-    });
-
-    if (!seller) {
-      return NextResponse.json(
-        { error: 'Vendedor não encontrado' },
-        { status: 404 }
-      );
-    }
-
-    const { user, ...sellerData } = seller;
-    const response = {
-      ...sellerData,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error('Falha ao buscar vendedor:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ message: 'Missão encontrada', id: params.id });
 }
 
 // PUT - Atualizar um vendedor

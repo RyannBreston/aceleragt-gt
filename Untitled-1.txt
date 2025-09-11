@@ -1,0 +1,6 @@
+// filepath: c:\Users\Admin\Downloads\aceleragt-gt\src\lib\db.ts
+
+// Substitua 'any' por tipos específicos, por exemplo:
+function exemplo(param: string): number {
+  // implementação
+}

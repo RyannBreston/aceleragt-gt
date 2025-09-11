@@ -9,15 +9,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId   String?  @unique
+  owner     User?    @relation("StoreOwner", fields: [ownerId], references: [id])
+  members   User[]   @relation("StoreMembers")
+}
+
 model User {
   id        String    @id @default(cuid())
   name      String?
   email     String    @unique
   password  String
-  role      String // 'admin' or 'seller'
+  role      String    // 'admin', 'seller', 'store_admin'
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   seller    Seller?
+
+  storeId   String?
+  store     Store?    @relation("StoreMembers", fields: [storeId], references: [id])
+
+  ownedStore Store?   @relation("StoreOwner")
 }
 
 model Seller {
@@ -28,8 +44,6 @@ model Seller {
   pa             Float?    @default(0)
   points         Int?      @default(0)
   extra_points   Int?      @default(0)
-  team_id        String?
-  // Adicione outras relações se necessário
 }
 
 model Mission {

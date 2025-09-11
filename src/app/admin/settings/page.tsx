@@ -13,13 +13,14 @@ import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, RefreshCw, AlertTriangle, Loader2, Save, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group, CalendarDays } from "lucide-react";
+import { Shield, RefreshCw, AlertTriangle, Loader2, Target, GraduationCap, ShoppingBag, Trophy, BarChart, Zap, Lightbulb, Users, Award, Group, CalendarDays } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdminContext } from '@/contexts/AdminContext';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import type { Seller } from '@/lib/types';
+import SaveAllButton from '@/components/SaveAllButton';
 
 // --- Esquemas de Validação com Zod ---
 const optionalNumber = z.union([z.string(), z.number()]).optional().transform(v => {
@@ -100,25 +101,25 @@ type GoalMetric = Exclude<keyof FormData['goals'], 'gamification' | 'teamGoalBon
 // --- Sub-componentes Refatorados ---
 
 const TabelaDePerformance = ({ control, fields }: { control: Control<FormData>, fields: Seller[] }) => (
-    <Card>
+    <Card className="shadow-md rounded-lg">
         <CardHeader>
             <CardTitle>Lançamento de Performance</CardTitle>
             <CardDescription>Insira os valores de vendas e outros indicadores para cada vendedor.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-            <Table>
-                <TableHeader>
+            <Table className="min-w-full divide-y divide-muted">
+                <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
-                        <TableHead>Vendedor</TableHead>
-                        <TableHead>Vendas (R$)</TableHead>
-                        <TableHead>Ticket Médio (R$)</TableHead>
-                        <TableHead>PA</TableHead>
-                        <TableHead>Pontos (Performance)</TableHead>
+                        <TableHead className="px-4 py-2">Vendedor</TableHead>
+                        <TableHead className="px-4 py-2">Vendas (R$)</TableHead>
+                        <TableHead className="px-4 py-2">Ticket Médio (R$)</TableHead>
+                        <TableHead className="px-4 py-2">PA</TableHead>
+                        <TableHead className="px-4 py-2">Pontos (Performance)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {(fields || []).map((field, index) => (
-                        <TableRow key={field.id}>
+                        <TableRow key={field.id} className="even:bg-muted/10 hover:bg-muted/20 transition-colors">
                             <TableCell className="font-medium">{field.name}</TableCell>
                             <TableCell>
                                 <FormField 
@@ -563,7 +564,7 @@ export default function SettingsPage() {
                         ranking: true,
                         sprints: true,
                         escala: true,
-                        ...goalsData.gamification,
+                        ...((goalsData as { gamification?: any })?.gamification ? (goalsData as { gamification?: any }).gamification : {}),
                     }
                 }
             };
@@ -571,12 +572,66 @@ export default function SettingsPage() {
         }
     }, [contextSellers, contextGoals, reset]);
 
-    const onSubmit = async (data: FormData) => {
+    const onSubmit = useCallback(async (data: FormData) => {
         console.log('Dados do formulário:', data); // Debug
         setIsSubmitting(true);
         try {
-            await updateSettings(data);
-            reset(data); // Reseta o formulário com os novos dados salvos, definindo isDirty para false
+            // Map sellers to include missing properties from contextSellers
+            const sellersWithFullProps = data.sellers.map(seller => {
+                const contextSeller = contextSellers?.find(cs => cs.id === seller.id);
+                let role: "admin" | "seller" = "seller";
+                if (contextSeller?.role === "admin") role = "admin";
+                else if (contextSeller?.role === "seller") role = "seller";
+                return {
+                    ...seller,
+                    email: contextSeller?.email ?? "",
+                    role
+                };
+            });
+            await updateSettings({
+                ...data,
+                sellers: sellersWithFullProps,
+                goals: {
+                    salesValue: data.goals.salesValue ?? {
+                        metinha: { threshold: undefined, prize: undefined },
+                        meta: { threshold: undefined, prize: undefined },
+                        metona: { threshold: undefined, prize: undefined },
+                        lendaria: { threshold: undefined, prize: undefined },
+                        performanceBonus: { per: undefined, prize: undefined },
+                        topScorerPrize: undefined,
+                    },
+                    ticketAverage: data.goals.ticketAverage ?? {
+                        metinha: { threshold: undefined, prize: undefined },
+                        meta: { threshold: undefined, prize: undefined },
+                        metona: { threshold: undefined, prize: undefined },
+                        lendaria: { threshold: undefined, prize: undefined },
+                        performanceBonus: { per: undefined, prize: undefined },
+                        topScorerPrize: undefined,
+                    },
+                    pa: data.goals.pa ?? {
+                        metinha: { threshold: undefined, prize: undefined },
+                        meta: { threshold: undefined, prize: undefined },
+                        metona: { threshold: undefined, prize: undefined },
+                        lendaria: { threshold: undefined, prize: undefined },
+                        performanceBonus: { per: undefined, prize: undefined },
+                        topScorerPrize: undefined,
+                    },
+                    points: data.goals.points ?? {
+                        metinha: { threshold: undefined, prize: undefined },
+                        meta: { threshold: undefined, prize: undefined },
+                        metona: { threshold: undefined, prize: undefined },
+                        lendaria: { threshold: undefined, prize: undefined },
+                        performanceBonus: { per: undefined, prize: undefined },
+                        topScorerPrize: undefined,
+                    },
+                    gamification: data.goals.gamification,
+                    teamGoalBonus: data.goals.teamGoalBonus,
+                }
+            });
+            reset({
+                ...data,
+                sellers: sellersWithFullProps
+            }); // Reseta o formulário com os novos dados salvos, definindo isDirty para false
             toast({
                 title: "Sucesso!",
                 description: "Configurações salvas com sucesso."
@@ -591,7 +646,7 @@ export default function SettingsPage() {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [updateSettings, toast, contextSellers]);
     
     const handleEndCycle = useCallback(async () => {
         toast({ 
@@ -599,6 +654,10 @@ export default function SettingsPage() {
             description: "A finalização de ciclo será implementada em breve." 
         });
     }, [toast]);
+
+    const onSaveAll = useCallback(async () => {
+        await handleSubmit(onSubmit)();
+    }, [handleSubmit, onSubmit]);
 
     if (isLoading) {
         return (
@@ -610,29 +669,22 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Shield className="size-8 text-primary" />
-                    <h1 className="text-3xl font-bold">Configurações Gerais</h1>
-                </div>
-                {isDirty && (
-                    <div className="flex items-center gap-2">
-                        <span className="text-yellow-400 font-semibold hidden sm:inline">
-                            Alterações não salvas
-                        </span>
-                        <Button onClick={handleSubmit(onSubmit)} disabled={isSubmitting}>
-                            {isSubmitting ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Salvar Tudo
-                        </Button>
-                    </div>
-                )}
-            </div>
             <Form {...form}>
-                <form>
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <Shield className="size-8 text-primary" />
+                            <h1 className="text-3xl font-bold">Configurações Gerais</h1>
+                        </div>
+                        {isDirty && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-yellow-400 font-semibold hidden sm:inline">
+                                    Alterações não salvas
+                                </span>
+                                <SaveAllButton onSave={onSaveAll} disabled={!isDirty || isSubmitting} />
+                            </div>
+                        )}
+                    </div>
                     <Tabs defaultValue="lancamentos" className="w-full">
                         <TabsList>
                             <TabsTrigger value="lancamentos">Lançamentos</TabsTrigger>

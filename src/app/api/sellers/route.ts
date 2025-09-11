@@ -16,17 +16,16 @@ export async function GET() {
             name: true,
             email: true,
             role: true,
-          }
-        }
+            storeId: true,
+          },
+        },
       },
       orderBy: {
-        user: {
-          name: 'asc'
-        }
-      }
+        user: { name: 'asc' },
+      },
     });
 
-    const sellers = sellersFromDb.map(s => ({
+    const sellers = sellersFromDb.map((s) => ({
       id: s.id,
       name: s.user.name,
       email: s.user.email,
@@ -36,6 +35,7 @@ export async function GET() {
       pa: s.pa,
       points: s.points,
       extra_points: s.extra_points,
+      storeId: s.user.storeId || null,
     }));
 
     return NextResponse.json(sellers);
@@ -53,10 +53,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, storeId } = await request.json();
 
-    if (!name || !email || !password || password.length < 6) {
-      return NextResponse.json({ message: 'Dados inválidos. Nome, e-mail e uma senha com pelo menos 6 caracteres são obrigatórios.' }, { status: 400 });
+    if (!name || !email || !password || password.length < 6 || !storeId) {
+      return NextResponse.json({ message: 'Dados inválidos. Nome, e-mail, senha (≥6) e loja são obrigatórios.' }, { status: 400 });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -76,16 +76,13 @@ export async function POST(request: Request) {
           email,
           password: hashedPassword,
           role: 'seller',
-        }
+          storeId,
+        },
       });
-      await tx.seller.create({
-        data: {
-          id: user.id,
-        }
-      });
+      await tx.seller.create({ data: { id: user.id } });
     });
 
-    return NextResponse.json({ id: newId, name, email, role: 'seller' }, { status: 201 });
+    return NextResponse.json({ id: newId, name, email, role: 'seller', storeId }, { status: 201 });
 
   } catch (error) {
     console.error('API Sellers POST Error:', error);
@@ -101,16 +98,20 @@ export async function PUT(request: Request) {
     }
 
     try {
-        const { id, name, email, sales_value, ticket_average, pa, points, extra_points } = await request.json();
+        const { id, name, email, storeId, sales_value, ticket_average, pa, points, extra_points } = await request.json();
 
-        if (!id) {
-            return NextResponse.json({ message: 'O ID do vendedor é obrigatório.' }, { status: 400 });
+        if (!id || !storeId) {
+            return NextResponse.json({ message: 'ID e loja são obrigatórios.' }, { status: 400 });
         }
 
         await prisma.$transaction(async (tx) => {
           await tx.user.update({
             where: { id },
-            data: { name, email },
+            data: {
+              name,
+              email,
+              storeId,
+            },
           });
           await tx.seller.update({
             where: { id },

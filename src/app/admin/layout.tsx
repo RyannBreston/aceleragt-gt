@@ -3,6 +3,8 @@ import { AdminProvider } from "@/contexts/AdminContext";
 import { Toaster } from "@/components/ui/toaster";
 import { ReactNode } from "react";
 import AdminNavbar from "./components/AdminNavbar";
+import Footer from '@/components/Footer';
+import PageHeader from '@/components/PageHeader';
 
 // Define a interface para as props do layout
 interface AdminLayoutProps {
@@ -16,7 +18,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <AdminProvider>
       <div className="flex min-h-screen w-full flex-col items-center">
         <AdminNavbar />
-        <div className="w-full p-2 md:p-14">{children}</div>
+        <PageHeader />
+        <div className="w-full p-2 md:p-14 max-w-screen-xl mx-auto">{children}</div>
+        <Footer />
         <Toaster />
       </div>
     </AdminProvider>

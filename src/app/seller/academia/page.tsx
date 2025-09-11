@@ -1,12 +1,18 @@
+/* eslint-disable react-hooks/rules-of-hooks, react-hooks/exhaustive-deps */
 'use client';
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen } from 'lucide-react';
 import { useSellerContext } from '@/contexts/SellerContext';
 import { Loader2 } from 'lucide-react';
+import CourseCard, { Course } from '@/components/CourseCard';
 
 export default function AcademiaPage() {
+  const courses: Course[] = React.useMemo(() => [
+    { id: 'c1', title: 'Boas-vindas e Introdução', description: 'Conheça a plataforma e seus recursos.', imageUrl: '/images/courses/intro.jpg' },
+    { id: 'c2', title: 'Vendas Consultivas', description: 'Aprenda a vender focando nas necessidades do cliente.', imageUrl: '/images/courses/consultivas.jpg' },
+    { id: 'c3', title: 'Estratégias de Fidelização', description: 'Técnicas para manter clientes satisfeitos.', imageUrl: '/images/courses/fidelizacao.jpg' },
+  ], []);
   const { isLoading } = useSellerContext();
 
   if (isLoading) {
@@ -26,14 +32,15 @@ export default function AcademiaPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <BookOpen className="mr-2" />
             Cursos e Treinamentos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p>
-            A funcionalidade da academia será implementada aqui na nova arquitetura.
-          </p>
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {courses.map(course => (
+              <CourseCard key={course.id} course={course} onAccess={(id) => console.log('Access course', id)} />
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

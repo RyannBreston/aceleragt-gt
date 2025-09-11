@@ -13,6 +13,7 @@ export interface Seller extends User {
   pa?: number;
   points?: number;
   extra_points?: number;
+  storeId?: string; // ID da loja à qual o vendedor pertence
 }
 
 export interface Mission {

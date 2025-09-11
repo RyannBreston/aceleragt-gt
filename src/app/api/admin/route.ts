@@ -4,31 +4,26 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Busca todos os sellers e inclui os dados do usuário relacionado (nome e email)
-    const sellersWithUser = await prisma.seller.findMany({
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
+    // Busca todos os usuários com role 'seller' e inclui dados da tabela Seller
+    const usersWithSeller = await prisma.user.findMany({
+      where: { role: 'seller' },
+      include: { seller: true },
     });
 
-    // Formata a resposta para combinar os dados do Seller e do User em um único objeto
-    const sellers = sellersWithUser.map(s => ({
-      id: s.id,
-      name: s.user.name,
-      email: s.user.email,
-      sales_value: s.sales_value,
-      ticket_average: s.ticket_average,
-      pa: s.pa,
-      points: s.points,
-      extra_points: s.extra_points,
-      team_id: s.team_id,
-      // Mantém a compatibilidade com a interface User
-      role: 'seller', 
+    // Formata a resposta para combinar os dados de User e Seller
+    const sellers = usersWithSeller
+      .filter(u => u.seller !== null)
+      .map(u => ({
+        id: u.id,
+        name: u.name || '',
+        email: u.email,
+        sales_value: u.seller?.sales_value ?? 0,
+        ticket_average: u.seller?.ticket_average ?? 0,
+        pa: u.seller?.pa ?? 0,
+        points: u.seller?.points ?? 0,
+        extra_points: u.seller?.extra_points ?? 0,
+        storeId: u.storeId || null,
+        role: u.role as 'seller',
     }));
 
     // Busca os outros dados
